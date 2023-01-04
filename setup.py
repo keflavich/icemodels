@@ -9,7 +9,7 @@ import sys
 
 from setuptools import setup
 
-from extension_helpers import get_extensions
+# doesn't work & not needed. from extension_helpers import get_extensions
 
 
 # First provide helpful messages if contributors try and run legacy commands
@@ -77,5 +77,5 @@ except Exception:
 """.lstrip()
 
 setup(use_scm_version={'write_to': os.path.join('icemodels', 'version.py'),
-                       'write_to_template': VERSION_TEMPLATE},
-      ext_modules=get_extensions())
+                       'write_to_template': VERSION_TEMPLATE},)
+      # doesn't work & not needed ext_modules=get_extensions())
