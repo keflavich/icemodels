@@ -190,8 +190,6 @@ def absorbed_spectrum_Gaussians(ice_column, center, width, ice_bandstrength,
     absorbed_spectrum = ((np.exp(-tau)) * spectrum)
     return absorbed_spectrum
 
-
-
 def convsum(xarr, model_data, filter_table, doplot=False):
     filtwav = u.Quantity(filter_table['Wavelength'], u.AA).to(u.um)
 
@@ -225,6 +223,6 @@ def fluxes_in_filters(xarr, modeldata, doplot=False):
         filterlist = SvoFps.get_filter_list(telescope, instrument)
         filterids = filterlist['filterID']
         fluxes_ = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
-                  for fid in list(filterids)}
+                   for fid in list(filterids)}
         fluxes.update(fluxes_)
     return fluxes
