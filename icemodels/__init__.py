@@ -6,4 +6,8 @@
 from ._astropy_init import *   # noqa
 # ----------------------------------------------------------------------------
 
-__all__ = []
+from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
+                   fluxes_in_filters, load_molecule)
+
+__all__ = [absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
+           fluxes_in_filters, load_molecule]
