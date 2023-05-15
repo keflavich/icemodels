@@ -186,7 +186,7 @@ def fluxes_in_filters(xarr, modeldata, doplot=False):
 
     fluxes = {}
     for instrument in ('NIRCam', 'MIRI'):
-        filterlist = SvoFps.get_filter_list(telescope, instrument)
+        filterlist = SvoFps.get_filter_list(telescope, instrument=instrument)
         filterids = filterlist['filterID']
         fluxes_ = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
                    for fid in list(filterids)}
