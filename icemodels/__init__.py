@@ -7,9 +7,11 @@ from ._astropy_init import *   # noqa
 # ----------------------------------------------------------------------------
 
 from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
-                   fluxes_in_filters, load_molecule, atmo_model, molecule_data)
+                   fluxes_in_filters, load_molecule, load_molecule_ocdb,
+                   atmo_model, molecule_data)
 from . import gaussian_model_components
 
 __all__ = [absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
-           fluxes_in_filters, load_molecule, atmo_model, molecule_data,
+           fluxes_in_filters, load_molecule, load_molecule_ocdb,
+           atmo_model, molecule_data,
            gaussian_model_components]
