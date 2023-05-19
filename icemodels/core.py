@@ -1,6 +1,8 @@
 import numpy as np
+from bs4 import BeautifulSoup
 import mysg # Tom Robitaille's YSO grid tool
 from astropy.table import Table
+from astropy.io import ascii
 from astropy import units as u
 import pylab as pl
 import requests
@@ -32,6 +34,27 @@ molecule_data = {'ch3oh':
                   'density': 0.8*u.g/u.cm**3,  # Satorre+2013 via Roser+2021
                  },
                 }
+
+astrochem_molecule_data = {
+                 'co': {'url': 'https://ocdb.smce.nasa.gov/dataset/89/'},
+                 'co_old':
+                 {'url': 'http://www.astrochem.org/data/CO/CO',
+                  'molwt': (12+16)*u.Da, },
+                 'co_hudgins':
+                 {'url': 'http://www.astrochem.org/data/CO/CO.Hudgins',
+                  'molwt': (12+16)*u.Da, },
+}
+
+univap_molecule_data = {
+    'co': {'url': "http://www1.univap.br/gaa/nkabs-database/G1.txt",
+           'molwt': (12+16)*u.Da, },
+    'co2': {'url': 'https://www1.univap.br/gaa/nkabs-database/G2.txt',
+            'molwt': (16*2+12)*u.Da, },
+    'h2o_amorphous': {'url': 'http://www1.univap.br/gaa/nkabs-database/L1.txt',
+                      'molwt': (16+2)*u.Da, },
+    'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
+                    'molwt': (16+2)*u.Da},
+}
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000)*u.um):
     """
@@ -83,6 +106,152 @@ def load_molecule(molname):
         consts.meta['density'] = density
     cache[molname] = consts
     return consts
+
+
+def load_molecule_univap(molname):
+    """
+    Load a molecule based on its name from the dictionary of molecular data files above
+    """
+    url = univap_molecule_data[molname]['url']
+    consts = Table.read(url, format='ascii', data_start=13)
+    if 'col1' in consts.colnames:
+        consts['col1'].unit = u.um
+        consts.rename_column('col1', 'Wavelength')
+        consts.rename_column('col2', 'n')
+        consts.rename_column('col3', 'k')
+    elif 'WaveNum' in consts.colnames:
+        consts['Wavelength'] = consts['WaveNum'].quantity.to(u.um, u.spectral())
+    if 'density' in univap_molecule_data[molname]:
+        consts.meta['density'] = univap_molecule_data[molname]['density']
+    else:
+        lines = requests.get(url).text.split('\n')
+        for line in lines:
+            if not line.startswith("#"):
+                break
+        density = float(line.split()[1])*u.g/u.cm**3
+        consts.meta['density'] = density
+    cache[molname] = consts
+    return consts
+
+
+
+def load_molecule_ocdb(molname):
+    S = requests.Session()
+    resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
+    resp = S.get('https://ocdb.smce.nasa.gov/ajax/datatable',
+                params={'start':0, 'length': 220,
+                    'search[value]': '',
+                    'search[regex]': 'false',
+                    'form_data[0][name]': 'formula_type',
+                    'form_data[0][value]': 'ice',
+                    'form_data[1][name]': 'temperature-min',
+                    'form_data[1][value]': '',
+                    'form_data[2][name]': 'temperature-max',
+                    'form_data[2][value]': '',
+                    'form_data[3][name]': 'wave-type-selector',
+                    'form_data[3][value]': 'wavenumber',
+                    'form_data[4][name]': 'wavenumber-min',
+                    'form_data[4][value]': '',
+                    'form_data[5][name]': 'wavenumber-max',
+                    'form_data[5][value]': '',
+                    'form_data[6][name]': 'wavelength-min',
+                    'form_data[6][value]': '',
+                    'form_data[7][name]': 'wavelength-max',
+                    'form_data[7][value]': '',
+                    "columns[0][data]": "formula_components",
+                    "columns[0][name]": "",
+                    "columns[0][searchable]": "true",
+                    "columns[0][orderable]": "true",
+                    "columns[0][search][value]": "",
+                    "columns[0][search][regex]": "false",
+                    "columns[1][data]": "formula_ratio",
+                    "columns[1][name]": "",
+                    "columns[1][searchable]": "true",
+                    "columns[1][orderable]": "true",
+                    "columns[1][search][value]": "",
+                    "columns[1][search][regex]": "false",
+                    "columns[2][data]": "dataset_temperature",
+                    "columns[2][name]": "",
+                    "columns[2][searchable]": "true",
+                    "columns[2][orderable]": "true",
+                    "columns[2][search][value]": "",
+                    "columns[2][search][regex]": "false",
+                    "columns[3][data]": "wavenumber_min",
+                    "columns[3][name]": "",
+                    "columns[3][searchable]": "true",
+                    "columns[3][orderable]": "true",
+                    "columns[3][search][value]": "",
+                    "columns[3][search][regex]": "false",
+                    "columns[4][data]": "wavenumber_max",
+                    "columns[4][name]": "",
+                    "columns[4][searchable]": "true",
+                    "columns[4][orderable]": "true",
+                    "columns[4][search][value]": "",
+                    "columns[4][search][regex]": "false",
+                    "columns[5][data]": "chart",
+                    "columns[5][name]": "",
+                    "columns[5][searchable]": "true",
+                    "columns[5][orderable]": "true",
+                    "columns[5][search][value]": "",
+                    "columns[5][search][regex]": "false",
+                    "columns[6][data]": "n",
+                    "columns[6][name]": "",
+                    "columns[6][searchable]": "true",
+                    "columns[6][orderable]": "true",
+                    "columns[6][search][value]": "",
+                    "columns[6][search][regex]": "false",
+                    "columns[7][data]": "k",
+                    "columns[7][name]": "",
+                    "columns[7][searchable]": "true",
+                    "columns[7][orderable]": "true",
+                    "columns[7][search][value]": "",
+                    "columns[7][search][regex]": "false",
+                    "columns[8][data]": "t",
+                    "columns[8][name]": "",
+                    "columns[8][searchable]": "true",
+                    "columns[8][orderable]": "true",
+                    "columns[8][search][value]": "",
+                    "columns[8][search][regex]": "false",
+                    "columns[9][data]": "r",
+                    "columns[9][name]": "",
+                    "columns[9][searchable]": "true",
+                    "columns[9][orderable]": "true",
+                    "columns[9][search][value]": "",
+                    "columns[9][search][regex]": "false",
+                    "columns[10][data]": "a",
+                    "columns[10][name]": "",
+                    "columns[10][searchable]": "true",
+                    "columns[10][orderable]": "true",
+                    "columns[10][search][value]": "",
+                    "columns[10][search][regex]": "false",
+                    "columns[11][data]": "o",
+                    "columns[11][name]": "",
+                    "columns[11][searchable]": "true",
+                    "columns[11][orderable]": "true",
+                    "columns[11][search][value]": "",
+                    "columns[11][search][regex]": "false",
+                    "columns[12][data]": "reference",
+                    "columns[12][name]": "",
+                    "columns[12][searchable]": "true",
+                    "columns[12][orderable]": "true",
+                    "columns[12][search][value]": "",
+                    "columns[12][search][regex]": "false",
+                    "order[0][column]": "0",
+                    "order[0][dir]": "asc",
+                    'draw': '1',
+                    }
+                )
+    metadata = resp.json()
+    soups = [BeautifulSoup(x['formula_components'], 'html5') for x in metadata['data']]
+    molecules = {soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else ""):
+        soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])}
+
+    dtabresp = S.get(f'{molecules[molname.lower()]}/download-data/all')
+    tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(), format='csv', delimiter='\t', header_start=5, data_start=6)
+
+    tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+    tb.meta['density'] = 1*u.g/u.cm**3 # TODO: Where does the density actually come from?
+    return tb
 
 
 def absorbed_spectrum(ice_column,
