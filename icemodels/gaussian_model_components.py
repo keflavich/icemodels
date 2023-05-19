@@ -34,3 +34,8 @@ methanol_ice_centers = methanol_ice_centers_icm.to(u.um, u.spectral())
 methanol_ice_widths = (methanol_ice_widths_icm / methanol_ice_centers_icm) * methanol_ice_centers
 methanol_ice_bandstrengths = [5.6e-18, 4e-18, 2.6e-18, 2.8e-18, 1.2e-17, 1.8e-18, 1.8e-17]*u.cm
 methanol_ice_centers_icm.to(u.um, u.spectral())
+
+
+co2_ice_center = co2_center = 4.27*u.um
+co2_ice_width = co2_width = 20*u.cm**-1 / (co2_center.to(u.cm**-1, u.spectral())) * co2_center
+co2_ice_bandstrength = co2_bandstrength = 7.6e-17*u.cm # per molecule; via Gerakines+ 1995 table 1
