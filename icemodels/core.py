@@ -46,11 +46,12 @@ astrochem_molecule_data = {
 }
 
 univap_molecule_data = {
-    'co': {'url': "http://www1.univap.br/gaa/nkabs-database/G1.txt",
+    # https://www1.univap.br/gaa/nkabs-database/data.htm
+    'co': {'url': "https://www.dropbox.com/s/dgufhmfwleak4ce/G1.txt?dl=1", #http://www1.univap.br/gaa/nkabs-database/G1.txt",
            'molwt': (12+16)*u.Da, },
-    'co2': {'url': 'https://www1.univap.br/gaa/nkabs-database/G2.txt',
+    'co2': {'url': 'https://www.dropbox.com/s/hoo9s01knc7p3su/G2.txt?dl=1', #'https://www1.univap.br/gaa/nkabs-database/G2.txt',
             'molwt': (16*2+12)*u.Da, },
-    'h2o_amorphous': {'url': 'http://www1.univap.br/gaa/nkabs-database/L1.txt',
+    'h2o_amorphous': {'url': 'https://www.dropbox.com/s/dcpqq20766fdf2i/L1.txt?dl=1', # http://www1.univap.br/gaa/nkabs-database/L1.txt',
                       'molwt': (16+2)*u.Da, },
     'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
                     'molwt': (16+2)*u.Da},
@@ -113,24 +114,15 @@ def load_molecule_univap(molname):
     Load a molecule based on its name from the dictionary of molecular data files above
     """
     url = univap_molecule_data[molname]['url']
-    consts = Table.read(url, format='ascii', data_start=13)
+    consts = Table.read(url, format='ascii', data_start=3)
     if 'col1' in consts.colnames:
-        consts['col1'].unit = u.um
-        consts.rename_column('col1', 'Wavelength')
-        consts.rename_column('col2', 'n')
+        consts['col1'].unit = u.cm**-1
+        consts.rename_column('col1', 'WaveNum')
+        consts.rename_column('col2', 'absorbance')
         consts.rename_column('col3', 'k')
-    elif 'WaveNum' in consts.colnames:
+        consts.rename_column('col4', 'n')
         consts['Wavelength'] = consts['WaveNum'].quantity.to(u.um, u.spectral())
-    if 'density' in univap_molecule_data[molname]:
-        consts.meta['density'] = univap_molecule_data[molname]['density']
-    else:
-        lines = requests.get(url).text.split('\n')
-        for line in lines:
-            if not line.startswith("#"):
-                break
-        density = float(line.split()[1])*u.g/u.cm**3
-        consts.meta['density'] = density
-    cache[molname] = consts
+    consts.meta['density'] = 1*u.g/u.cm**3
     return consts
 
 
@@ -242,7 +234,7 @@ def load_molecule_ocdb(molname):
                     }
                 )
     metadata = resp.json()
-    soups = [BeautifulSoup(x['formula_components'], 'html5') for x in metadata['data']]
+    soups = [BeautifulSoup(x['formula_components'], features='html5lib') for x in metadata['data']]
     molecules = {soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else ""):
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])}
 
@@ -250,7 +242,10 @@ def load_molecule_ocdb(molname):
     tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(), format='csv', delimiter='\t', header_start=5, data_start=6)
 
     tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
-    tb.meta['density'] = 1*u.g/u.cm**3 # TODO: Where does the density actually come from?
+    tb.meta['density'] = 1*u.g/u.cm**3
+    # Hudgins 1993, page 719:
+    # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
+    # "we estimate the uncertainty is no more than 30%"
     return tb
 
 
@@ -278,7 +273,9 @@ def absorbed_spectrum(ice_column,
     kay = np.interp(xarr.to(u.um),
                     ice_model_table['Wavelength'].quantity[inds],
                     ice_model_table['k'][inds])
-    tau = (kay * xarr_icm * 4 * np.pi * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
+    # Lambert absorption coefficient: k * 4pi/lambda
+    alpha = kay * xarr_icm * 4 * np.pi
+    tau = (alpha * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
     if return_tau:
         return tau
 
