@@ -51,12 +51,12 @@ univap_molecule_data = {
            'molwt': (12+16)*u.Da, },
     'co2': {'url': 'https://www.dropbox.com/s/hoo9s01knc7p3su/G2.txt?dl=1', #'https://www1.univap.br/gaa/nkabs-database/G2.txt',
             'molwt': (16*2+12)*u.Da, },
-    'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
-                     'molwt': (12+16)*u.Da, },
     'h2o_amorphous': {'url': 'https://www.dropbox.com/s/dcpqq20766fdf2i/L1.txt?dl=1', # http://www1.univap.br/gaa/nkabs-database/L1.txt',
                       'molwt': (16+2)*u.Da, },
     'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
                     'molwt': (16+2)*u.Da},
+    'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
+                     'molwt': (12+16)*u.Da, },
 }
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000)*u.um):
@@ -129,7 +129,7 @@ def load_molecule_univap(molname):
 
 
 
-def load_molecule_ocdb(molname):
+def load_molecule_ocdb(molname, temperature=10):
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
     resp = S.get('https://ocdb.smce.nasa.gov/ajax/datatable',
@@ -239,6 +239,8 @@ def load_molecule_ocdb(molname):
     soups = [BeautifulSoup(x['formula_components'], features='html5lib') for x in metadata['data']]
     molecules = {soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else ""):
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])}
+    molecules.update({soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else "") + "." + md['dataset_temperature'].lower():
+        soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])})
 
     dtabresp = S.get(f'{molecules[molname.lower()]}/download-data/all')
     tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(), format='csv', delimiter='\t', header_start=5, data_start=6)
