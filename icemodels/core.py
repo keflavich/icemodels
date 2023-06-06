@@ -51,6 +51,8 @@ univap_molecule_data = {
            'molwt': (12+16)*u.Da, },
     'co2': {'url': 'https://www.dropbox.com/s/hoo9s01knc7p3su/G2.txt?dl=1', #'https://www1.univap.br/gaa/nkabs-database/G2.txt',
             'molwt': (16*2+12)*u.Da, },
+    'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
+                     'molwt': (12+16)*u.Da, },
     'h2o_amorphous': {'url': 'https://www.dropbox.com/s/dcpqq20766fdf2i/L1.txt?dl=1', # http://www1.univap.br/gaa/nkabs-database/L1.txt',
                       'molwt': (16+2)*u.Da, },
     'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
