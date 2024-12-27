@@ -243,7 +243,13 @@ def load_molecule_ocdb(molname, temperature=10):
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])})
 
     dtabresp = S.get(f'{molecules[molname.lower()]}/download-data/all')
-    tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(), format='csv', delimiter='\t', header_start=5, data_start=6)
+    for ii in range(5, 12):
+        try:
+            # new header data appear to be added from time to time
+            tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(),
+                            format='csv', delimiter='\t', header_start=ii, data_start=ii+1)
+        except astropy.io.ascii.core.InconsistentTableError:
+            continue
 
     tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
     tb.meta['density'] = 1*u.g/u.cm**3
