@@ -7,6 +7,8 @@ from astropy import units as u
 import pylab as pl
 import requests
 from astroquery.svo_fps import SvoFps
+import astropy
+import astropy.io.ascii.core
 
 
 # "https://raw.githubusercontent.com/willastro/ifw_miri_gto_pstars/main/nk/co2-a-Gerakines2020.txt",
@@ -248,10 +250,14 @@ def load_molecule_ocdb(molname, temperature=10):
             # new header data appear to be added from time to time
             tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(),
                             format='csv', delimiter='\t', header_start=ii, data_start=ii+1)
+            break
         except astropy.io.ascii.core.InconsistentTableError:
             continue
 
-    tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+    if 'Wavelength (m)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+    else:
+        tb['Wavelength'] = (1/(tb['Wavenumber (cm)'] * u.cm)).to(u.um, u.spectral())
     tb.meta['density'] = 1*u.g/u.cm**3
     # Hudgins 1993, page 719:
     # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
