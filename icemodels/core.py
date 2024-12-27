@@ -4,6 +4,7 @@ import mysg # Tom Robitaille's YSO grid tool
 from astropy.table import Table
 from astropy.io import ascii
 from astropy import units as u
+from astropy import log
 import pylab as pl
 import requests
 from astroquery.svo_fps import SvoFps
@@ -243,13 +244,22 @@ def load_molecule_ocdb(molname, temperature=10):
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])}
     molecules.update({soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else "") + "." + md['dataset_temperature'].lower():
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])})
+    molecules.update({key.replace(" ",""): value for key, value in molecules.items()})
+
+    # Hudgins > Ehrenfreund; latter doesn't have k-values
+    molecules['co.10 k'] = molecules['co.10k'] = molecules['co'] = 'https://ocdb.smce.nasa.gov/dataset/85'
+    # non-Hudgins are overwriting Hudgins, but we want Hudgins
+    molecules['co2.10 k'] = molecules['co2.10k'] = molecules['co2'] = 'https://ocdb.smce.nasa.gov/dataset/86'
+    molecules['h2o.10 k'] = molecules['h2o.10k'] = molecules['h2o'] = 'https://ocdb.smce.nasa.gov/dataset/107'
+
+    log.debug(f"molecule name = {molname.lower()}, ID={molecules[molname.lower()]}")
 
     dtabresp = S.get(f'{molecules[molname.lower()]}/download-data/all')
     for ii in range(5, 12):
         try:
             # new header data appear to be added from time to time
             tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(),
-                            format='csv', delimiter='\t', header_start=ii, data_start=ii+1)
+                            format='tab', delimiter='\t', header_start=ii, data_start=ii+1)
             break
         except astropy.io.ascii.core.InconsistentTableError:
             continue
@@ -257,7 +267,7 @@ def load_molecule_ocdb(molname, temperature=10):
     if 'Wavelength (m)' in tb.colnames:
         tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
     else:
-        tb['Wavelength'] = (1/(tb['Wavenumber (cm)'] * u.cm)).to(u.um, u.spectral())
+        tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
     tb.meta['density'] = 1*u.g/u.cm**3
     # Hudgins 1993, page 719:
     # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
