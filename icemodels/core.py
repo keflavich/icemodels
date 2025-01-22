@@ -1,3 +1,6 @@
+import os
+import glob
+import shlex
 import numpy as np
 from bs4 import BeautifulSoup
 import mysg # Tom Robitaille's YSO grid tool
@@ -10,7 +13,9 @@ import requests
 from astroquery.svo_fps import SvoFps
 import astropy
 import astropy.io.ascii.core
+from tqdm.auto import tqdm
 
+optical_constants_cache_dir = os.path.dirname(__file__) + "/data"
 
 # "https://raw.githubusercontent.com/willastro/ifw_miri_gto_pstars/main/nk/co2-a-Gerakines2020.txt",
 molecule_data = {'ch3oh':
@@ -131,8 +136,87 @@ def load_molecule_univap(molname):
     return consts
 
 
+def load_molecule_icedb():
+    response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
+    icedb_co = ascii.read(response.text)
+    pl.plot(icedb_co['col1'], icedb_co['col2'])
 
-def load_molecule_ocdb(molname, temperature=10):
+
+def download_all_ocdb(n_ocdb=298):
+    S = requests.Session()
+    resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
+
+    for ii in tqdm(range(1, n_ocdb+1)):
+        resp = S.get(f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
+        for row in resp.text.split("\n"):
+            if row.startswith('Composition:'):
+                molname = shlex.split(row)[1]
+            if row.startswith('Temperature:'):
+                temperature = shlex.split(row)[1]
+            if row.startswith('Reference:'):
+                reference = shlex.split(row)[1].split()[0]
+        filename = f'{optical_constants_cache_dir}/{ii}_{molname}_{temperature}_{reference}.txt'
+        filename = filename.replace(" ", "_").replace("'", "").replace('\\','').replace('"','')
+        with open(filename, 'w') as fh:
+            fh.write(resp.text)
+
+
+def read_ocdb_file(filename):
+    for ii in range(5, 15):
+        try:
+            # new header data appear to be added from time to time
+            tb = ascii.read(filename,
+                            format='tab', delimiter='\t', header_start=ii, data_start=ii+1)
+            break
+        except astropy.io.ascii.core.InconsistentTableError:
+            if ii == 14:
+                raise ValueError("File appears to be invalid")
+            continue
+
+    if 'Wavelength (m)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+        tb['Wavenumber (cm)'] = tb['Wavenumber'] = (tb['Wavelength'].to(u.cm**-1, u.spectral()))
+    elif 'Wavelength (µm)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (µm)'] * u.um
+        tb['Wavenumber (cm)'] = tb['Wavenumber'] = (tb['Wavelength'].to(u.cm**-1, u.spectral()))
+    elif 'Wavenumber (cm⁻¹)' in tb.colnames:
+        tb['Wavelength'] = (tb['Wavenumber (cm⁻¹)'] * u.cm**-1).to(u.um, u.spectral())
+    elif 'Wavenumber (cm)' in tb.colnames:
+        tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
+    else:
+        raise ValueError(f"No wavelength column found in {tb.colnames}")
+
+    if 'k₁' in tb.colnames:
+        tb['k'] = tb['k₁']
+
+    tb.meta['density'] = 1*u.g/u.cm**3
+
+    with open(filename, 'r') as fh:
+        keys = ['Reference:', 'DOI:', 'Composition:', 'Temperature:', 'OCdb page:']
+        rows = fh.readlines()
+        for row in rows[:20]:
+            for key in keys:
+                if row.startswith(key):
+                    kk = key.lower().strip(":")
+                    tb.meta[kk] = (" ".join(row.split(":")[1:])).strip().strip('"')
+
+    if 'reference' in tb.meta:
+        tb.meta['author'] = tb.meta['reference'].split()[0]
+    if 'composition' in tb.meta:
+        tb.meta['molecule'] = tb.meta['composition'].split()[0]
+
+    return tb
+
+
+def load_molecule_ocdb(molname, temperature=10, use_cached=True):
+
+    if use_cached:
+        cache_list = glob.glob(f'{optical_constants_cache_dir}/*.txt')
+        if any([molname in x.lower() for x in cache_list]):
+            for filename in cache_list:
+                if molname in filename.lower():
+                    return read_ocdb_file(filename)
+
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
     resp = S.get('https://ocdb.smce.nasa.gov/ajax/datatable',
@@ -267,7 +351,12 @@ def load_molecule_ocdb(molname, temperature=10):
     if 'Wavelength (m)' in tb.colnames:
         tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
     else:
-        tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
+        if 'Wavenumber (cm⁻¹)' in tb.colnames:
+            tb['Wavelength'] = (tb['Wavenumber (cm⁻¹)'] * u.cm**-1).to(u.um, u.spectral())
+            tb['Wavenumber (cm)'] = tb['Wavenumber (cm⁻¹)']
+        elif 'Wavenumber (cm)' in tb.colnames:
+            tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
+            tb['Wavenumber (cm⁻¹)'] = tb['Wavenumber (cm)']
     tb.meta['density'] = 1*u.g/u.cm**3
     # Hudgins 1993, page 719:
     # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
