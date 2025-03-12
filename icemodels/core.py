@@ -631,4 +631,4 @@ def composition_to_molweight(compstr):
     if len(comps) == 0:
         raise ValueError(f"No comps found for compstr='{compstr}'")
 
-    return sum([m*c for m,c in zip(molvals, comps)]) / sum(comps)
+    return sum([m*c for m,c in zip(molvals, comps)]) / sum(comps) * u.Da
