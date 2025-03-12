@@ -1,6 +1,8 @@
 import os
+import re
 import glob
 import shlex
+import json
 import numpy as np
 from bs4 import BeautifulSoup
 import mysg # Tom Robitaille's YSO grid tool
@@ -14,6 +16,8 @@ from astroquery.svo_fps import SvoFps
 import astropy
 import astropy.io.ascii.core
 from tqdm.auto import tqdm
+from pylatexenc.latex2text import LatexNodes2Text
+from molmass import Formula
 
 optical_constants_cache_dir = os.path.dirname(__file__) + "/data"
 
@@ -142,11 +146,13 @@ def load_molecule_icedb():
     pl.plot(icedb_co['col1'], icedb_co['col2'])
 
 
-def download_all_ocdb(n_ocdb=298):
+def download_all_ocdb(n_ocdb=298, redo=False):
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
 
     for ii in tqdm(range(1, n_ocdb+1)):
+        if not redo and len(glob.glob(f'{optical_constants_cache_dir}/{ii}*')) > 0:
+            continue
         resp = S.get(f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
         for row in resp.text.split("\n"):
             if row.startswith('Composition:'):
@@ -188,6 +194,9 @@ def read_ocdb_file(filename):
 
     if 'k₁' in tb.colnames:
         tb['k'] = tb['k₁']
+
+    if 'k' not in tb.colnames:
+        raise ValueError("Table had no opacity column")
 
     tb.meta['density'] = 1*u.g/u.cm**3
 
@@ -457,7 +466,7 @@ def convsum(xarr, model_data, filter_table, doplot=False):
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
     return result# * dnu
 
-def fluxes_in_filters(xarr, modeldata, doplot=False):
+def fluxes_in_filters(xarr, modeldata, doplot=False, filterids=None):
     telescope = 'JWST'
 
     if doplot:
@@ -465,11 +474,161 @@ def fluxes_in_filters(xarr, modeldata, doplot=False):
         pl.xlabel("Wavelengh [$\\mu$m]")
         pl.ylabel("Flux [Jy]")
 
-    fluxes = {}
-    for instrument in ('NIRCam', 'MIRI'):
-        filterlist = SvoFps.get_filter_list(telescope, instrument=instrument)
-        filterids = filterlist['filterID']
-        fluxes_ = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
-                   for fid in list(filterids)}
-        fluxes.update(fluxes_)
+    if filterids is None:
+        filterids = [x
+                     for instrument in ('NIRCam', 'MIRI')
+                     for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
+
+    fluxes = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
+              for fid in list(filterids)}
+
     return fluxes
+
+
+def retrieve_gerakines_co(resolution='low'):
+    import pandas as pd
+
+    cache_file = f'{optical_constants_cache_dir}/CO_n_k_values_25_K_2023.xlsx'
+
+    if os.path.exists(cache_file):
+        dd = pd.read_excel(cache_file)
+    else:
+        dd = pd.read_excel('https://science.gsfc.nasa.gov/691/cosmicice/constants/co/CO_n_k_values_25_K_2023.xlsx')
+        dd.to_excel(cache_file)
+    
+    # lores
+    if resolution == 'low':
+        wavenumber = np.array(dd['Unnamed: 2'][1:], dtype='float')
+        kk = np.array(dd['Unnamed: 4'][1:], dtype='float')
+    # hires
+    elif resolution == 'high':
+        wavenumber = np.array(dd['Unnamed: 7'][1:], dtype='float')
+        kk = np.array(dd['Unnamed: 9'][1:], 'float')
+    else:
+        raise ValueError("resolution must be 'low' or 'high'")
+    keep = np.isfinite(wavenumber) & np.isfinite(kk)
+    tbl = Table({'Wavenumber': (wavenumber[keep])*u.cm**-1,
+                 'Wavelength': (wavenumber[keep]*u.cm**-1).to(u.um, u.spectral()),
+                 'k': kk[keep]})
+    tbl.meta['density'] = 1.029*u.g/u.cm**3
+    tbl.meta['temperature'] = 25
+    tbl.meta['author'] = 'Gerakines2023'
+    tbl.meta['composition'] = 'CO'
+    tbl.meta['molecule'] = 'CO'
+    tbl.meta['molwt'] = 28
+    tbl.meta['index'] = 63 if resolution == 'low' else 64 # OCDB index
+
+    return tbl
+
+
+def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leidenuniv.nl'):
+    S = requests.Session()
+
+    if redo or not os.path.exists(f'{optical_constants_cache_dir}/lida_index.json'):
+        index = {}
+        for ii in range(1, 10):
+            resp = S.get(f'{baseurl}/page/{ii}')
+            soup = BeautifulSoup(resp.text, features='html5lib')
+            mollinks = soup.findAll('a', class_='name')
+            for ml in mollinks:
+                moltext = LatexNodes2Text().latex_to_text(ml.text)
+                ind = int(ml.attrs['href'].split('/')[-1])
+                if 'Pure' in moltext:
+                    molname = moltext.replace('Pure ', '')
+                    ratio = '1'
+                elif 'over' in moltext or 'under' in moltext or 'Salt residue' in moltext:
+                    molname = moltext
+                    ratio = '1'
+                elif ':' in moltext:
+                    molname, ratio = [x for x in moltext.split() if ':' in x]
+                else:
+                    molname = moltext
+                    ratio = '1'
+                index[ind] = {'full': moltext,
+                              'name': molname,
+                              'ratio': ratio,
+                              'url': f'{baseurl}/data/{ind}'
+                               }
+        with open(f'{optical_constants_cache_dir}/lida_index.json', 'w') as fh:
+            json.dump(index, fh)
+    else:
+        with open(f'{optical_constants_cache_dir}/lida_index.json', 'r') as fh:
+            index = json.load(fh)
+
+    for ii in tqdm(index):
+        url = index[ii]['url']
+        molname = index[ii]['name']
+        ratio = index[ii]['ratio']
+
+        resp1 = S.get(url)
+
+        soup = BeautifulSoup(resp1.text, features='html5lib')
+        
+        datafiles = soup.findAll('a', text='TXT')
+
+        for df in datafiles:
+            outfn = f'{optical_constants_cache_dir}/{ii}_{molname}_{ratio}_{df.attrs["href"].split("/")[-1]}'
+            if not os.path.exists(outfn) or redo:
+                url = f'{baseurl}/{df.attrs["href"]}'
+                resp = S.get(url)
+                with open(outfn, 'w') as fh:
+
+                    fh.write(resp.text)
+
+
+def read_lida_file(filename):
+    tb = ascii.read(filename)
+    tb.rename_column('col1', 'Wavenumber')
+    tb['Wavenumber'].unit = u.cm**-1
+    tb.rename_column('col2', 'k')
+    tb['Wavelength'] = (tb['Wavenumber'].quantity).to(u.um, u.spectral())
+
+    tb.meta['density'] = 1*u.g/u.cm**3
+    tb.meta['index'] = int(os.path.basename(filename).split('_')[0])
+    tb.meta['molecule'] = os.path.basename(filename).split('_')[1]
+    tb.meta['ratio'] = os.path.basename(filename).split('_')[2]
+    tb.meta['author'] = ''
+    tb.meta['composition'] = tb.meta['molecule'] + ' ' + tb.meta['ratio']
+    tb.meta['temperature'] = float(filename.split("_")[-1].split(".")[0].strip("K"))
+
+    return tb
+
+
+def composition_to_molweight(compstr):
+    """
+    Composition strings look like
+
+    'CO:CH3OH:CH3OCH3 (20:20:1)',
+    'CO:CH3OH:CH3CHO (20:20:1)',
+    'CO:CH3CHO (20:1)',
+    'CO CH4 (20 1)',
+    'CO:CO2 (100:16)',
+    'CO:CH3OH:CH3CH2OH (20:20:1)',
+    'CO:O2:CO2 (100:54:10)',
+    'CO:CO2 (1:10)',
+    'CO:O2 (100:50)',
+    'CO N2 H2O (5 5 1)',
+    'CO:HCOOH 1:1',
+    'CO CH4 (20 1)',
+    """
+
+    if 'under' in compstr or 'over' in compstr or len(compstr.split(" ")) == 1:
+        return Formula(compstr.split()[0]).mass
+
+
+    try:
+        mols, comps = compstr.split(" (")
+    except ValueError as ex:
+        try:
+            mols, comps = compstr.split(" ")
+        except Exception as ex:
+            print(ex)
+            print(f"Not enough components in '{compstr}'")
+            raise ex
+    comps = list(map(int, re.split("[: ]", comps.strip(")"))))
+    molvals = [Formula(mol).mass for mol in re.split("[: ]", mols)]
+
+    if len(comps) == 0:
+        raise ValueError(f"No comps found for compstr='{compstr}'")
+
+    return sum([m*c for m,c in zip(molvals, comps)]) / sum(comps)
