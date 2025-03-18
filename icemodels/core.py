@@ -48,6 +48,8 @@ astrochem_molecule_data = {
 univap_molecule_data = {
     'co': {'url': "http://www1.univap.br/gaa/nkabs-database/G1.txt",
            'molwt': (12+16)*u.Da, },
+    'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
+                     'molwt': (12+16)*u.Da, },
     'co2': {'url': 'https://www1.univap.br/gaa/nkabs-database/G2.txt',
             'molwt': (16*2+12)*u.Da, },
     'h2o_amorphous': {'url': 'http://www1.univap.br/gaa/nkabs-database/L1.txt',
