@@ -1,13 +1,25 @@
+import os
+import re
+import glob
+import shlex
+import json
 import numpy as np
 from bs4 import BeautifulSoup
 import mysg # Tom Robitaille's YSO grid tool
 from astropy.table import Table
 from astropy.io import ascii
 from astropy import units as u
+from astropy import log
 import pylab as pl
 import requests
 from astroquery.svo_fps import SvoFps
+import astropy
+import astropy.io.ascii.core
+from tqdm.auto import tqdm
+from pylatexenc.latex2text import LatexNodes2Text
+from molmass import Formula
 
+optical_constants_cache_dir = os.path.dirname(__file__) + "/data"
 
 # "https://raw.githubusercontent.com/willastro/ifw_miri_gto_pstars/main/nk/co2-a-Gerakines2020.txt",
 molecule_data = {'ch3oh':
@@ -46,16 +58,19 @@ astrochem_molecule_data = {
 }
 
 univap_molecule_data = {
-    'co': {'url': "http://www1.univap.br/gaa/nkabs-database/G1.txt",
+    # https://www1.univap.br/gaa/nkabs-database/data.htm
+    'co': {'url': "https://www.dropbox.com/s/dgufhmfwleak4ce/G1.txt?dl=1", #http://www1.univap.br/gaa/nkabs-database/G1.txt",
            'molwt': (12+16)*u.Da, },
     'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
                      'molwt': (12+16)*u.Da, },
-    'co2': {'url': 'https://www1.univap.br/gaa/nkabs-database/G2.txt',
+    'co2': {'url': 'https://www.dropbox.com/s/hoo9s01knc7p3su/G2.txt?dl=1', #'https://www1.univap.br/gaa/nkabs-database/G2.txt',
             'molwt': (16*2+12)*u.Da, },
-    'h2o_amorphous': {'url': 'http://www1.univap.br/gaa/nkabs-database/L1.txt',
+    'h2o_amorphous': {'url': 'https://www.dropbox.com/s/dcpqq20766fdf2i/L1.txt?dl=1', # http://www1.univap.br/gaa/nkabs-database/L1.txt',
                       'molwt': (16+2)*u.Da, },
     'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
                     'molwt': (16+2)*u.Da},
+    'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
+                     'molwt': (12+16)*u.Da, },
 }
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000)*u.um):
@@ -115,29 +130,104 @@ def load_molecule_univap(molname):
     Load a molecule based on its name from the dictionary of molecular data files above
     """
     url = univap_molecule_data[molname]['url']
-    consts = Table.read(url, format='ascii', data_start=13)
+    consts = Table.read(url, format='ascii', data_start=3)
     if 'col1' in consts.colnames:
-        consts['col1'].unit = u.um
-        consts.rename_column('col1', 'Wavelength')
-        consts.rename_column('col2', 'n')
+        consts['col1'].unit = u.cm**-1
+        consts.rename_column('col1', 'WaveNum')
+        consts.rename_column('col2', 'absorbance')
         consts.rename_column('col3', 'k')
-    elif 'WaveNum' in consts.colnames:
+        consts.rename_column('col4', 'n')
         consts['Wavelength'] = consts['WaveNum'].quantity.to(u.um, u.spectral())
-    if 'density' in univap_molecule_data[molname]:
-        consts.meta['density'] = univap_molecule_data[molname]['density']
-    else:
-        lines = requests.get(url).text.split('\n')
-        for line in lines:
-            if not line.startswith("#"):
-                break
-        density = float(line.split()[1])*u.g/u.cm**3
-        consts.meta['density'] = density
-    cache[molname] = consts
+    consts.meta['density'] = 1*u.g/u.cm**3
     return consts
 
 
+def load_molecule_icedb():
+    response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
+    icedb_co = ascii.read(response.text)
+    pl.plot(icedb_co['col1'], icedb_co['col2'])
 
-def load_molecule_ocdb(molname):
+
+def download_all_ocdb(n_ocdb=298, redo=False):
+    S = requests.Session()
+    resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
+
+    for ii in tqdm(range(1, n_ocdb+1)):
+        if not redo and len(glob.glob(f'{optical_constants_cache_dir}/{ii}*')) > 0:
+            continue
+        resp = S.get(f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
+        for row in resp.text.split("\n"):
+            if row.startswith('Composition:'):
+                molname = shlex.split(row)[1]
+            if row.startswith('Temperature:'):
+                temperature = shlex.split(row)[1]
+            if row.startswith('Reference:'):
+                reference = shlex.split(row)[1].split()[0]
+        filename = f'{optical_constants_cache_dir}/{ii}_{molname}_{temperature}_{reference}.txt'
+        filename = filename.replace(" ", "_").replace("'", "").replace('\\','').replace('"','')
+        with open(filename, 'w') as fh:
+            fh.write(resp.text)
+
+
+def read_ocdb_file(filename):
+    for ii in range(5, 15):
+        try:
+            # new header data appear to be added from time to time
+            tb = ascii.read(filename,
+                            format='tab', delimiter='\t', header_start=ii, data_start=ii+1)
+            break
+        except astropy.io.ascii.core.InconsistentTableError:
+            if ii == 14:
+                raise ValueError("File appears to be invalid")
+            continue
+
+    if 'Wavelength (m)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+        tb['Wavenumber (cm)'] = tb['Wavenumber'] = (tb['Wavelength'].to(u.cm**-1, u.spectral()))
+    elif 'Wavelength (µm)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (µm)'] * u.um
+        tb['Wavenumber (cm)'] = tb['Wavenumber'] = (tb['Wavelength'].to(u.cm**-1, u.spectral()))
+    elif 'Wavenumber (cm⁻¹)' in tb.colnames:
+        tb['Wavelength'] = (tb['Wavenumber (cm⁻¹)'] * u.cm**-1).to(u.um, u.spectral())
+    elif 'Wavenumber (cm)' in tb.colnames:
+        tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
+    else:
+        raise ValueError(f"No wavelength column found in {tb.colnames}")
+
+    if 'k₁' in tb.colnames:
+        tb['k'] = tb['k₁']
+
+    if 'k' not in tb.colnames:
+        raise ValueError("Table had no opacity column")
+
+    tb.meta['density'] = 1*u.g/u.cm**3
+
+    with open(filename, 'r') as fh:
+        keys = ['Reference:', 'DOI:', 'Composition:', 'Temperature:', 'OCdb page:']
+        rows = fh.readlines()
+        for row in rows[:20]:
+            for key in keys:
+                if row.startswith(key):
+                    kk = key.lower().strip(":")
+                    tb.meta[kk] = (" ".join(row.split(":")[1:])).strip().strip('"')
+
+    if 'reference' in tb.meta:
+        tb.meta['author'] = tb.meta['reference'].split()[0]
+    if 'composition' in tb.meta:
+        tb.meta['molecule'] = tb.meta['composition'].split()[0]
+
+    return tb
+
+
+def load_molecule_ocdb(molname, temperature=10, use_cached=True):
+
+    if use_cached:
+        cache_list = glob.glob(f'{optical_constants_cache_dir}/*.txt')
+        if any([molname in x.lower() for x in cache_list]):
+            for filename in cache_list:
+                if molname in filename.lower():
+                    return read_ocdb_file(filename)
+
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
     resp = S.get('https://ocdb.smce.nasa.gov/ajax/datatable',
@@ -244,15 +334,44 @@ def load_molecule_ocdb(molname):
                     }
                 )
     metadata = resp.json()
-    soups = [BeautifulSoup(x['formula_components'], 'html5') for x in metadata['data']]
+    soups = [BeautifulSoup(x['formula_components'], features='html5lib') for x in metadata['data']]
     molecules = {soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else ""):
         soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])}
+    molecules.update({soup.find('a').text.lower() + (f".{md['formula_ratio']}" if md['formula_ratio'] != "1" else "") + "." + md['dataset_temperature'].lower():
+        soup.find('a').attrs['href'] for soup, md in zip(soups, metadata['data'])})
+    molecules.update({key.replace(" ",""): value for key, value in molecules.items()})
+
+    # Hudgins > Ehrenfreund; latter doesn't have k-values
+    molecules['co.10 k'] = molecules['co.10k'] = molecules['co'] = 'https://ocdb.smce.nasa.gov/dataset/85'
+    # non-Hudgins are overwriting Hudgins, but we want Hudgins
+    molecules['co2.10 k'] = molecules['co2.10k'] = molecules['co2'] = 'https://ocdb.smce.nasa.gov/dataset/86'
+    molecules['h2o.10 k'] = molecules['h2o.10k'] = molecules['h2o'] = 'https://ocdb.smce.nasa.gov/dataset/107'
+
+    log.debug(f"molecule name = {molname.lower()}, ID={molecules[molname.lower()]}")
 
     dtabresp = S.get(f'{molecules[molname.lower()]}/download-data/all')
-    tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(), format='csv', delimiter='\t', header_start=5, data_start=6)
+    for ii in range(5, 12):
+        try:
+            # new header data appear to be added from time to time
+            tb = ascii.read(dtabresp.text.encode('ascii', 'ignore').decode(),
+                            format='tab', delimiter='\t', header_start=ii, data_start=ii+1)
+            break
+        except astropy.io.ascii.core.InconsistentTableError:
+            continue
 
-    tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
-    tb.meta['density'] = 1*u.g/u.cm**3 # TODO: Where does the density actually come from?
+    if 'Wavelength (m)' in tb.colnames:
+        tb['Wavelength'] = tb['Wavelength (m)'] * u.um # micron got truncated
+    else:
+        if 'Wavenumber (cm⁻¹)' in tb.colnames:
+            tb['Wavelength'] = (tb['Wavenumber (cm⁻¹)'] * u.cm**-1).to(u.um, u.spectral())
+            tb['Wavenumber (cm)'] = tb['Wavenumber (cm⁻¹)']
+        elif 'Wavenumber (cm)' in tb.colnames:
+            tb['Wavelength'] = (tb['Wavenumber (cm)'] * u.cm**-1).to(u.um, u.spectral())
+            tb['Wavenumber (cm⁻¹)'] = tb['Wavenumber (cm)']
+    tb.meta['density'] = 1*u.g/u.cm**3
+    # Hudgins 1993, page 719:
+    # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
+    # "we estimate the uncertainty is no more than 30%"
     return tb
 
 
@@ -280,7 +399,9 @@ def absorbed_spectrum(ice_column,
     kay = np.interp(xarr.to(u.um),
                     ice_model_table['Wavelength'].quantity[inds],
                     ice_model_table['k'][inds])
-    tau = (kay * xarr_icm * 4 * np.pi * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
+    # Lambert absorption coefficient: k * 4pi/lambda
+    alpha = kay * xarr_icm * 4 * np.pi
+    tau = (alpha * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
     if return_tau:
         return tau
 
@@ -347,7 +468,7 @@ def convsum(xarr, model_data, filter_table, doplot=False):
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
     return result# * dnu
 
-def fluxes_in_filters(xarr, modeldata, doplot=False):
+def fluxes_in_filters(xarr, modeldata, doplot=False, filterids=None):
     telescope = 'JWST'
 
     if doplot:
@@ -355,11 +476,161 @@ def fluxes_in_filters(xarr, modeldata, doplot=False):
         pl.xlabel("Wavelengh [$\\mu$m]")
         pl.ylabel("Flux [Jy]")
 
-    fluxes = {}
-    for instrument in ('NIRCam', 'MIRI'):
-        filterlist = SvoFps.get_filter_list(telescope, instrument=instrument)
-        filterids = filterlist['filterID']
-        fluxes_ = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
-                   for fid in list(filterids)}
-        fluxes.update(fluxes_)
+    if filterids is None:
+        filterids = [x
+                     for instrument in ('NIRCam', 'MIRI')
+                     for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
+
+    fluxes = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
+              for fid in list(filterids)}
+
     return fluxes
+
+
+def retrieve_gerakines_co(resolution='low'):
+    import pandas as pd
+
+    cache_file = f'{optical_constants_cache_dir}/CO_n_k_values_25_K_2023.xlsx'
+
+    if os.path.exists(cache_file):
+        dd = pd.read_excel(cache_file)
+    else:
+        dd = pd.read_excel('https://science.gsfc.nasa.gov/691/cosmicice/constants/co/CO_n_k_values_25_K_2023.xlsx')
+        dd.to_excel(cache_file)
+    
+    # lores
+    if resolution == 'low':
+        wavenumber = np.array(dd['Unnamed: 2'][1:], dtype='float')
+        kk = np.array(dd['Unnamed: 4'][1:], dtype='float')
+    # hires
+    elif resolution == 'high':
+        wavenumber = np.array(dd['Unnamed: 7'][1:], dtype='float')
+        kk = np.array(dd['Unnamed: 9'][1:], 'float')
+    else:
+        raise ValueError("resolution must be 'low' or 'high'")
+    keep = np.isfinite(wavenumber) & np.isfinite(kk)
+    tbl = Table({'Wavenumber': (wavenumber[keep])*u.cm**-1,
+                 'Wavelength': (wavenumber[keep]*u.cm**-1).to(u.um, u.spectral()),
+                 'k': kk[keep]})
+    tbl.meta['density'] = 1.029*u.g/u.cm**3
+    tbl.meta['temperature'] = 25
+    tbl.meta['author'] = 'Gerakines2023'
+    tbl.meta['composition'] = 'CO'
+    tbl.meta['molecule'] = 'CO'
+    tbl.meta['molwt'] = 28
+    tbl.meta['index'] = 63 if resolution == 'low' else 64 # OCDB index
+
+    return tbl
+
+
+def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leidenuniv.nl'):
+    S = requests.Session()
+
+    if redo or not os.path.exists(f'{optical_constants_cache_dir}/lida_index.json'):
+        index = {}
+        for ii in range(1, 10):
+            resp = S.get(f'{baseurl}/page/{ii}')
+            soup = BeautifulSoup(resp.text, features='html5lib')
+            mollinks = soup.findAll('a', class_='name')
+            for ml in mollinks:
+                moltext = LatexNodes2Text().latex_to_text(ml.text)
+                ind = int(ml.attrs['href'].split('/')[-1])
+                if 'Pure' in moltext:
+                    molname = moltext.replace('Pure ', '')
+                    ratio = '1'
+                elif 'over' in moltext or 'under' in moltext or 'Salt residue' in moltext:
+                    molname = moltext
+                    ratio = '1'
+                elif ':' in moltext:
+                    molname, ratio = [x for x in moltext.split() if ':' in x]
+                else:
+                    molname = moltext
+                    ratio = '1'
+                index[ind] = {'full': moltext,
+                              'name': molname,
+                              'ratio': ratio,
+                              'url': f'{baseurl}/data/{ind}'
+                               }
+        with open(f'{optical_constants_cache_dir}/lida_index.json', 'w') as fh:
+            json.dump(index, fh)
+    else:
+        with open(f'{optical_constants_cache_dir}/lida_index.json', 'r') as fh:
+            index = json.load(fh)
+
+    for ii in tqdm(index):
+        url = index[ii]['url']
+        molname = index[ii]['name']
+        ratio = index[ii]['ratio']
+
+        resp1 = S.get(url)
+
+        soup = BeautifulSoup(resp1.text, features='html5lib')
+        
+        datafiles = soup.findAll('a', text='TXT')
+
+        for df in datafiles:
+            outfn = f'{optical_constants_cache_dir}/{ii}_{molname}_{ratio}_{df.attrs["href"].split("/")[-1]}'
+            if not os.path.exists(outfn) or redo:
+                url = f'{baseurl}/{df.attrs["href"]}'
+                resp = S.get(url)
+                with open(outfn, 'w') as fh:
+
+                    fh.write(resp.text)
+
+
+def read_lida_file(filename):
+    tb = ascii.read(filename)
+    tb.rename_column('col1', 'Wavenumber')
+    tb['Wavenumber'].unit = u.cm**-1
+    tb.rename_column('col2', 'k')
+    tb['Wavelength'] = (tb['Wavenumber'].quantity).to(u.um, u.spectral())
+
+    tb.meta['density'] = 1*u.g/u.cm**3
+    tb.meta['index'] = int(os.path.basename(filename).split('_')[0])
+    tb.meta['molecule'] = os.path.basename(filename).split('_')[1]
+    tb.meta['ratio'] = os.path.basename(filename).split('_')[2]
+    tb.meta['author'] = ''
+    tb.meta['composition'] = tb.meta['molecule'] + ' ' + tb.meta['ratio']
+    tb.meta['temperature'] = float(filename.split("_")[-1].split(".")[0].strip("K"))
+
+    return tb
+
+
+def composition_to_molweight(compstr):
+    """
+    Composition strings look like
+
+    'CO:CH3OH:CH3OCH3 (20:20:1)',
+    'CO:CH3OH:CH3CHO (20:20:1)',
+    'CO:CH3CHO (20:1)',
+    'CO CH4 (20 1)',
+    'CO:CO2 (100:16)',
+    'CO:CH3OH:CH3CH2OH (20:20:1)',
+    'CO:O2:CO2 (100:54:10)',
+    'CO:CO2 (1:10)',
+    'CO:O2 (100:50)',
+    'CO N2 H2O (5 5 1)',
+    'CO:HCOOH 1:1',
+    'CO CH4 (20 1)',
+    """
+
+    if 'under' in compstr or 'over' in compstr or len(compstr.split(" ")) == 1:
+        return Formula(compstr.split()[0]).mass
+
+
+    try:
+        mols, comps = compstr.split(" (")
+    except ValueError as ex:
+        try:
+            mols, comps = compstr.split(" ")
+        except Exception as ex:
+            print(ex)
+            print(f"Not enough components in '{compstr}'")
+            raise ex
+    comps = list(map(int, re.split("[: ]", comps.strip(")"))))
+    molvals = [Formula(mol).mass for mol in re.split("[: ]", mols)]
+
+    if len(comps) == 0:
+        raise ValueError(f"No comps found for compstr='{compstr}'")
+
+    return sum([m*c for m,c in zip(molvals, comps)]) / sum(comps) * u.Da
