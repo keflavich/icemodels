@@ -398,7 +398,10 @@ def absorbed_spectrum(ice_column,
     inds = np.argsort(ice_model_table['Wavelength'].quantity)
     kay = np.interp(xarr.to(u.um),
                     ice_model_table['Wavelength'].quantity[inds],
-                    ice_model_table['k'][inds])
+                    ice_model_table['k'][inds],
+                    left=0,
+                    right=0,
+                    )
     # Lambert absorption coefficient: k * 4pi/lambda
     alpha = kay * xarr_icm * 4 * np.pi
     tau = (alpha * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
@@ -615,8 +618,7 @@ def composition_to_molweight(compstr):
     """
 
     if 'under' in compstr or 'over' in compstr or len(compstr.split(" ")) == 1:
-        return Formula(compstr.split()[0]).mass
-
+        return Formula(compstr.split()[0]).mass * u.Da
 
     try:
         mols, comps = compstr.split(" (")
@@ -627,7 +629,7 @@ def composition_to_molweight(compstr):
             print(ex)
             print(f"Not enough components in '{compstr}'")
             raise ex
-    comps = list(map(int, re.split("[: ]", comps.strip(")"))))
+    comps = list(map(float, re.split("[: ]", comps.strip(")"))))
     molvals = [Formula(mol).mass for mol in re.split("[: ]", mols)]
 
     if len(comps) == 0:
