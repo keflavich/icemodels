@@ -19,6 +19,7 @@ from tqdm.auto import tqdm
 from pylatexenc.latex2text import LatexNodes2Text
 from molmass import Formula
 
+cache = {}
 optical_constants_cache_dir = os.path.dirname(__file__) + "/data"
 
 # "https://raw.githubusercontent.com/willastro/ifw_miri_gto_pstars/main/nk/co2-a-Gerakines2020.txt",
@@ -64,7 +65,7 @@ univap_molecule_data = {
     'h2o:co.1:0.4': {'url': "http://www1.univap.br/gaa/nkabs-database/D8a.txt",
                      'molwt': (12+16)*u.Da, },
     'co2': {'url': 'https://www.dropbox.com/s/hoo9s01knc7p3su/G2.txt?dl=1', #'https://www1.univap.br/gaa/nkabs-database/G2.txt',
-            'molwt': (16*2+12)*u.Da, },
+            'molwt': (16*2+12)*u.Da, }, # pilling
     'h2o_amorphous': {'url': 'https://www.dropbox.com/s/dcpqq20766fdf2i/L1.txt?dl=1', # http://www1.univap.br/gaa/nkabs-database/L1.txt',
                       'molwt': (16+2)*u.Da, },
     'h2o_crystal': {'url': 'http://www1.univap.br/gaa/nkabs-database/L2.txt',
@@ -125,11 +126,37 @@ def load_molecule(molname):
     return consts
 
 
-def load_molecule_univap(molname):
+def get_univap_meta_table():
+    if 'univap_meta_table' in cache:
+        return cache['univap_meta_table']
+    meta1 = Table.read('https://www1.univap.br/gaa/nkabs-database/data.htm', format='html', htmldict={'table_id': 1})
+    meta2 = Table.read('https://www1.univap.br/gaa/nkabs-database/data.htm', format='html', htmldict={'table_id': 2})
+    meta1.rename_column('col1', 'datalabel')
+    meta1.rename_column('col2', 'temperature')
+    meta1.rename_column('col3', 'sample')
+    meta1.rename_column('col4', 'reference')
+    meta2.rename_column('col1', 'datalabel')
+    meta2.rename_column('col2', 'temperature')
+    meta2.rename_column('col3', 'sample')
+    meta2.rename_column('col4', 'projectile')
+    meta2.rename_column('col5', 'flucence')
+    meta2.rename_column('col6', 'reference')
+    meta_table = table.vstack([meta1, meta2])
+    cache['univap_meta_table'] = meta_table
+    return meta_table
+
+
+def load_molecule_univap(molname, meta_table=None):
     """
     Load a molecule based on its name from the dictionary of molecular data files above
     """
+    if meta_table is None:
+        meta_table = get_univap_meta_table()
+    meta_table.add_index('datalabel')
+
     url = univap_molecule_data[molname]['url']
+    molid = url.split('/')[-1].split('.')[0]
+
     consts = Table.read(url, format='ascii', data_start=3)
     if 'col1' in consts.colnames:
         consts['col1'].unit = u.cm**-1
@@ -139,6 +166,13 @@ def load_molecule_univap(molname):
         consts.rename_column('col4', 'n')
         consts['Wavelength'] = consts['WaveNum'].quantity.to(u.um, u.spectral())
     consts.meta['density'] = 1*u.g/u.cm**3
+    consts.meta['author'] = metatable.loc[molid]['reference'][0]
+    consts.meta['source'] = url
+    consts.meta['temperature'] = 10
+    consts.meta['molecule'] = molname
+    consts.meta['composition'] = metatable.loc[molid]['sample'][0]
+    consts.meta['molwt'] = Formula(metatable.loc[molid]['sample'][0]).mass
+
     return consts
 
 
@@ -374,6 +408,43 @@ def load_molecule_ocdb(molname, temperature=10, use_cached=True):
     # "we estimate the uncertainty is no more than 30%"
     return tb
 
+    
+def cde_correct(freq, m):
+    """
+    cde_correct(freq, m)
+    (copied from https://github.com/RiceMunk/omnifit/blob/master/omnifit/utils/utils.py#L181)
+
+    Generate a CDE-corrected spectrum from a complex refractive index
+    spectrum.
+
+    Parameters
+    ----------
+    freq : `numpy.ndarray`
+        The frequency data of the input spectrum, in reciprocal
+        wavenumbers (cm^-1).
+    m : `numpy.ndarray`
+        The complex refractive index spectrum.
+
+    Returns
+    -------
+    A list containing the following numpy arrays, in given order:
+        * The spectrum of the absorption cross section of the simulated grain.
+        * The spectrum of the absorption cross section of the simulated grain,
+            normalized by the volume distribution of the grain. This parameter
+            is the equivalent of optical depth in most cases.
+        * The spectrum of the scattering cross section of the simulated grain,
+            normalized by the volume distribution of the grain.
+        * The spectrum of the total cross section of the simulated grain.
+    """
+    wl = 1.e4/freq
+    m2 = m**2.0
+    im_part = ((m2/(m2-1.0))*np.log(m2)).imag
+    cabs_vol = (4.0*np.pi/wl)*im_part
+    cabs = freq*(2.0*m.imag/(m.imag-1))*np.log10(m.imag)
+    cscat_vol = (freq**3.0/(6.0*np.pi))*cabs
+    ctot = cabs+cscat_vol
+    return cabs, cabs_vol, cscat_vol, ctot
+
 
 def absorbed_spectrum(ice_column,
                       ice_model_table,
@@ -383,6 +454,8 @@ def absorbed_spectrum(ice_column,
                       return_tau=False):
     """
     Use an opacity grid to obtain a model absorbed spectrum
+
+    (see also https://github.com/RiceMunk/omnifit/blob/master/omnifit/utils/utils.py#L181)
 
     Parameters
     ----------
