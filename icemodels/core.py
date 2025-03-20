@@ -471,7 +471,10 @@ def convsum(xarr, model_data, filter_table, doplot=False):
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
     return result# * dnu
 
-def fluxes_in_filters(xarr, modeldata, doplot=False, filterids=None):
+def fluxes_in_filters(xarr, modeldata, doplot=False, filterids=None, transdata=None):
+    """
+    Can save a lot of time precomputing transmission data
+    """
     telescope = 'JWST'
 
     if doplot:
@@ -484,7 +487,10 @@ def fluxes_in_filters(xarr, modeldata, doplot=False, filterids=None):
                      for instrument in ('NIRCam', 'MIRI')
                      for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
 
-    fluxes = {fid: convsum(xarr, modeldata, SvoFps.get_transmission_data(fid), doplot=doplot)
+    if transdata is None:
+        transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filterids}
+
+    fluxes = {fid: convsum(xarr, modeldata, transdata[fid], doplot=doplot)
               for fid in list(filterids)}
 
     return fluxes
@@ -601,6 +607,9 @@ def read_lida_file(filename):
 
 def composition_to_molweight(compstr):
     """
+    Return the mean molecular weight assuming the ratio is a number ratio.
+    (that's the wrong assumption, though, it is a mass ratio)
+
     Composition strings look like
 
     'CO:CH3OH:CH3OCH3 (20:20:1)',
