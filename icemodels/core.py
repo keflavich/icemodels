@@ -250,6 +250,9 @@ def read_ocdb_file(filename):
     if 'composition' in tb.meta:
         tb.meta['molecule'] = tb.meta['composition'].split()[0]
 
+    tb.meta['database'] = 'ocdb'
+    tb.meta['index'] = int(tb.meta['ocdb page'].split('/')[-1])
+
     return tb
 
 
@@ -476,8 +479,19 @@ def absorbed_spectrum(ice_column,
                     right=0,
                     )
     # Lambert absorption coefficient: k * 4pi/lambda
+    # eqn 4 & 9 of Gerakines 2020
+    # eqn 3 in Hudgins 1993
     alpha = kay * xarr_icm * 4 * np.pi
-    tau = (alpha * ice_column / (ice_model_table.meta['density'] / molecular_weight)).decompose()
+    # this next step just comes from me.
+    # Eqn 8 in Hudgins is A = 1/N integral tau dnu
+    # A is the integrated absorbance (units cm^-1)
+    # N is the column density in cm^-2, so 1/N = cm^2
+    # dnu is in cm^-1, and tau is unitless.
+    # We can kinda rearrange to N * A / dnu = tau, but.  
+    # I'm basically assuming A(nu) = alpha / dnu, so tau = N * alpha
+    # (I go through this math in DerivationNotes.ipynb)
+    rho_n = (ice_model_table.meta['density'] / molecular_weight)
+    tau = (alpha * ice_column / rho_n).decompose()
     if return_tau:
         return tau
 
@@ -614,8 +628,13 @@ def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leiden
             resp = S.get(f'{baseurl}/page/{ii}')
             soup = BeautifulSoup(resp.text, features='html5lib')
             mollinks = soup.findAll('a', class_='name')
-            for ml in mollinks:
-                moltext = LatexNodes2Text().latex_to_text(ml.text)
+
+            tbl = Table.read(f'{baseurl}/page/{ii}', format='html', header_start=0, data_start=1, htmldict=dict(raw_html_cols=['Analogue']))
+            for row, ml in zip(tbl, mollinks):
+
+                mltext = row['Analogue']
+                mltext = " ".join([f'{int(x[:-1])/100}' if x.endswith('%') else x for x in mltext.split()])
+                moltext = LatexNodes2Text().latex_to_text(mltext)
                 ind = int(ml.attrs['href'].split('/')[-1])
                 if 'Pure' in moltext:
                     molname = moltext.replace('Pure ', '')
@@ -628,10 +647,14 @@ def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leiden
                 else:
                     molname = moltext
                     ratio = '1'
+                author = row['Author']
                 index[ind] = {'full': moltext,
                               'name': molname,
                               'ratio': ratio,
-                              'url': f'{baseurl}/data/{ind}'
+                              'url': f'{baseurl}/data/{ind}',
+                              'author': author,
+                              'latex_molname': row['Analogue'],
+                              #'doi': doi
                                }
         with open(f'{optical_constants_cache_dir}/lida_index.json', 'w') as fh:
             json.dump(index, fh)
@@ -643,6 +666,8 @@ def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leiden
         url = index[ii]['url']
         molname = index[ii]['name']
         ratio = index[ii]['ratio']
+        #author = index[ii]['author']
+        #doi = index[ii]['doi']
 
         resp1 = S.get(url)
 
@@ -651,29 +676,40 @@ def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leiden
         datafiles = soup.findAll('a', text='TXT')
 
         for df in datafiles:
-            outfn = f'{optical_constants_cache_dir}/{ii}_{molname}_{ratio}_{df.attrs["href"].split("/")[-1]}'
+            temperature = os.path.splitext(df.attrs["href"])[0].split("/")[-1].split("_")[1].strip("K")
+            index[ii]['temperature'] = float(temperature)
+            index[ii]['index'] = int(df.attrs["href"].split("/")[-1].split("_")[0])
+            outfn = f'{optical_constants_cache_dir}/{ii}_{molname}_{ratio}_{temperature}K.txt'
             if not os.path.exists(outfn) or redo:
                 url = f'{baseurl}/{df.attrs["href"]}'
                 resp = S.get(url)
                 with open(outfn, 'w') as fh:
+                    fh.write("# " + json.dumps(index[ii]) + "\n")
 
                     fh.write(resp.text)
 
 
 def read_lida_file(filename):
-    tb = ascii.read(filename)
+
+    meta = {}
+    with open(filename, 'r') as fh:
+        meta = json.loads(fh.readline().lstrip('# '))
+    tb = ascii.read(filename, data_start=1)
+    tb.meta.update(meta)
     tb.rename_column('col1', 'Wavenumber')
     tb['Wavenumber'].unit = u.cm**-1
     tb.rename_column('col2', 'k')
     tb['Wavelength'] = (tb['Wavenumber'].quantity).to(u.um, u.spectral())
 
     tb.meta['density'] = 1*u.g/u.cm**3
-    tb.meta['index'] = int(os.path.basename(filename).split('_')[0])
+    if 'index' not in tb.meta:
+        tb.meta['index'] = int(os.path.basename(filename).split('_')[0])
     tb.meta['molecule'] = os.path.basename(filename).split('_')[1]
     tb.meta['ratio'] = os.path.basename(filename).split('_')[2]
-    tb.meta['author'] = ''
+    tb.meta['author'] = tb.meta['author']
     tb.meta['composition'] = tb.meta['molecule'] + ' ' + tb.meta['ratio']
     tb.meta['temperature'] = float(filename.split("_")[-1].split(".")[0].strip("K"))
+    tb.meta['database'] = 'lida'
 
     return tb
 
