@@ -725,7 +725,7 @@ def read_lida_file(filename):
 def composition_to_molweight(compstr):
     """
     Return the mean molecular weight assuming the ratio is a number ratio.
-    (that's the wrong assumption, though, it is a mass ratio)
+    (that's probably correct; it is most likely a number ratio)
 
     Composition strings look like
 
@@ -746,19 +746,30 @@ def composition_to_molweight(compstr):
     if 'under' in compstr or 'over' in compstr or len(compstr.split(" ")) == 1:
         return Formula(compstr.split()[0]).mass * u.Da
 
-    try:
-        mols, comps = compstr.split(" (")
-    except ValueError as ex:
-        try:
-            mols, comps = compstr.split(" ")
-        except Exception as ex:
-            print(ex)
-            print(f"Not enough components in '{compstr}'")
-            raise ex
-    comps = list(map(float, re.split("[: ]", comps.strip(")"))))
-    molvals = [Formula(mol).mass for mol in re.split("[: ]", mols)]
+    mols, comps = parse_molscomps(compstr)
+    molvals = [Formula(mol).mass for mol in mols]
 
     if len(comps) == 0:
         raise ValueError(f"No comps found for compstr='{compstr}'")
 
     return sum([m*c for m,c in zip(molvals, comps)]) / sum(comps) * u.Da
+
+
+def parse_molscomps(comp):
+    """
+    Given a composition string, return the list of molecules and their
+    compositions as two lists
+    """
+    if len(comp.split(" ")) == 2:
+        mols, comps = comp.split(" ")
+        comps = list(map(float, re.split("[: ]", comps.strip("()"))))
+        mols = re.split("[: ]", mols)
+    elif len(comp.split(" (")) == 1:
+        mols = [comp]
+        comps = [1]
+    else:
+        mols, comps = comp.split(" (")
+        comps = list(map(float, re.split("[: ]", comps.strip(")"))))
+        mols = re.split("[: ]", mols)
+
+    return mols, comps
