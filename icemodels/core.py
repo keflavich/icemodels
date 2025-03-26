@@ -454,6 +454,7 @@ def absorbed_spectrum(ice_column,
                       spectrum=phx4000['fnu'],
                       xarr=u.Quantity(phx4000['nu'], u.Hz).to(u.um, u.spectral()),
                       molecular_weight=44*u.Da,
+                      minimum_tau=0,
                       return_tau=False):
     """
     Use an opacity grid to obtain a model absorbed spectrum
@@ -468,6 +469,11 @@ def absorbed_spectrum(ice_column,
         (in units of g/cm^3)
     molecular_weight : u.g equivalent
         The molecule mass
+    minimum_tau : float
+        The minimum tau to allow.  Default is 0.  This prevents negative optical
+        depths, which create artificial emission.
+    return_tau : bool
+        If True, return the tau rather than the absorbed spectrum
     """
     xarr_icm = xarr.to(u.cm**-1, u.spectral())
     # not used dx_icm = np.abs(xarr_icm[1]-xarr_icm[0])
@@ -494,6 +500,8 @@ def absorbed_spectrum(ice_column,
     tau = (alpha * ice_column / rho_n).decompose()
     if return_tau:
         return tau
+    if minimum_tau is not None:
+        tau[tau < minimum_tau] = minimum_tau
 
     absorbed_spectrum = ((np.exp(-tau)) * spectrum)
     return absorbed_spectrum
