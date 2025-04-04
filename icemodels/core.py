@@ -188,6 +188,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
 
     for ii in tqdm(range(1, n_ocdb+1)):
         if not redo and len(glob.glob(f'{optical_constants_cache_dir}/{ii}*')) > 0:
+            # note that this can miss important parameters when there are many temperatures
             continue
         resp = S.get(f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
         for row in resp.text.split("\n"):
@@ -197,6 +198,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
                 temperature = shlex.split(row)[1]
             if row.startswith('Reference:'):
                 reference = shlex.split(row)[1].split()[0]
+
         filename = f'{optical_constants_cache_dir}/{ii}_{molname}_{temperature}_{reference}.txt'
         filename = filename.replace(" ", "_").replace("'", "").replace('\\','').replace('"','')
         with open(filename, 'w') as fh:
