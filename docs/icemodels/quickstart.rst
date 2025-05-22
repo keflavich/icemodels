@@ -46,10 +46,10 @@ Calculate the absorption spectrum for an ice layer:
         molecular_weight=44*u.Da
     )
 
-Working with Multiple Ice Components
---------------------------------
+Simple Gaussian models
+----------------------
 
-You can work with multiple ice components using Gaussian models:
+There is some provision for simple Gaussian models.  These are inaccurate and just hacked together; I don't recommend using them.
 
 .. code-block:: python
 

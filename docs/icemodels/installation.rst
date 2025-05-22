@@ -17,19 +17,15 @@ IceModels requires the following Python packages:
 Installing IceModels
 ------------------
 
-You can install IceModels using pip:
+You can install IceModels directly from GitHub using pip:
 
 .. code-block:: bash
 
-    pip install icemodels
-
-For development installation, clone the repository and install in development mode:
-
-.. code-block:: bash
-
-    git clone https://github.com/your-username/icemodels.git
+    git clone https://github.com/keflavich/icemodels.git
     cd icemodels
     pip install -e .
+
+This will install the package in development mode, allowing you to modify the code and immediately see the effects without reinstalling.
 
 Configuration
 ------------

@@ -105,7 +105,9 @@ Analyzing ice spectra through different filters:
 CDE Correction Example
 -------------------
 
-Applying continuous distribution of ellipsoids (CDE) correction:
+Applying continuous distribution of ellipsoids (CDE) correction.
+(I don't really know what this does; it's for dust opacity but I haven't grokked it)
+:
 
 .. code-block:: python
 
@@ -130,5 +132,3 @@ Applying continuous distribution of ellipsoids (CDE) correction:
     plt.title('Effect of CDE Correction on CO Ice')
     plt.legend()
     plt.show()
-
-These examples demonstrate more advanced applications of IceModels. The package can be used for many other types of analysis depending on your specific needs.
