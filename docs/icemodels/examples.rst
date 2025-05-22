@@ -3,35 +3,54 @@ Examples
 
 This section contains additional practical examples of using IceModels for various tasks.
 
+.. include:: ../auto_examples/index.rst
+
+The code for these examples can be found in the ``examples`` directory of the documentation.
+
 Temperature-dependent Ice Analysis
-------------------------------
+--------------------------------
 
 Analyzing how ice spectra change with temperature:
 
-.. code-block:: python
+.. plot::
+    :include-source:
 
     import icemodels
     import astropy.units as u
     import matplotlib.pyplot as plt
     import numpy as np
+    from scipy.interpolate import interp1d
+
+    # Create a common wavelength grid
+    wavelength = np.linspace(1, 28, 1000) * u.um
+
+    # Get the default spectrum and interpolate it to our wavelength grid
+    default_spectrum = icemodels.core.phx4000['fnu']
+    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
+    spectrum = f(wavelength)
 
     # Load CO data at different temperatures
     temperatures = [10, 20, 30, 40]
     spectra = []
 
+    # Calculate spectra for each temperature
     for temp in temperatures:
         data = icemodels.load_molecule_ocdb('co', temperature=temp)
-        spectrum = icemodels.absorbed_spectrum(
+        spec = icemodels.absorbed_spectrum(
             ice_column=1e17 * u.cm**-2,
             ice_model_table=data,
-            molecular_weight=28*u.Da
+            molecular_weight=28*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
         )
-        spectra.append(spectrum)
+        spectra.append(spec)
 
-    # Plot temperature dependence
+    # Create the plot
     plt.figure(figsize=(10, 6))
     for temp, spec in zip(temperatures, spectra):
-        plt.plot(data['Wavelength'], spec, label=f'{temp}K')
+        plt.plot(wavelength, spec, label=f'{temp}K')
+
     plt.xlabel('Wavelength (μm)')
     plt.ylabel('Normalized Flux')
     plt.title('CO Ice Spectrum at Different Temperatures')
@@ -39,11 +58,27 @@ Analyzing how ice spectra change with temperature:
     plt.show()
 
 Ice Mixture Analysis
------------------
+------------------
 
 Analyzing ice mixtures with different ratios:
 
-.. code-block:: python
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.interpolate import interp1d
+
+    # Create a common wavelength grid
+    wavelength = np.linspace(1, 28, 1000) * u.um
+
+    # Get the default spectrum and interpolate it to our wavelength grid
+    default_spectrum = icemodels.core.phx4000['fnu']
+    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
+    spectrum = f(wavelength)
 
     # Load components
     h2o = icemodels.load_molecule('h2o')
@@ -59,16 +94,20 @@ Analyzing ice mixtures with different ratios:
         h2o_spec = icemodels.absorbed_spectrum(
             ice_column=base_column * h2o_ratio,
             ice_model_table=h2o,
-            molecular_weight=18*u.Da
+            molecular_weight=18*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
         )
         co2_spec = icemodels.absorbed_spectrum(
             ice_column=base_column * co2_ratio,
             ice_model_table=co2,
-            molecular_weight=44*u.Da
+            molecular_weight=44*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
         )
         # Combined spectrum
         combined = h2o_spec * co2_spec
-        plt.plot(h2o['Wavelength'], combined,
+        plt.plot(wavelength, combined,
                 label=f'H2O:CO2 = {h2o_ratio}:{co2_ratio}')
 
     plt.xlabel('Wavelength (μm)')
@@ -78,57 +117,118 @@ Analyzing ice mixtures with different ratios:
     plt.show()
 
 Filter Analysis
--------------
+--------------
 
 Analyzing ice spectra through different filters:
 
-.. code-block:: python
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.interpolate import interp1d
+
+    # Create a common wavelength grid
+    wavelength = np.linspace(1, 28, 1000) * u.um
+
+    # Get the default spectrum and interpolate it to our wavelength grid
+    default_spectrum = icemodels.core.phx4000['fnu']
+    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
+    spectrum_base = f(wavelength)
 
     # Calculate spectrum
     co2_data = icemodels.load_molecule('co2')
     spectrum = icemodels.absorbed_spectrum(
         ice_column=1e17 * u.cm**-2,
         ice_model_table=co2_data,
-        molecular_weight=44*u.Da
+        molecular_weight=44*u.Da,
+        xarr=wavelength,
+        spectrum=spectrum_base
     )
 
-    # Calculate fluxes through filters
-    filter_fluxes = icemodels.fluxes_in_filters(
-        xarr=co2_data['Wavelength'],
-        modeldata=spectrum,
-        filterids=['JWST/MIRI.F1000W', 'JWST/MIRI.F1280W'],
-        doplot=True
-    )
+    # Plot the spectrum
+    plt.figure(figsize=(10, 6))
+    plt.plot(wavelength, spectrum, label='CO2 Ice')
+    plt.xlabel('Wavelength (μm)')
+    plt.ylabel('Normalized Flux')
+    plt.title('CO2 Ice Spectrum with JWST/MIRI Filters')
+    plt.legend()
 
-    print("Filter fluxes:", filter_fluxes)
+    # Calculate and print filter fluxes
+    filter_ids = ['JWST/MIRI.F1000W', 'JWST/MIRI.F1280W']
+    filter_fluxes = {}
+    for filter_id in filter_ids:
+        flux = icemodels.fluxes_in_filters(
+            xarr=wavelength,
+            modeldata=spectrum,
+            filterids=[filter_id]
+        )
+        filter_fluxes[filter_id] = flux
+        print(f"Flux through {filter_id}: {flux}")
+
+    plt.show()
 
 CDE Correction Example
--------------------
+--------------------
 
-Applying continuous distribution of ellipsoids (CDE) correction.
-(I don't really know what this does; it's for dust opacity but I haven't grokked it)
-:
+The continuous distribution of ellipsoids (CDE) correction accounts for the fact that ice grains in space are not perfect spheres.
+This correction modifies the absorption spectrum to account for the distribution of grain shapes, which can significantly affect
+the optical properties of the ice.
 
-.. code-block:: python
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.interpolate import interp1d
+
+    # Create a common wavelength grid
+    wavelength = np.linspace(1, 28, 1000) * u.um
 
     # Load data
     co_data = icemodels.load_molecule('co')
 
-    # Calculate complex refractive index
-    m = co_data['n'] + 1j * co_data['k']
+    # Get the default spectrum and interpolate it to our wavelength grid
+    default_spectrum = icemodels.core.phx4000['fnu']
+    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
+    spectrum = f(wavelength)
 
-    # Convert wavelength to frequency
-    freq = (co_data['Wavelength'].quantity.to(u.Hz, u.spectral()))
+    # Calculate absorption spectra with and without CDE correction
+    spectrum_no_cde = icemodels.absorbed_spectrum(
+        ice_column=1e17 * u.cm**-2,
+        ice_model_table=co_data,
+        molecular_weight=28*u.Da,
+        xarr=wavelength,
+        spectrum=spectrum,
+        return_tau=True
+    )
 
-    # Apply CDE correction
-    abs_coeff = icemodels.cde_correct(freq, m)
+    # Interpolate n and k onto our wavelength grid
+    f_n = interp1d(co_data['Wavelength'], co_data['n'], bounds_error=False, fill_value=1.0)
+    f_k = interp1d(co_data['Wavelength'], co_data['k'], bounds_error=False, fill_value=0.0)
+    n = f_n(wavelength)
+    k = f_k(wavelength)
+    m = n + 1j * k
+
+    # Calculate the CDE-corrected optical depth
+    freq = wavelength.to(u.cm**-1, u.spectral())
+    wl = 1.e4/freq
+    m2 = m**2.0
+    im_part = ((m2/(m2-1.0))*np.log(m2)).imag
+    spectrum_cde = (4.0*np.pi/wl)*im_part
 
     # Plot original vs CDE-corrected absorption
     plt.figure(figsize=(10, 6))
-    plt.plot(co_data['Wavelength'], co_data['k'], label='Original')
-    plt.plot(co_data['Wavelength'], abs_coeff, label='CDE-corrected')
+    plt.plot(wavelength, spectrum_no_cde, label='Without CDE')
+    plt.plot(wavelength, spectrum_cde, label='With CDE')
     plt.xlabel('Wavelength (μm)')
-    plt.ylabel('Absorption Coefficient')
+    plt.ylabel('Optical Depth')
     plt.title('Effect of CDE Correction on CO Ice')
     plt.legend()
     plt.show()

@@ -1,53 +1,51 @@
 Quickstart Guide
-==============
+===============
 
 This guide will help you get started with IceModels quickly.
 
 Basic Usage
 ----------
 
-First, import the necessary modules:
-
-.. code-block:: python
-
-    import icemodels
-    import astropy.units as u
-    import numpy as np
+IceModels provides tools for working with ice spectroscopy data and models.
+The main functionality includes loading ice data, calculating absorption spectra,
+and analyzing spectral features.
 
 Loading Ice Data
 --------------
 
-Load optical constants for a molecule:
+To load ice optical constants:
 
 .. code-block:: python
+
+    import icemodels
 
     # Load CO2 ice data
     co2_data = icemodels.load_molecule('co2')
 
-    # Access wavelength, n, and k values
-    wavelengths = co2_data['Wavelength']  # in microns
-    n_values = co2_data['n']  # refractive index
-    k_values = co2_data['k']  # extinction coefficient
+    # Load temperature-dependent CO data
+    co_data = icemodels.load_molecule_ocdb('co', temperature=10)
 
 Computing Absorption Spectra
--------------------------
+---------------------------
 
-Calculate the absorption spectrum for an ice layer:
+Calculate absorption spectra for ice layers:
 
 .. code-block:: python
 
-    # Define ice column density
-    ice_column = 1e17 * u.cm**-2
+    import astropy.units as u
 
-    # Calculate absorption spectrum
+    # Define ice parameters
+    column = 1e17 * u.cm**-2
+
+    # Calculate spectrum
     spectrum = icemodels.absorbed_spectrum(
-        ice_column=ice_column,
+        ice_column=column,
         ice_model_table=co2_data,
         molecular_weight=44*u.Da
     )
 
 Simple Gaussian models
-----------------------
+--------------------
 
 There is some provision for simple Gaussian models.  These are inaccurate and just hacked together; I don't recommend using them.
 
@@ -60,7 +58,7 @@ There is some provision for simple Gaussian models.  These are inaccurate and ju
 
     # Calculate spectrum with Gaussian components
     spectrum_gauss = icemodels.absorbed_spectrum_Gaussians(
-        ice_column=ice_column,
+        ice_column=column,
         center=center,
         width=width,
         ice_bandstrength=bandstrength

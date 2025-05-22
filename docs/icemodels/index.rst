@@ -1,7 +1,7 @@
 IceModels Documentation
-=====================
+=======================
 
-IceModels is a Python package for working with astronomical ice spectroscopy data and models. It provides tools for:
+IceModels is a Python package for analyzing and modeling ice spectra in astronomical observations. It provides tools for:
 
 * Loading and manipulating ice optical constants
 * Computing absorption spectra for different ice compositions
@@ -16,6 +16,7 @@ IceModels is a Python package for working with astronomical ice spectroscopy dat
    installation
    quickstart
    tutorial
+   examples
    api
    databases
-   examples
+   ../examples/README
