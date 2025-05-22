@@ -178,13 +178,16 @@ def load_molecule_univap(molname, meta_table=None):
     return consts
 
 
-def load_molecule_icedb():
-    response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
-    icedb_co = ascii.read(response.text)
-    pl.plot(icedb_co['col1'], icedb_co['col2'])
+# defunct def load_molecule_icedb():
+# defunct     response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
+# defunct     icedb_co = ascii.read(response.text)
+# defunct     pl.plot(icedb_co['col1'], icedb_co['col2'])
 
 
 def download_all_ocdb(n_ocdb=298, redo=False):
+    """
+    Retrieve and locally cache all data files from the OCDB
+    """
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
 
@@ -208,6 +211,17 @@ def download_all_ocdb(n_ocdb=298, redo=False):
 
 
 def read_ocdb_file(filename):
+    """
+    Read an OCDB file downloaded with ``download_all_ocdb()`` and return a table
+
+    The recommended approach is something like:
+
+    .. code-block:: python
+
+        import icemodels
+        icemodels.download_all_ocdb()
+        tb = icemodels.read_ocdb_file(f'{icemodels.optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt')
+    """
     for ii in range(5, 15):
         try:
             # new header data appear to be added from time to time
@@ -261,6 +275,11 @@ def read_ocdb_file(filename):
 
 
 def load_molecule_ocdb(molname, temperature=10, use_cached=True):
+    """
+    Load a molecule from the OCDB by performing a query.
+
+    This is not the recommended method; ``download_all_ocdb()`` and ``read_ocdb_file()`` should be used instead.
+    """
 
     if use_cached:
         cache_list = glob.glob(f'{optical_constants_cache_dir}/*.txt')

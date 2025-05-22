@@ -8,10 +8,12 @@ from ._astropy_init import *   # noqa
 
 from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    fluxes_in_filters, load_molecule, load_molecule_ocdb,
-                   atmo_model, molecule_data)
+                   atmo_model, molecule_data, download_all_ocdb, read_ocdb_file,
+                   optical_constants_cache_dir)
 from . import gaussian_model_components
 
 __all__ = [absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
            fluxes_in_filters, load_molecule, load_molecule_ocdb,
-           atmo_model, molecule_data,
+           atmo_model, molecule_data, download_all_ocdb, read_ocdb_file,
+           optical_constants_cache_dir,
            gaussian_model_components]

@@ -1,42 +1,50 @@
 Ice Databases
-============
+=============
 
-IceModels provides access to several databases of ice optical constants:
+This section describes the various ice spectroscopy databases supported by IceModels.
 
 Built-in Database
----------------
+----------------
 
-The package includes a built-in database of commonly used ice species with data from various sources:
+The built-in database contains a curated set of ice optical constants from various sources.
+These data are included with the package and are immediately available without additional downloads.
 
-* CH3OH (methanol)
-* CO2 (carbon dioxide)
-* CH4 (methane)
-* CO (carbon monoxide)
-* H2O (water ice, amorphous and crystalline)
-* NH3 (ammonia)
-
-These data are automatically downloaded from trusted sources when first accessed.
+Available molecules:
+- H2O (water ice)
+- CO2 (carbon dioxide ice)
+- CO (carbon monoxide ice)
+- CH3OH (methanol ice)
 
 OCDB Database
------------
+------------
 
-The Optical Constants Database (OCDB) from NASA contains a comprehensive collection of optical constants for various ices at different temperatures.
+The Optical Constants Database (OCDB) provides temperature-dependent optical constants for various ices.
+Data from this database can be accessed using the `load_molecule_ocdb` function.
 
-To download all available OCDB data:
+Features:
+- Temperature-dependent measurements
+- Multiple ice phases
+- Extensive metadata
+- Regular updates
 
-.. code-block:: python
+Example usage:
+```python
+data = icemodels.load_molecule_ocdb('co', temperature=10)
+```
 
-    import icemodels
-    icemodels.download_all_ocdb()
+Data Format
+----------
 
-To load a specific molecule from OCDB:
+All databases provide data in a consistent format using astropy Tables with the following columns:
 
-.. code-block:: python
+- Wavelength: Wavelength in microns
+- n: Real part of the refractive index
+- k: Imaginary part of the refractive index (extinction coefficient)
 
-    data = icemodels.load_molecule_ocdb('co', temperature=10)
+Additional metadata may be included in the table's metadata dictionary.
 
 Univap Database
--------------
+--------------
 
 The Univap database (from Universidade do Vale do Paraíba) provides optical constants for various ices and ice mixtures.
 
@@ -53,7 +61,7 @@ To load data from Univap:
     data = icemodels.load_molecule_univap('co')
 
 LIDA Database
------------
+------------
 
 The Leiden Ice Database for Astrochemistry (LIDA) contains spectroscopic data for various astronomical ices.
 
@@ -62,14 +70,3 @@ To download all available LIDA data:
 .. code-block:: python
 
     icemodels.download_all_lida()
-
-Data Format
-----------
-
-All databases return data in a consistent format using astropy Tables with the following columns:
-
-* Wavelength (in microns)
-* n (refractive index)
-* k (extinction coefficient)
-
-Additional metadata (temperature, density, source reference) is stored in the table's metadata dictionary.
