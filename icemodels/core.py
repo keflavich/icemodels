@@ -83,6 +83,8 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000)*u.um):
 
     (the default spectral grid has essentially no sampling from 10-25 microns)
     """
+    if mysg is None:
+        raise ImportError("mysg module is not available")
     mod = Table(mysg.atmosphere.interp_atmos(temperature))
     mod['nu'].unit = u.Hz
     mod['fnu'].unit = u.erg/u.s/u.cm**2/u.Hz
@@ -409,7 +411,7 @@ def load_molecule_ocdb(molname, temperature=10, use_cached=True):
             tb['Wavenumber (cm⁻¹)'] = tb['Wavenumber (cm)']
     tb.meta['density'] = 1*u.g/u.cm**3
     # Hudgins 1993, page 719:
-    # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer’s infrared beam on the sample.
+    # We haveassumedthatthedensitiesofalltheicesare1gcm-3 and that the ices are uniformly thick across the approximately 4 mm diameter focal point of the spectrometer's infrared beam on the sample.
     # "we estimate the uncertainty is no more than 30%"
     return tb
 
