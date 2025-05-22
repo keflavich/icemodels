@@ -88,7 +88,7 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000)*u.um):
     mod['fnu'].unit = u.erg/u.s/u.cm**2/u.Hz
     inds = np.argsort(mod['nu'])
     xarrhz = xarr.to(u.Hz, u.spectral())
-    mod = Table({'fnu': np.interp(xarrhz, mod['nu'].quantity[inds], mod['fnu'].quantity[inds]),
+    mod = Table({'fnu': np.interp(xarrhz, mod['nu'].quantity[inds], mod['fnu'].quantity[inds], left=0, right=0),
                  'nu': xarrhz},
                 meta={'temperature': temperature})
 
@@ -413,7 +413,7 @@ def load_molecule_ocdb(molname, temperature=10, use_cached=True):
     # "we estimate the uncertainty is no more than 30%"
     return tb
 
-    
+
 def cde_correct(freq, m):
     """
     cde_correct(freq, m)
@@ -495,7 +495,7 @@ def absorbed_spectrum(ice_column,
     # A is the integrated absorbance (units cm^-1)
     # N is the column density in cm^-2, so 1/N = cm^2
     # dnu is in cm^-1, and tau is unitless.
-    # We can kinda rearrange to N * A / dnu = tau, but.  
+    # We can kinda rearrange to N * A / dnu = tau, but.
     # I'm basically assuming A(nu) = alpha / dnu, so tau = N * alpha
     # (I go through this math in DerivationNotes.ipynb)
     rho_n = (ice_model_table.meta['density'] / molecular_weight)
@@ -555,7 +555,10 @@ def convsum(xarr, model_data, filter_table, doplot=False):
 
     interpd = np.interp(filtwav,
                         xarr.to(u.um)[inds],
-                        model_data[inds])
+                        model_data[inds],
+                        left=0,
+                        right=0,
+                        )
     # print(interpd, model_data, filter_table['Transmission'])
     # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
     result = (interpd * filter_table['Transmission'].value)
@@ -603,7 +606,7 @@ def retrieve_gerakines_co(resolution='low'):
     else:
         dd = pd.read_excel('https://science.gsfc.nasa.gov/691/cosmicice/constants/co/CO_n_k_values_25_K_2023.xlsx')
         dd.to_excel(cache_file)
-    
+
     # lores
     if resolution == 'low':
         wavenumber = np.array(dd['Unnamed: 2'][1:], dtype='float')
@@ -682,7 +685,7 @@ def download_all_lida(n_lida=178, redo=False, baseurl='https://icedb.strw.leiden
         resp1 = S.get(url)
 
         soup = BeautifulSoup(resp1.text, features='html5lib')
-        
+
         datafiles = soup.findAll('a', text='TXT')
 
         for df in datafiles:
