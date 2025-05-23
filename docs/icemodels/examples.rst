@@ -238,7 +238,7 @@ the optical properties of the ice.
     plt.show()
 
 Stellar Atmosphere Comparison
-----------------------------
+-----------------------------
 
 Comparing ice absorption features against different stellar atmosphere temperatures:
 
