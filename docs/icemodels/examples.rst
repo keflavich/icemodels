@@ -232,3 +232,73 @@ the optical properties of the ice.
     plt.title('Effect of CDE Correction on CO Ice')
     plt.legend()
     plt.show()
+
+Stellar Atmosphere Comparison
+----------------------------
+
+Comparing ice absorption features against different stellar atmosphere temperatures:
+
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from icemodels.core import atmo_model
+
+    # Create wavelength grid focused on 1-5 microns
+    wavelength = np.linspace(1, 5, 1000) * u.um
+
+    # Load ice data
+    co_data = icemodels.load_molecule('co')
+    h2o_data = icemodels.load_molecule('h2o')
+    co2_data = icemodels.load_molecule('co2')
+
+    # Create figure with subplots for each stellar temperature
+    fig, axes = plt.subplots(4, 1, figsize=(10, 16), sharex=True)
+    temperatures = [2000, 3000, 4000, 5000]
+
+    for ax, temp in zip(axes, temperatures):
+        # Get stellar atmosphere model for this temperature
+        mod = atmo_model(temp, xarr=wavelength)
+        spectrum = mod['fnu']
+
+        # Calculate absorbed spectra for each ice
+        co_spec = icemodels.absorbed_spectrum(
+            ice_column=1e18 * u.cm**-2,
+            ice_model_table=co_data,
+            molecular_weight=28*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
+        )
+
+        h2o_spec = icemodels.absorbed_spectrum(
+            ice_column=1e19 * u.cm**-2,
+            ice_model_table=h2o_data,
+            molecular_weight=18*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
+        )
+
+        co2_spec = icemodels.absorbed_spectrum(
+            ice_column=1e18 * u.cm**-2,
+            ice_model_table=co2_data,
+            molecular_weight=44*u.Da,
+            xarr=wavelength,
+            spectrum=spectrum
+        )
+
+        # Plot results
+        ax.plot(wavelength, spectrum, 'k--', label='Stellar', alpha=0.5)
+        ax.plot(wavelength, co_spec, label='CO')
+        ax.plot(wavelength, h2o_spec, label='H2O')
+        ax.plot(wavelength, co2_spec, label='CO2')
+
+        ax.set_ylabel('Normalized Flux')
+        ax.set_title(f'{temp}K Stellar Atmosphere')
+        ax.legend()
+
+    axes[-1].set_xlabel('Wavelength (μm)')
+    plt.tight_layout()
+    plt.show()
