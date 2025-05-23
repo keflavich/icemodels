@@ -735,8 +735,7 @@ def fluxes_in_filters(
         doplot=False,
         filterids=None,
         transdata=None,
-        telescope='JWST',
-        ):
+        telescope='JWST'):
     """
     Calculate fluxes in various filters.
 
