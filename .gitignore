@@ -67,3 +67,4 @@ pip-wheel-metadata/
 # data
 icemodels/data/*txt
 notebooks/ipython_log*py
+docs/auto_examples
