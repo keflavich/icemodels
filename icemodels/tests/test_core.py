@@ -60,10 +60,11 @@ def test_load_molecule():
         col2 = MagicMock()
         col3 = MagicMock()
         mock_table.__getitem__.side_effect = lambda key: {'col1': col1, 'col2': col2, 'col3': col3}[key]
-        # Support renaming columns
 
+        # Support renaming columns
         def rename_column(old, new):
             mock_table.colnames = [new if c == old else c for c in mock_table.colnames]
+
         mock_table.rename_column.side_effect = rename_column
         mock_table_read.return_value = mock_table
         mock_get.return_value.text = "Composition: h2o\nTemperature: 10K\nReference: Test"
