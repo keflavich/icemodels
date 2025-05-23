@@ -4,15 +4,15 @@ from astropy import units as u
 co_ice_wls_icm = ([2143.7, 2139.9, 2136.5] * u.cm**-1)
 co_ice_centers = co_ice_wls = co_ice_wls_icm.to(u.um, u.spectral())
 co_ice_widths = (([3.0, 3.5, 10.6] * u.cm**-1)/co_ice_wls_icm * co_ice_wls).to(u.um, u.spectral())
-co_ice_bandstrength = 1.1e-17 * u.cm # cm per molecule; Jian+1975 via Boogert+2022
+co_ice_bandstrength = 1.1e-17 * u.cm  # cm per molecule; Jian+1975 via Boogert+2022
 co_ice_bandstrengths = [co_ice_bandstrength/3]*3
 co_ice_wls, co_ice_widths
 
 ocn_center = 4.62*u.um
 ocn_width = 100*u.cm**-1 / (ocn_center.to(u.cm**-1, u.spectral())) * ocn_center
 ocs_center = 4.90*u.um
-ocn_bandstrength = 1.3e-16*u.cm # per molecule; via Boogert+2022 from van Broekhuizen+2004
-ocs_bandstrength = 1.5e-16*u.cm # per molecule; via Boogert+2022 from Palumbo+1997
+ocn_bandstrength = 1.3e-16*u.cm  # per molecule; via Boogert+2022 from van Broekhuizen+2004
+ocs_bandstrength = 1.5e-16*u.cm  # per molecule; via Boogert+2022 from Palumbo+1997
 
 water_ice_centers_icm = [1666, 3333]*u.cm**-1
 water_ice_widths_icm = [160, 390]*u.cm**-1
@@ -37,4 +37,4 @@ methanol_ice_centers_icm.to(u.um, u.spectral())
 
 co2_ice_center = co2_center = 4.27*u.um
 co2_ice_width = co2_width = 20*u.cm**-1 / (co2_center.to(u.cm**-1, u.spectral())) * co2_center
-co2_ice_bandstrength = co2_bandstrength = 7.6e-17*u.cm # per molecule; via Gerakines+ 1995 table 1
+co2_ice_bandstrength = co2_bandstrength = 7.6e-17*u.cm  # per molecule; via Gerakines+ 1995 table 1
