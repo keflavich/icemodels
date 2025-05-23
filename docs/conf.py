@@ -51,6 +51,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # Ignore specific warnings
 nitpicky = True
 
+# Treat warnings as errors
+nitpick_ignore = []
+
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
@@ -198,10 +201,3 @@ linkcheck_anchors = False
 # py:class astropy.io.votable.tree.SimpleElementWithContent
 #
 # Uncomment the following lines to enable the exceptions:
-#
-# for line in open('nitpick-exceptions'):
-#     if line.strip() == "" or line.startswith("#"):
-#         continue
-#     dtype, target = line.split(None, 1)
-#     target = target.strip()
-#     nitpick_ignore.append((dtype, six.u(target)))
