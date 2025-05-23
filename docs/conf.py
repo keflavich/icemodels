@@ -48,6 +48,9 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# Ignore specific warnings
+nitpicky = True
+
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']

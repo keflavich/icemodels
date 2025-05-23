@@ -578,7 +578,8 @@ def absorbed_spectrum(
 
     Parameters
     ----------
-    ice_column : column density, cm^-2
+    ice_column : float
+        Column density of the ice in molecules/cm^2
     ice_model_table : table
         A table with Wavelength and 'k' constant columns and 'density' in the metadata
         (in units of g/cm^3)
