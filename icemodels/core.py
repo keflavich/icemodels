@@ -580,11 +580,11 @@ def absorbed_spectrum(
     ----------
     ice_column : float
         Column density of the ice in molecules/cm^2
-    ice_model_table : table
+    ice_model_table : `astropy.table.Table`
         A table with Wavelength and 'k' constant columns and 'density' in the metadata
         (in units of g/cm^3)
-    molecular_weight : u.g equivalent
-        The molecule mass
+    molecular_weight : `astropy.units.Quantity`
+        The molecule mass (gram equivalent)
     minimum_tau : float
         The minimum tau to allow.  Default is 0.  This prevents negative optical
         depths, which create artificial emission.
@@ -652,14 +652,14 @@ def absorbed_spectrum_Gaussians(
         Width of the absorption band in microns
     ice_bandstrength : float
         Band strength of the ice in cm/molecule
-    spectrum : array-like
+    spectrum : `numpy.ndarray`
         Input spectrum to be absorbed
-    xarr : array-like
+    xarr : `numpy.ndarray`
         Wavelength array in microns
 
     Returns
     -------
-    array-like
+    absorbed_spectrum : `numpy.ndarray`
         The absorbed spectrum
     """
     tau = np.zeros(xarr.size)
@@ -696,18 +696,18 @@ def convsum(xarr, model_data, filter_table, doplot=False):
 
     Parameters
     ----------
-    xarr : array-like
+    xarr : `numpy.ndarray`
         Wavelength array in microns
-    model_data : array-like
+    model_data : `numpy.ndarray`
         Model data to be convolved
-    filter_table : astropy.table.Table
+    filter_table : `astropy.table.Table`
         Table containing filter transmission curves
     doplot : bool
         Whether to plot the results
 
     Returns
     -------
-    array-like
+    convolved_data : `numpy.ndarray`
         The convolved data
     """
     filtwav = u.Quantity(filter_table['Wavelength'], u.AA).to(u.um)
@@ -742,20 +742,20 @@ def fluxes_in_filters(
 
     Parameters
     ----------
-    xarr : array-like
+    xarr : `numpy.ndarray`
         Wavelength array in microns
-    modeldata : array-like
+    modeldata : `numpy.ndarray`
         Model data to be convolved
     doplot : bool
         Whether to plot the results
     filterids : list
         List of filter IDs to use
-    transdata : astropy.table.Table
+    transdata : `astropy.table.Table`
         Table containing filter transmission curves
 
     Returns
     -------
-    dict
+    fluxes : dict
         Dictionary of fluxes in each filter
     """
 
