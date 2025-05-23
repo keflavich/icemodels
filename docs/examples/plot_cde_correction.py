@@ -25,13 +25,12 @@ f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_valu
 spectrum = f(wavelength)
 
 # Calculate absorption spectra with and without CDE correction
-spectrum_no_cde, tau_no_cde = icemodels.absorbed_spectrum(
+spectrum_no_cde = icemodels.absorbed_spectrum(
     ice_column=1e17 * u.cm**-2,
     ice_model_table=co_data,
     molecular_weight=28*u.Da,
     xarr=wavelength,
     spectrum=spectrum,
-    return_tau=True
 )
 
 # Interpolate n and k onto our wavelength grid
@@ -50,7 +49,7 @@ spectrum_cde = (4.0*np.pi/wl)*im_part
 
 # Plot original vs CDE-corrected absorption
 plt.figure(figsize=(10, 6))
-plt.plot(wavelength, tau_no_cde, label='Without CDE')
+plt.plot(wavelength, spectrum_no_cde, label='Without CDE')
 plt.plot(wavelength, spectrum_cde, label='With CDE')
 plt.xlabel('Wavelength (μm)')
 plt.ylabel('Optical Depth')

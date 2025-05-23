@@ -572,59 +572,54 @@ def absorbed_spectrum(
     return_tau=False
 ):
     """
-    Calculate the absorbed spectrum for a given ice column.
+    Use an opacity grid to obtain a model absorbed spectrum
+
+    (see also https://github.com/RiceMunk/omnifit/blob/master/omnifit/utils/utils.py#L181)
 
     Parameters
     ----------
-    ice_column : float
-        Column density of the ice in molecules/cm^2
-    ice_model_table : astropy.table.Table
-        Table containing the ice model data
-    spectrum : array-like
-        Input spectrum to be absorbed
-    xarr : array-like
-        Wavelength array in microns
-    molecular_weight : astropy.units.Quantity
-        Molecular weight of the ice
+    ice_column : column density, cm^-2
+    ice_model_table : table
+        A table with Wavelength and 'k' constant columns and 'density' in the metadata
+        (in units of g/cm^3)
+    molecular_weight : u.g equivalent
+        The molecule mass
     minimum_tau : float
-        Minimum optical depth to consider
+        The minimum tau to allow.  Default is 0.  This prevents negative optical
+        depths, which create artificial emission.
     return_tau : bool
-        Whether to return the optical depth
-
-    Returns
-    -------
-    array-like
-        The absorbed spectrum
+        If True, return the tau rather than the absorbed spectrum
     """
-    if not isscalar(ice_column):
-        ice_column = ice_column.to(u.cm**-2)
-    elif not hasattr(ice_column, 'unit'):
-        ice_column = ice_column * u.cm**-2
-
-    if not isscalar(molecular_weight):
-        molecular_weight = molecular_weight.to(u.Da)
-    elif not hasattr(molecular_weight, 'unit'):
-        molecular_weight = molecular_weight * u.Da
-
-    # Convert to mass column density
-    mass_column = (ice_column * molecular_weight).to(u.g / u.cm**2)
-
-    # Get the optical constants
-    k = np.interp(xarr, ice_model_table['Wavelength'],
-                  ice_model_table['k'], left=0, right=0)
-
-    # Calculate optical depth
-    tau = 4 * np.pi * k * mass_column / \
-        (ice_model_table.meta['density'] * xarr)
-    tau = np.maximum(tau, minimum_tau)
-
-    # Calculate transmission
-    transmission = np.exp(-tau)
-
+    xarr_icm = xarr.to(u.cm**-1, u.spectral())
+    # not used dx_icm = np.abs(xarr_icm[1]-xarr_icm[0])
+    inds = np.argsort(ice_model_table['Wavelength'].quantity)
+    kay = np.interp(xarr.to(u.um),
+                    ice_model_table['Wavelength'].quantity[inds],
+                    ice_model_table['k'][inds],
+                    left=0,
+                    right=0,
+                    )
+    # Lambert absorption coefficient: k * 4pi/lambda
+    # eqn 4 & 9 of Gerakines 2020
+    # eqn 3 in Hudgins 1993
+    alpha = kay * xarr_icm * 4 * np.pi
+    # this next step just comes from me.
+    # Eqn 8 in Hudgins is A = 1/N integral tau dnu
+    # A is the integrated absorbance (units cm^-1)
+    # N is the column density in cm^-2, so 1/N = cm^2
+    # dnu is in cm^-1, and tau is unitless.
+    # We can kinda rearrange to N * A / dnu = tau, but.
+    # I'm basically assuming A(nu) = alpha / dnu, so tau = N * alpha
+    # (I go through this math in DerivationNotes.ipynb)
+    rho_n = (ice_model_table.meta['density'] / molecular_weight)
+    tau = (alpha * ice_column / rho_n).decompose()
     if return_tau:
-        return spectrum * transmission, tau
-    else:
-        return spectrum * transmission
+        return tau
+    if minimum_tau is not None:
+        tau[tau < minimum_tau] = minimum_tau
+
+    absorbed_spectrum = ((np.exp(-tau)) * spectrum)
+    return absorbed_spectrum
 
 
 def isscalar(x):
@@ -706,22 +701,24 @@ def convsum(xarr, model_data, filter_table, doplot=False):
     array-like
         The convolved data
     """
-    if doplot:
-        pl.figure(figsize=(10, 6))
-        pl.plot(xarr, model_data, 'k-', alpha=0.5, label='Model')
-        pl.plot(
-            xarr,
-            filter_table['Transmission'],
-            'r-',
-            alpha=0.5,
-            label='Filter')
-        pl.xlabel('Wavelength (µm)')
-        pl.ylabel('Transmission')
-        pl.legend()
-        pl.show()
+    filtwav = u.Quantity(filter_table['Wavelength'], u.AA).to(u.um)
 
-    return np.sum(
-        model_data * filter_table['Transmission']) / np.sum(filter_table['Transmission'])
+    inds = np.argsort(xarr.to(u.um))
+
+    interpd = np.interp(filtwav,
+                        xarr.to(u.um)[inds],
+                        model_data[inds])
+    # print(interpd, model_data, filter_table['Transmission'])
+    # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
+    result = (interpd * filter_table['Transmission'].value)
+    if doplot:
+        L, = pl.plot(filtwav, filter_table['Transmission'])
+        pl.plot(filtwav, result, color=L.get_color())
+        pl.plot(filtwav, interpd, color=L.get_color())
+    # looking for average flux over the filter
+    result = result.sum() / filter_table['Transmission'].sum()
+    # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
+    return result
 
 
 def fluxes_in_filters(
@@ -729,7 +726,9 @@ def fluxes_in_filters(
         modeldata,
         doplot=False,
         filterids=None,
-        transdata=None):
+        transdata=None,
+        telescope='JWST',
+        ):
     """
     Calculate fluxes in various filters.
 
@@ -751,16 +750,17 @@ def fluxes_in_filters(
     dict
         Dictionary of fluxes in each filter
     """
+
     if filterids is None:
-        filterids = ['F560W', 'F770W', 'F1000W', 'F1130W', 'F1280W', 'F1500W',
-                     'F1800W', 'F2100W', 'F2550W']
+        filterids = [x
+                     for instrument in ('NIRCam', 'MIRI')
+                     for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
+
     if transdata is None:
         transdata = SvoFps.get_transmission_data(filterids)
 
-    fluxes = {}
-    for filt in filterids:
-        filter_table = transdata[filt]
-        fluxes[filt] = convsum(xarr, modeldata, filter_table, doplot=doplot)
+    fluxes = {fid: convsum(xarr, modeldata, transdata[fid], doplot=doplot)
+              for fid in list(filterids)}
 
     return fluxes
 
