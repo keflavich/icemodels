@@ -4,7 +4,7 @@ Ice Databases
 This section describes the various ice spectroscopy databases supported by IceModels.
 
 Built-in Database
-----------------
+-----------------
 
 The built-in database contains a curated set of ice optical constants from various sources.
 These data are included with the package and are immediately available without additional downloads.
@@ -16,7 +16,7 @@ Available molecules:
 - CH3OH (methanol ice)
 
 OCDB Database
-------------
+-------------
 
 The Optical Constants Database (OCDB) provides temperature-dependent optical constants for various ices.
 Data from this database can be accessed using the `load_molecule_ocdb` function.
@@ -33,7 +33,7 @@ data = icemodels.load_molecule_ocdb('co', temperature=10)
 ```
 
 Data Format
-----------
+-----------
 
 All databases provide data in a consistent format using astropy Tables with the following columns:
 
@@ -44,7 +44,7 @@ All databases provide data in a consistent format using astropy Tables with the 
 Additional metadata may be included in the table's metadata dictionary.
 
 Univap Database
---------------
+---------------
 
 The Univap database (from Universidade do Vale do Paraíba) provides optical constants for various ices and ice mixtures.
 
@@ -61,7 +61,7 @@ To load data from Univap:
     data = icemodels.load_molecule_univap('co')
 
 LIDA Database
-------------
+-------------
 
 The Leiden Ice Database for Astrochemistry (LIDA) contains spectroscopic data for various astronomical ices.
 

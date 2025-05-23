@@ -8,7 +8,7 @@ This section contains additional practical examples of using IceModels for vario
 The code for these examples can be found in the ``examples`` directory of the documentation.
 
 Temperature-dependent Ice Analysis
---------------------------------
+---------------------------------
 
 Analyzing how ice spectra change with temperature:
 
@@ -58,7 +58,7 @@ Analyzing how ice spectra change with temperature:
     plt.show()
 
 Ice Mixture Analysis
-------------------
+-------------------
 
 Analyzing ice mixtures with different ratios:
 
@@ -172,7 +172,7 @@ Analyzing ice spectra through different filters:
     plt.show()
 
 CDE Correction Example
---------------------
+----------------------
 
 The continuous distribution of ellipsoids (CDE) correction accounts for the fact that ice grains in space are not perfect spheres.
 This correction modifies the absorption spectrum to account for the distribution of grain shapes, which can significantly affect
