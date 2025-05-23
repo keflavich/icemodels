@@ -66,5 +66,7 @@ pip-wheel-metadata/
 
 # data
 icemodels/data/*txt
+icemodels/data/*json
+icemodels/data/*xlsx
 notebooks/ipython_log*py
 docs/auto_examples
