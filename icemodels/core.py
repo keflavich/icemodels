@@ -224,7 +224,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
     for ii in tqdm(range(1, n_ocdb + 1)):
         if not redo and len(
             glob.glob(
-                f'{optical_constants_cache_dir}/{ii}*')) > 0:
+                os.path.join(optical_constants_cache_dir, f'{ii}*'))) > 0:
             # note that this can miss important parameters when there are many
             # temperatures
             continue
@@ -238,8 +238,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
             if row.startswith('Reference:'):
                 reference = shlex.split(row)[1].split()[0]
 
-        filename = (f'{optical_constants_cache_dir}/{ii}_{molname}_{temperature}_'
-                    f'{reference}.txt')
+        filename = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{temperature}_{reference}.txt')
         filename = filename.replace(
             " ",
             "_").replace(
@@ -349,7 +348,7 @@ def load_molecule_ocdb(molname, temperature=10, use_cached=True):
     """
 
     if use_cached:
-        cache_list = glob.glob(f'{optical_constants_cache_dir}/*.txt')
+        cache_list = glob.glob(os.path.join(optical_constants_cache_dir, '*.txt'))
         if any([molname in x.lower() for x in cache_list]):
             for filename in cache_list:
                 if molname in filename.lower():
@@ -775,7 +774,7 @@ def fluxes_in_filters(
 def retrieve_gerakines_co(resolution='low'):
     import pandas as pd
 
-    cache_file = f'{optical_constants_cache_dir}/CO_n_k_values_25_K_2023.xlsx'
+    cache_file = os.path.join(optical_constants_cache_dir, 'CO_n_k_values_25_K_2023.xlsx')
 
     if os.path.exists(cache_file):
         dd = pd.read_excel(cache_file)
@@ -826,7 +825,7 @@ def download_all_lida(
     S = requests.Session()
 
     if redo or not os.path.exists(
-            f'{optical_constants_cache_dir}/lida_index.json'):
+            os.path.join(optical_constants_cache_dir, 'lida_index.json')):
         index = {}
         for ii in range(1, 10):
             resp = S.get(f'{baseurl}/page/{ii}')
@@ -867,10 +866,10 @@ def download_all_lida(
                               'latex_molname': row['Analogue'],
                               # 'doi': doi
                               }
-        with open(f'{optical_constants_cache_dir}/lida_index.json', 'w') as fh:
+        with open(os.path.join(optical_constants_cache_dir, 'lida_index.json'), 'w') as fh:
             json.dump(index, fh)
     else:
-        with open(f'{optical_constants_cache_dir}/lida_index.json', 'r') as fh:
+        with open(os.path.join(optical_constants_cache_dir, 'lida_index.json'), 'r') as fh:
             index = json.load(fh)
 
     for ii in tqdm(index):
@@ -892,7 +891,7 @@ def download_all_lida(
             index[ii]['temperature'] = float(temperature)
             index[ii]['index'] = int(
                 df.attrs["href"].split("/")[-1].split("_")[0])
-            outfn = f'{optical_constants_cache_dir}/{ii}_{molname}_{ratio}_{temperature}K.txt'
+            outfn = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{ratio}_{temperature}K.txt')
             if not os.path.exists(outfn) or redo:
                 url = f'{baseurl}/{df.attrs["href"]}'
                 resp = S.get(url)
