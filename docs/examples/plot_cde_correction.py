@@ -1,6 +1,6 @@
 """
 CDE Correction Example
-=====================
+======================
 
 This example demonstrates how to apply the continuous distribution of ellipsoids (CDE)
 correction to ice absorption spectra.

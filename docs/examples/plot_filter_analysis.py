@@ -1,6 +1,6 @@
 """
 Filter Analysis
-==============
+===============
 
 This example shows how to analyze ice spectra through different JWST/MIRI filters.
 """

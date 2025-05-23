@@ -1,6 +1,6 @@
 """
 Ice Mixture Analysis
-===================
+====================
 
 This example demonstrates how to analyze ice mixtures with different ratios,
 specifically looking at H2O:CO2 mixtures.
