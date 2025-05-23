@@ -15,7 +15,7 @@ IceModels requires the following Python packages:
 * requests (for downloading data)
 
 Installing IceModels
--------------------
+--------------------
 
 You can install IceModels using pip:
 

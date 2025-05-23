@@ -123,7 +123,7 @@ Now let's create a more complex example with multiple ice components:
     plt.show()
 
 Using Gaussian Components
-------------------------
+-------------------------
 
 Sometimes it's useful to model ice features using Gaussian components:
 
@@ -184,7 +184,7 @@ Sometimes it's useful to model ice features using Gaussian components:
     plt.show()
 
 Working with Different Databases
--------------------------------
+--------------------------------
 
 IceModels can access data from multiple databases. Here's how to compare data from different sources:
 

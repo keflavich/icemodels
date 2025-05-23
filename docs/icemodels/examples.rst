@@ -8,7 +8,7 @@ This section contains additional practical examples of using IceModels for vario
 The code for these examples can be found in the ``examples`` directory of the documentation.
 
 Temperature-dependent Ice Analysis
----------------------------------
+----------------------------------
 
 Analyzing how ice spectra change with temperature:
 
@@ -58,7 +58,7 @@ Analyzing how ice spectra change with temperature:
     plt.show()
 
 Ice Mixture Analysis
--------------------
+--------------------
 
 Analyzing ice mixtures with different ratios:
 
@@ -117,7 +117,7 @@ Analyzing ice mixtures with different ratios:
     plt.show()
 
 Filter Analysis
---------------
+---------------
 
 Analyzing ice spectra through different filters:
 
