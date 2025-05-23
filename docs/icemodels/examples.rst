@@ -13,6 +13,10 @@ Analyzing how ice spectra change with temperature:
 .. plot::
     :include-source:
 
+    import warnings
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
+
     import icemodels
     import astropy.units as u
     import matplotlib.pyplot as plt
@@ -62,6 +66,10 @@ Analyzing ice mixtures with different ratios:
 
 .. plot::
     :include-source:
+
+    import warnings
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
 
     import icemodels
     import astropy.units as u
@@ -121,6 +129,10 @@ Analyzing ice spectra through different filters:
 
 .. plot::
     :include-source:
+
+    import warnings
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
 
     import icemodels
     import astropy.units as u
@@ -183,6 +195,10 @@ the optical properties of the ice.
 .. plot::
     :include-source:
 
+    import warnings
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
+
     import icemodels
     import astropy.units as u
     import matplotlib.pyplot as plt
@@ -242,6 +258,10 @@ Comparing ice absorption features against different stellar atmosphere temperatu
 
 .. plot::
     :include-source:
+
+    import warnings
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
+    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
 
     import icemodels
     import astropy.units as u
