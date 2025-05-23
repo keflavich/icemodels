@@ -7,6 +7,7 @@ from icemodels.core import (
     read_ocdb_file, load_molecule_univap, composition_to_molweight,
     parse_molscomps, retrieve_gerakines_co, absorbed_spectrum, fluxes_in_filters
 )
+from astroquery.svo_fps import SvoFps
 
 
 # Test for download_all_ocdb
@@ -211,13 +212,14 @@ def test_ice_absorption_pipeline():
 
     # 4. Calculate fluxes in JWST filters
     filters = ['JWST/NIRCam.F444W', 'JWST/MIRI.F560W']
-    fluxes = fluxes_in_filters(spectrum['wavelength'], absorbed, filters)
+    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filters}
+    fluxes = fluxes_in_filters(spectrum['wavelength'], absorbed, filterids=filters, transdata=transdata)
 
     # Check that we get the expected filter fluxes
     for f in filters:
         assert f in fluxes
     # Check that the absorbed fluxes are less than the original fluxes for the requested filters
-    original_fluxes = fluxes_in_filters(spectrum['wavelength'], spectrum['fnu'], filters)
+    original_fluxes = fluxes_in_filters(spectrum['wavelength'], spectrum['fnu'], filterids=filters, transdata=transdata)
     for f in filters:
         flux = fluxes[f]
         orig_flux = original_fluxes[f]
@@ -254,13 +256,14 @@ def test_ice_absorption_pipeline_with_gaussians():
 
     # Calculate fluxes in JWST filters
     filters = ['JWST/NIRCam.F444W', 'JWST/MIRI.F560W']
-    fluxes = fluxes_in_filters(spectrum['wavelength'], absorbed, filters)
+    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filters}
+    fluxes = fluxes_in_filters(spectrum['wavelength'], absorbed, filterids=filters, transdata=transdata)
 
     # Check that we get the expected filter fluxes
     for f in filters:
         assert f in fluxes
     # Check that the absorbed fluxes are less than the original fluxes for the requested filters
-    original_fluxes = fluxes_in_filters(spectrum['wavelength'], spectrum['fnu'], filters)
+    original_fluxes = fluxes_in_filters(spectrum['wavelength'], spectrum['fnu'], filterids=filters, transdata=transdata)
     for f in filters:
         flux = fluxes[f]
         orig_flux = original_fluxes[f]
