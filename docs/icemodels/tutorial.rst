@@ -6,7 +6,7 @@ This tutorial will walk you through common tasks using IceModels.
 Basic Ice Spectrum Analysis
 ---------------------------
 
-Let's analyze a simple CO2 ice spectrum:
+Example creating a Phooenix 4000 K stellar spectrum with CO2 absorption:
 
 .. plot::
     :include-source:
