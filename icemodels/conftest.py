@@ -21,7 +21,7 @@ def pytest_configure(config):
 
     Parameters
     ----------
-    config : pytest.Config
+    config : `pytest.Config`
         The pytest configuration object.
 
     """
