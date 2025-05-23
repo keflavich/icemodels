@@ -10,7 +10,7 @@ from astropy.table import Table
 from astropy.io import ascii
 from astropy import units as u
 from astropy import log
-import pylab as pl
+import matplotlib.pyplot as pl
 import requests
 from astroquery.svo_fps import SvoFps
 import astropy
