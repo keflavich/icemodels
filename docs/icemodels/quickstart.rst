@@ -1,17 +1,17 @@
 Quickstart Guide
-===============
+================
 
 This guide will help you get started with IceModels quickly.
 
 Basic Usage
-----------
+-----------
 
 IceModels provides tools for working with ice spectroscopy data and models.
 The main functionality includes loading ice data, calculating absorption spectra,
 and analyzing spectral features.
 
 Loading Ice Data
---------------
+----------------
 
 To load ice optical constants:
 
@@ -26,7 +26,7 @@ To load ice optical constants:
     co_data = icemodels.load_molecule_ocdb('co', temperature=10)
 
 Computing Absorption Spectra
----------------------------
+----------------------------
 
 Calculate absorption spectra for ice layers:
 
@@ -45,7 +45,7 @@ Calculate absorption spectra for ice layers:
     )
 
 Simple Gaussian models
---------------------
+----------------------
 
 There is some provision for simple Gaussian models.  These are inaccurate and just hacked together; I don't recommend using them.
 

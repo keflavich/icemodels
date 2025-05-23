@@ -29,7 +29,7 @@ Spectral Analysis
    :no-index:
 
 Utility Functions
-----------------
+-----------------
 
 .. autofunction:: icemodels.core.cde_correct
    :no-index:

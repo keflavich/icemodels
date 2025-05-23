@@ -4,7 +4,7 @@ Installation
 This guide will help you install IceModels and its dependencies.
 
 Requirements
------------
+------------
 
 IceModels requires the following Python packages:
 
@@ -32,7 +32,7 @@ Or install from source:
     pip install -e .
 
 Configuration
-------------
+-------------
 
 After installation, you may want to configure the data directory where IceModels will store downloaded data:
 
