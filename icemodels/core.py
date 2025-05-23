@@ -711,7 +711,7 @@ def convsum(xarr, model_data, filter_table, doplot=False):
         pl.plot(xarr, model_data, 'k-', alpha=0.5, label='Model')
         pl.plot(
             xarr,
-            filter_table['transmission'],
+            filter_table['Transmission'],
             'r-',
             alpha=0.5,
             label='Filter')
@@ -721,7 +721,7 @@ def convsum(xarr, model_data, filter_table, doplot=False):
         pl.show()
 
     return np.sum(
-        model_data * filter_table['transmission']) / np.sum(filter_table['transmission'])
+        model_data * filter_table['Transmission']) / np.sum(filter_table['Transmission'])
 
 
 def fluxes_in_filters(

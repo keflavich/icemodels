@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:00.951** total execution time for 4 files **from all galleries**:
+**00:00.444** total execution time for 4 files **from all galleries**:
 
 .. container::
 
@@ -32,15 +32,15 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_auto_examples_plot_temperature_dependence.py` (``examples/plot_temperature_dependence.py``)
-     - 00:00.433
-     - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_filter_analysis.py` (``examples/plot_filter_analysis.py``)
-     - 00:00.207
-     - 0.0
-   * - :ref:`sphx_glr_auto_examples_plot_ice_mixtures.py` (``examples/plot_ice_mixtures.py``)
-     - 00:00.170
+     - 00:00.444
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_cde_correction.py` (``examples/plot_cde_correction.py``)
-     - 00:00.140
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_auto_examples_plot_ice_mixtures.py` (``examples/plot_ice_mixtures.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_auto_examples_plot_temperature_dependence.py` (``examples/plot_temperature_dependence.py``)
+     - 00:00.000
      - 0.0
