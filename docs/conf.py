@@ -38,6 +38,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_gallery.gen_gallery',
     'matplotlib.sphinxext.plot_directive',
+    'myst_parser',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

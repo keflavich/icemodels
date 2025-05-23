@@ -8,6 +8,8 @@ build:
 sphinx:
   configuration: docs/conf.py
   fail_on_warning: true
+  builder: html
+  build_dir: _build/html
 
 python:
   install:
