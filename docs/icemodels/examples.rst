@@ -3,8 +3,6 @@ Examples
 
 This section contains additional practical examples of using IceModels for various tasks.
 
-.. include:: ../auto_examples/index.rst
-
 The code for these examples can be found in the ``examples`` directory of the documentation.
 
 Temperature-dependent Ice Analysis
