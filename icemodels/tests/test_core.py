@@ -49,7 +49,7 @@ def test_atmo_model():
 def test_load_molecule():
     import icemodels.core as core_mod
     with patch('astropy.table.Table.read') as mock_table_read, \
-         patch('requests.get') as mock_get:
+            patch('requests.get') as mock_get:
         # Patch molecule_data['h2o'] to include density
         core_mod.molecule_data['h2o']['density'] = 1.0
         # Mock the Table returned by Table.read
@@ -61,6 +61,7 @@ def test_load_molecule():
         col3 = MagicMock()
         mock_table.__getitem__.side_effect = lambda key: {'col1': col1, 'col2': col2, 'col3': col3}[key]
         # Support renaming columns
+
         def rename_column(old, new):
             mock_table.colnames = [new if c == old else c for c in mock_table.colnames]
         mock_table.rename_column.side_effect = rename_column
@@ -76,11 +77,12 @@ def test_load_molecule():
 def test_read_ocdb_file():
     from unittest.mock import mock_open
     with patch('astropy.io.ascii.read') as mock_read, \
-         patch('builtins.open', mock_open(read_data='data')):
+            patch('builtins.open', mock_open(read_data='data')):
         # Mock the table returned by ascii.read
         mock_table = MagicMock()
         # Use original column names as in the file before renaming
         mock_table.colnames = ['Wavelength (m)', 'k₁']
+
         def getitem_side_effect(key):
             if key == 'Wavelength (m)':
                 return [1, 2, 3] * u.m  # Astropy Quantity
@@ -95,6 +97,7 @@ def test_read_ocdb_file():
         mock_table.__getitem__.side_effect = getitem_side_effect
         # Make colnames mutable and update on __setitem__
         colnames = ['Wavelength (m)', 'k₁']
+
         def setitem_side_effect(key, value):
             if key == 'k' and 'k' not in colnames:
                 colnames.append('k')
@@ -113,7 +116,7 @@ def test_read_ocdb_file():
 # Test for load_molecule_univap
 def test_load_molecule_univap():
     with patch('astropy.table.Table.read') as mock_table_read, \
-         patch('icemodels.core.get_univap_meta_table') as mock_get_meta:
+            patch('icemodels.core.get_univap_meta_table') as mock_get_meta:
         # Mock the meta table
         mock_meta = MagicMock()
         mock_meta.loc = {'G1': {'reference': ['Test'], 'sample': ['CO']}}
@@ -122,6 +125,7 @@ def test_load_molecule_univap():
         # Mock the molecule table with expected renamed columns
         mock_table = MagicMock()
         mock_table.colnames = ['WaveNum', 'absorbance', 'k', 'n', 'Wavelength']
+
         def getitem_side_effect(key):
             if key == 'WaveNum':
                 return [1, 2, 3] * u.cm**-1
