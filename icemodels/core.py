@@ -20,7 +20,7 @@ from pylatexenc.latex2text import LatexNodes2Text
 from molmass import Formula
 
 cache = {}
-optical_constants_cache_dir = os.path.dirname(__file__) + "/data"
+optical_constants_cache_dir = os.path.join(os.path.dirname(__file__), "data")
 
 molecule_data = {
     'ch3oh': {
