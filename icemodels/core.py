@@ -543,7 +543,8 @@ def cde_correct(freq, m):
 
     Returns
     -------
-    A list containing the following numpy arrays, in given order:
+    result_list : list
+        A list containing the following numpy arrays, in given order:
         * The spectrum of the absorption cross section of the simulated grain.
         * The spectrum of the absorption cross section of the simulated grain,
             normalized by the volume distribution of the grain. This parameter
