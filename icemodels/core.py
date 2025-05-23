@@ -545,12 +545,10 @@ def cde_correct(freq, m):
     -------
     result_list : list
         A list containing the following numpy arrays, in given order:
+
         * The spectrum of the absorption cross section of the simulated grain.
-        * The spectrum of the absorption cross section of the simulated grain,
-            normalized by the volume distribution of the grain. This parameter
-            is the equivalent of optical depth in most cases.
-        * The spectrum of the scattering cross section of the simulated grain,
-            normalized by the volume distribution of the grain.
+        * The spectrum of the absorption cross section of the simulated grain, normalized by the volume distribution of the grain. This parameter is the equivalent of optical depth in most cases.
+        * The spectrum of the scattering cross section of the simulated grain, normalized by the volume distribution of the grain.
         * The spectrum of the total cross section of the simulated grain.
     """
     wl = 1.e4 / freq

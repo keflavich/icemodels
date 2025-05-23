@@ -20,3 +20,4 @@ IceModels is a Python package for analyzing and modeling ice spectra in astronom
    api
    databases
    ../examples/README
+   modules

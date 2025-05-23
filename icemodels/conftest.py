@@ -21,7 +21,8 @@ def pytest_configure(config):
 
     Parameters
     ----------
-    config : pytest configuration
+    config : pytest.Config
+        The pytest configuration object.
 
     """
     if ASTROPY_HEADER:
