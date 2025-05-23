@@ -63,3 +63,7 @@ pip-wheel-metadata/
 
 # Mac OSX
 .DS_Store
+
+# data
+icemodels/data/*txt
+notebooks/ipython_log*py
