@@ -13,7 +13,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 # Create a common wavelength grid
-wavelength = np.linspace(1, 28, 1000) * u.um
+wavelength = np.linspace(1, 5, 1000) * u.um
 
 # Load data
 co_data = icemodels.load_molecule('co')

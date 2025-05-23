@@ -14,7 +14,7 @@ from astropy.table import Table
 from scipy.interpolate import interp1d
 
 # Create a common wavelength grid
-wavelength = np.linspace(1, 28, 1000) * u.um
+wavelength = np.linspace(1, 5, 1000) * u.um
 
 # Get the default spectrum and interpolate it to our wavelength grid
 default_spectrum = icemodels.core.phx4000['fnu']
