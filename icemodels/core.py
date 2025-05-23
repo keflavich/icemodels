@@ -598,12 +598,12 @@ def absorbed_spectrum(
     """
     if not isscalar(ice_column):
         ice_column = ice_column.to(u.cm**-2)
-    else:
+    elif not hasattr(ice_column, 'unit'):
         ice_column = ice_column * u.cm**-2
 
     if not isscalar(molecular_weight):
         molecular_weight = molecular_weight.to(u.Da)
-    else:
+    elif not hasattr(molecular_weight, 'unit'):
         molecular_weight = molecular_weight * u.Da
 
     # Convert to mass column density
