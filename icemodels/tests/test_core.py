@@ -1,6 +1,3 @@
-import os
-import pytest
-import requests
 import numpy as np
 from unittest.mock import patch, MagicMock
 from astropy import units as u
@@ -11,6 +8,7 @@ from icemodels.core import (
     parse_molscomps, retrieve_gerakines_co, absorbed_spectrum, fluxes_in_filters
 )
 
+
 # Test for download_all_ocdb
 def test_download_all_ocdb():
     with patch('requests.Session') as mock_session:
@@ -19,7 +17,10 @@ def test_download_all_ocdb():
         mock_session.return_value.get.return_value = mock_resp
         download_all_ocdb(n_ocdb=1, redo=True)
         # Verify that the session was used to get the correct URL
-        mock_session.return_value.get.assert_called_with('https://ocdb.smce.nasa.gov/dataset/1/download-data/all')
+        mock_session.return_value.get.assert_called_with(
+            'https://ocdb.smce.nasa.gov/dataset/1/download-data/all'
+        )
+
 
 # Test for download_all_lida
 def test_download_all_lida():
@@ -29,7 +30,10 @@ def test_download_all_lida():
         mock_session.return_value.get.return_value = mock_resp
         download_all_lida(n_lida=1, redo=True)
         # Verify that the session was used to get the correct URL
-        mock_session.return_value.get.assert_called_with('https://icedb.strw.leidenuniv.nl/data/1')
+        mock_session.return_value.get.assert_called_with(
+            'https://icedb.strw.leidenuniv.nl/data/1'
+        )
+
 
 # Test for atmo_model
 def test_atmo_model():
@@ -39,6 +43,7 @@ def test_atmo_model():
         assert 'fnu' in result.colnames
         assert 'nu' in result.colnames
         assert result.meta['temperature'] == 4000
+
 
 # Test for load_molecule
 def test_load_molecule():
@@ -65,6 +70,7 @@ def test_load_molecule():
         assert 'Wavelength' in result.colnames or 'col1' in result.colnames
         assert 'n' in result.colnames or 'col2' in result.colnames
         assert 'k' in result.colnames or 'col3' in result.colnames
+
 
 # Test for read_ocdb_file
 def test_read_ocdb_file():
@@ -102,6 +108,7 @@ def test_read_ocdb_file():
         assert 'Wavelength' in result.colnames
         assert 'k' in result.colnames
         assert result['Wavelength'].unit == u.um
+
 
 # Test for load_molecule_univap
 def test_load_molecule_univap():
@@ -141,6 +148,7 @@ def test_load_molecule_univap():
         assert result.meta['molecule'] == 'co'
         assert result.meta['temperature'] == 10
 
+
 # Test for composition_to_molweight
 def test_composition_to_molweight():
     # Test simple molecule
@@ -152,6 +160,7 @@ def test_composition_to_molweight():
     result = composition_to_molweight('CH3OH')
     assert result.unit == u.Da
     assert abs(result.value - 32.042) < 0.001
+
 
 # Test for parse_molscomps
 def test_parse_molscomps():
@@ -169,6 +178,7 @@ def test_parse_molscomps():
     mols, comps = parse_molscomps('H2O(1):CO(0.4)')
     assert mols == ['H2O(1):CO(0.4)']
     assert comps == [1]
+
 
 # Integration tests for the full pipeline
 def test_ice_absorption_pipeline():
@@ -209,6 +219,7 @@ def test_ice_absorption_pipeline():
         if not hasattr(orig_flux, 'unit'):
             orig_flux = orig_flux * flux.unit
         assert flux < orig_flux
+
 
 def test_ice_absorption_pipeline_with_gaussians():
     # Test the Gaussian absorption model
