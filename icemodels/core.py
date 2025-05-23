@@ -661,24 +661,32 @@ def absorbed_spectrum_Gaussians(
     array-like
         The absorbed spectrum
     """
-    if not isscalar(ice_column):
-        ice_column = ice_column.to(u.cm**-2)
+    tau = np.zeros(xarr.size)
+
+    cens, wids, strengths = center, width, ice_bandstrength
+
+    if not isscalar(center):
+        for center, width, ice_bandstrength in zip(cens, wids, strengths):
+            wid_icm = (width / center) * center.to(u.cm**-1, u.spectral())
+            line_profile = 1/((2*np.pi)**0.5 * wid_icm) * np.exp(-(xarr-center)**2/(2*width**2))
+
+            assert line_profile.unit.is_equivalent(u.cm)
+            assert ice_bandstrength.unit.is_equivalent(u.cm)
+            assert ice_column.unit.is_equivalent(u.cm**-2)
+
+            tau = tau + (ice_column * ice_bandstrength * line_profile).decompose()
+            assert tau.unit is u.dimensionless_unscaled
     else:
-        ice_column = ice_column * u.cm**-2
+        wid_icm = (width / center) * center.to(u.cm**-1, u.spectral())
+        line_profile = 1/((2*np.pi)**0.5 * wid_icm) * np.exp(-(xarr-center)**2/(2*width**2))
 
-    if not isscalar(ice_bandstrength):
-        ice_bandstrength = ice_bandstrength.to(u.cm)
-    else:
-        ice_bandstrength = ice_bandstrength * u.cm
+        # normalize the line profile: tau is peak tau, not integral tau.
+        # nope line_profile = line_profile / line_profile.max()
+        tau = tau + (ice_column * ice_bandstrength * line_profile).decompose()
+        assert tau.unit is u.dimensionless_unscaled
 
-    # Calculate optical depth
-    tau = ice_column * ice_bandstrength * \
-        np.exp(-(xarr - center)**2 / (2 * width**2))
-
-    # Calculate transmission
-    transmission = np.exp(-tau)
-
-    return spectrum * transmission
+    absorbed_spectrum = ((np.exp(-tau)) * spectrum)
+    return absorbed_spectrum
 
 
 def convsum(xarr, model_data, filter_table, doplot=False):

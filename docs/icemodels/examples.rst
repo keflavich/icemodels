@@ -129,6 +129,7 @@ Analyzing ice spectra through different filters:
     import matplotlib.pyplot as plt
     import numpy as np
     from scipy.interpolate import interp1d
+    from astroquery.svo_fps import SvoFps
 
     # Create a common wavelength grid
     wavelength = np.linspace(1, 28, 1000) * u.um
@@ -158,13 +159,16 @@ Analyzing ice spectra through different filters:
     plt.legend()
 
     # Calculate and print filter fluxes
-    filter_ids = ['JWST/MIRI.F1000W', 'JWST/MIRI.F1280W']
+    filter_ids = ['JWST/MIRI.F560W', 'JWST/NIRCam.F444W']
+    # Get filter transmission data
+    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
     filter_fluxes = {}
     for filter_id in filter_ids:
         flux = icemodels.fluxes_in_filters(
             xarr=wavelength,
             modeldata=spectrum,
-            filterids=[filter_id]
+            filterids=[filter_id],
+            transdata=transdata
         )
         filter_fluxes[filter_id] = flux
         print(f"Flux through {filter_id}: {flux}")
