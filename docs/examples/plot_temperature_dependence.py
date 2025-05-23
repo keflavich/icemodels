@@ -1,6 +1,6 @@
 """
 Temperature-dependent Ice Analysis
-=================================
+==================================
 
 This example shows how to analyze ice spectra at different temperatures
 using the OCDB database.
