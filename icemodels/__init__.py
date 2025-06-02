@@ -11,6 +11,9 @@ from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    atmo_model, molecule_data, download_all_ocdb, read_ocdb_file,
                    optical_constants_cache_dir)
 from . import gaussian_model_components
+from . import colorcolordiagrams
+from . import absorbance_in_filters
+from .colorcolordiagrams import plot_ccd_icemodels
 
 __all__ = [
     'absorbed_spectrum',
@@ -25,4 +28,7 @@ __all__ = [
     'read_ocdb_file',
     'optical_constants_cache_dir',
     'gaussian_model_components',
+    'colorcolordiagrams',
+    'plot_ccd_icemodels',
+    'absorbance_in_filters',
 ]
