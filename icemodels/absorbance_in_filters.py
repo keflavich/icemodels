@@ -15,8 +15,6 @@ import icemodels
 from icemodels import absorbed_spectrum, absorbed_spectrum_Gaussians, convsum, fluxes_in_filters, load_molecule, load_molecule_ocdb, atmo_model, molecule_data
 from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file
 
-from brick2221.analysis.analysis_setup import basepath
-
 import unicodedata
 
 from astroquery.svo_fps import SvoFps
@@ -340,6 +338,7 @@ def process_table(args):
 
 if __name__ == '__main__':
 
+    basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     #cotbs, h2otbs, co2tbs = load_tables(cache=locals())
 
