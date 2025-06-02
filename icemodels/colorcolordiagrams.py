@@ -6,6 +6,7 @@ from molmass import Formula
 from icemodels.core import composition_to_molweight
 from dust_extinction.averages import CT06_MWGC, G21_MWAvg
 from tqdm.auto import tqdm
+import os
 
 pl.rcParams['axes.prop_cycle'] = pl.cycler(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'], ) * pl.cycler(linestyle=['-', '--', ':', '-.'])
 
@@ -148,15 +149,15 @@ example_plots = [
 ]
 
 if __name__ == "__main__":
-    # Example: load your dmag_tbl here
-    # from astropy.table import Table
-    # dmag_tbl = Table.read('path_to_your_combined_ice_absorption_tables.ecsv')
-    # dmag_tbl.add_index('mol_id')
-    # dmag_tbl.add_index('composition')
-    # dmag_tbl.add_index('temperature')
-    # dmag_tbl.add_index('database')
-    # For now, this is a placeholder. Replace with your actual dmag_tbl loading code.
-    dmag_tbl = dmag_all = Table.read(f'{basepath}/tables/combined_ice_absorption_tables.ecsv')
+    """
+    The "main" example is intended to be run in the Brick 2221 project's directory.
+    """
+
+    savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
+
+    basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    dmag_tbl = dmag_all = Table.read(os.path.join(basepath, 'icemodels', 'data', 'combined_ice_absorption_tables.ecsv'))
     dmag_all.add_index('mol_id')
     dmag_all.add_index('composition')
     dmag_all.add_index('temperature')
@@ -164,8 +165,7 @@ if __name__ == "__main__":
 
     for plot_cfg in example_plots:
         if dmag_tbl is None:
-            print("dmag_tbl not loaded. Please load your model table in the __main__ block.")
-            break
+            raise ValueError("dmag_tbl not loaded. Please load your model table in the __main__ block.")
         pl.figure()
         plot_ccd_icemodels(
             color1=plot_cfg['color1'],
@@ -178,5 +178,5 @@ if __name__ == "__main__":
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1,1,0,0))
         pl.title(plot_cfg['title'])
-        pl.savefig(plot_cfg['filename'], bbox_inches='tight', dpi=150)
+        pl.savefig(os.path.join(savefig_path, plot_cfg['filename']), bbox_inches='tight', dpi=150)
         pl.close()
