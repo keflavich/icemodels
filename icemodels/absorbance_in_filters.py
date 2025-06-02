@@ -21,6 +21,40 @@ from astroquery.svo_fps import SvoFps
 jfilts = SvoFps.get_filter_list('JWST')
 jfilts.add_index('filterID')
 
+cmd_x_default = (
+            'JWST/NIRCam.F210M',
+            'JWST/NIRCam.F212N',
+            'JWST/NIRCam.F250M',
+            'JWST/NIRCam.F277W',
+            'JWST/NIRCam.F300M',
+            'JWST/NIRCam.F323N',
+            'JWST/NIRCam.F322W2',
+            'JWST/NIRCam.F335M',
+            'JWST/NIRCam.F356W',
+            'JWST/NIRCam.F360M',
+            'JWST/NIRCam.F405N',
+            'JWST/NIRCam.F410M',
+            'JWST/NIRCam.F430M',
+            'JWST/NIRCam.F444W',
+            'JWST/NIRCam.F460M',
+            'JWST/NIRCam.F466N',
+            'JWST/NIRCam.F470N',
+            'JWST/NIRCam.F480M',
+            'JWST/MIRI.F560W',
+            'JWST/MIRI.F770W',
+            'JWST/MIRI.F1000W',
+            'JWST/MIRI.F1065C',
+            'JWST/MIRI.F1130W',
+            'JWST/MIRI.F1140C',
+            'JWST/MIRI.F1280W',
+            'JWST/MIRI.F1500W',
+            'JWST/MIRI.F1550C',
+            'JWST/MIRI.F1800W',
+            'JWST/MIRI.F2100W',
+            'JWST/MIRI.F2300C',
+            'JWST/MIRI.F2550W',
+        )
+
 
 def unicode_to_ascii(text):
     return ''.join(
@@ -216,17 +250,47 @@ phx4000 = atmo_model(4000, xarr=xarr)
 #xarr = phx4000['nu'].quantity.to(u.um, u.spectral())
 cols = np.geomspace(1e15, 1e21, 25)
 
-def process_table(args):
+def process_table(args, cmd_x=None, transdata=None):
+    """
+    Process a table for absorbance in filters.
+
+    Parameters
+    ----------
+    args : tuple
+        Arguments as before (see code for details).
+    cmd_x : tuple or list of str, optional
+        List of filter IDs to use. If not provided, defaults to a standard set of JWST NIRCam and MIRI filters longward of 2 microns.
+    transdata : dict, optional
+        Dictionary mapping filter IDs to their transmission data. If not provided, the function will fetch the transmission data for all filters in cmd_x (which can be slow if called repeatedly).
+
+    Returns
+    -------
+    dmag_rows : list of dict
+        List of rows with computed delta magnitudes for each filter and column.
+
+    Notes
+    -----
+    For best performance, precompute transdata and pass it in, especially if calling this function many times.
+    """
     if len(args) == 9:
-        mol, key, consts, xarr, phx4000, cols, filter_data, transdata, basepath = args
+        mol, key, consts, xarr, phx4000, cols, filter_data, user_transdata, basepath = args
         molfn = None
         tb = consts
     else:
-        molfn, xarr, phx4000, cols, filter_data, transdata, basepath = args
+        molfn, xarr, phx4000, cols, filter_data, user_transdata, basepath = args
         consts = tb = read_table_file(molfn)
         if tb is None:
             return []
 
+    # Use provided cmd_x or default
+    if cmd_x is None:
+        cmd_x = cmd_x_default
+    # Use provided transdata or fetch if not provided
+    if transdata is None:
+        from astroquery.svo_fps import SvoFps
+        transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
+    else:
+        transdata = user_transdata
 
     mol = tb.meta['molecule']
     database = tb.meta['database']
@@ -241,41 +305,6 @@ def process_table(args):
     # if the wavelength range doesn't match, it just extrapolates.
     if u.Quantity(consts['Wavelength'].min(), u.um) > 5.0*u.um:
         return []
-
-    # All JWST NIRCam and MIRI filters longward of 2 microns, sorted by wavelength
-    cmd_x = (
-        'JWST/NIRCam.F210M',
-        'JWST/NIRCam.F212N',
-        'JWST/NIRCam.F250M',
-        'JWST/NIRCam.F277W',
-        'JWST/NIRCam.F300M',
-        'JWST/NIRCam.F323N',
-        'JWST/NIRCam.F322W2',
-        'JWST/NIRCam.F335M',
-        'JWST/NIRCam.F356W',
-        'JWST/NIRCam.F360M',
-        'JWST/NIRCam.F405N',
-        'JWST/NIRCam.F410M',
-        'JWST/NIRCam.F430M',
-        'JWST/NIRCam.F444W',
-        'JWST/NIRCam.F460M',
-        'JWST/NIRCam.F466N',
-        'JWST/NIRCam.F470N',
-        'JWST/NIRCam.F480M',
-        'JWST/MIRI.F560W',
-        'JWST/MIRI.F770W',
-        'JWST/MIRI.F1000W',
-        'JWST/MIRI.F1065C',
-        'JWST/MIRI.F1130W',
-        'JWST/MIRI.F1140C',
-        'JWST/MIRI.F1280W',
-        'JWST/MIRI.F1500W',
-        'JWST/MIRI.F1550C',
-        'JWST/MIRI.F1800W',
-        'JWST/MIRI.F2100W',
-        'JWST/MIRI.F2300C',
-        'JWST/MIRI.F2550W',
-    )
 
     # Initialize dmags dictionary
     dmags = {filt: [] for filt in cmd_x}
@@ -346,36 +375,20 @@ if __name__ == '__main__':
 
     basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    #cotbs, h2otbs, co2tbs = load_tables(cache=locals())
-
-    #molecules = {'H2O': h2otbs, 'CO': cotbs, 'CO2': co2tbs, 'H2O+CO': mymix_tables}
-
-    # Create a dictionary of filter zero points
-    filter_ids = ['JWST/NIRCam.F410M', 'JWST/NIRCam.F466N', 'JWST/NIRCam.F356W',
-                  'JWST/NIRCam.F444W', 'JWST/NIRCam.F405N', 'JWST/NIRCam.F300M',
-                  'JWST/NIRCam.F335M', 'JWST/NIRCam.F360M', 'JWST/NIRCam.F212N',
-                  'JWST/NIRCam.F430M', 'JWST/NIRCam.F460M', 'JWST/NIRCam.F480M',
-                  'JWST/NIRCam.F323N', 'JWST/NIRCam.F277W', 'JWST/NIRCam.F300M',
-                  'JWST/NIRCam.F250M', 'JWST/NIRCam.F335M', 'JWST/NIRCam.F360M',
-                  'JWST/NIRCam.F182M',
-                  ]
-    filter_data = {fid: float(jfilts.loc[fid]['ZeroPoint']) for fid in filter_ids}
-    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
+    # Define the filter set globally for reuse
+    cmd_x = cmd_x_default
+    filter_data = {fid: float(jfilts.loc[fid]['ZeroPoint']) for fid in cmd_x}
+    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
 
     # Create list of all tables to process
     all_tables = []
-    #for mol, tbs in molecules.items():
-    #    for key, consts in tbs.items():
-    #        all_tables.append((mol, key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
-
     for key, consts in mymix_tables.items():
         all_tables.append(('H2O+CO', key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
     for fn in glob.glob(f'{optical_constants_cache_dir}/*txt'):
-        #all_tables.append((tb.meta['molecule'], (db, int(tb.meta['index']), tb.meta['temperature']), tb, xarr, phx4000, cols, filter_data, transdata, basepath))
         all_tables.append((fn, xarr, phx4000, cols, filter_data, transdata, basepath))
 
-    # Process all tables in parallel
-    results = process_map(process_table,
+    # Process all tables in parallel, passing cmd_x and transdata
+    results = process_map(partial(process_table, cmd_x=cmd_x, transdata=transdata),
                           all_tables,
                           max_workers=mp.cpu_count(),
                           desc="Processing tables",
@@ -387,7 +400,11 @@ if __name__ == '__main__':
         if result:
             mol_rows.extend(result)
 
+    # Ensure output directory exists
+    output_dir = os.path.join(basepath, 'icemodels', 'data')
+    os.makedirs(output_dir, exist_ok=True)
+
     dmag_tbl = Table(mol_rows)
-    dmag_tbl.write(f'{basepath}/tables/combined_ice_absorption_tables.ecsv', overwrite=True)
+    dmag_tbl.write(f'{output_dir}/combined_ice_absorption_tables.ecsv', overwrite=True)
     dmag_tbl.add_index('database')
     dmag_tbl.add_index('mol_id')
