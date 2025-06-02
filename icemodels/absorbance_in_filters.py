@@ -242,7 +242,43 @@ def process_table(args):
     if u.Quantity(consts['Wavelength'].min(), u.um) > 5.0*u.um:
         return []
 
-    dmags410, dmags466, dmags444, dmags356, dmags405, dmags323, dmags277, dmags300, dmags250, dmags335, dmags360, dmags480 = [], [], [], [], [], [], [], [], [], [], [], []
+    # All JWST NIRCam and MIRI filters longward of 2 microns, sorted by wavelength
+    cmd_x = (
+        'JWST/NIRCam.F210M',
+        'JWST/NIRCam.F212N',
+        'JWST/NIRCam.F250M',
+        'JWST/NIRCam.F277W',
+        'JWST/NIRCam.F300M',
+        'JWST/NIRCam.F323N',
+        'JWST/NIRCam.F322W2',
+        'JWST/NIRCam.F335M',
+        'JWST/NIRCam.F356W',
+        'JWST/NIRCam.F360M',
+        'JWST/NIRCam.F405N',
+        'JWST/NIRCam.F410M',
+        'JWST/NIRCam.F430M',
+        'JWST/NIRCam.F444W',
+        'JWST/NIRCam.F460M',
+        'JWST/NIRCam.F466N',
+        'JWST/NIRCam.F470N',
+        'JWST/NIRCam.F480M',
+        'JWST/MIRI.F560W',
+        'JWST/MIRI.F770W',
+        'JWST/MIRI.F1000W',
+        'JWST/MIRI.F1065C',
+        'JWST/MIRI.F1130W',
+        'JWST/MIRI.F1140C',
+        'JWST/MIRI.F1280W',
+        'JWST/MIRI.F1500W',
+        'JWST/MIRI.F1550C',
+        'JWST/MIRI.F1800W',
+        'JWST/MIRI.F2100W',
+        'JWST/MIRI.F2300C',
+        'JWST/MIRI.F2550W',
+    )
+
+    # Initialize dmags dictionary
+    dmags = {filt: [] for filt in cmd_x}
 
     molecule = mol.lower()
     try:
@@ -260,19 +296,6 @@ def process_table(args):
             print(f"Molecule {mol} with composition {consts.meta['composition']} failed to convert to molwt")
             return []
 
-    cmd_x = ('JWST/NIRCam.F410M', # 0
-             'JWST/NIRCam.F466N', # 1
-             'JWST/NIRCam.F356W', # 2
-             'JWST/NIRCam.F444W', # 3
-             'JWST/NIRCam.F405N', # 4
-             'JWST/NIRCam.F323N', # 5
-             'JWST/NIRCam.F277W', # 6
-             'JWST/NIRCam.F300M', # 7
-             'JWST/NIRCam.F250M', # 8
-             'JWST/NIRCam.F335M', # 9
-             'JWST/NIRCam.F360M', # 10
-             'JWST/NIRCam.F480M', # 11
-             )
     flxd_ref = fluxes_in_filters(xarr, phx4000['fnu'].quantity, filterids=cmd_x, transdata=transdata)
 
     author = consts.meta['author'] if 'author' in consts.meta else ''
@@ -297,42 +320,25 @@ def process_table(args):
         mags_x = tuple(-2.5*np.log10(flxd[cmd] / u.Quantity(filter_data[cmd], u.Jy))
                        for cmd in cmd_x)
 
-        dmags405.append(mags_x[4]-mags_x_star[4])
-        dmags444.append(mags_x[3]-mags_x_star[3])
-        dmags356.append(mags_x[2]-mags_x_star[2])
-        dmags466.append(mags_x[1]-mags_x_star[1])
-        dmags410.append(mags_x[0]-mags_x_star[0])
-        dmags323.append(mags_x[5]-mags_x_star[5])
-        dmags277.append(mags_x[6]-mags_x_star[6])
-        dmags300.append(mags_x[7]-mags_x_star[7])
-        dmags250.append(mags_x[8]-mags_x_star[8])
-        dmags335.append(mags_x[9]-mags_x_star[9])
-        dmags360.append(mags_x[10]-mags_x_star[10])
-        dmags480.append(mags_x[11]-mags_x_star[11])
+        # Use a loop to append differences to the dmags dictionary
+        for i, filt in enumerate(cmd_x):
+            dmags[filt].append(mags_x[i] - mags_x_star[i])
 
-        dmag_rows.append({
+        dmag_row = {
             'molecule': molecule,
             'mol_id': mol_id,
             'molwt': molwt,
             'database': database,
             'author': author,
             'composition': consts.meta['composition'],
-            'temperature': consts.meta['temperature'],
+            'temperature': temperature,
             'density': consts.meta['density'],
             'column': col,
-            'F356W': dmags356[-1],
-            'F410M': dmags410[-1],
-            'F444W': dmags444[-1],
-            'F466N': dmags466[-1],
-            'F405N': dmags405[-1],
-            'F323N': dmags323[-1],
-            'F277W': dmags277[-1],
-            'F300M': dmags300[-1],
-            'F250M': dmags250[-1],
-            'F335M': dmags335[-1],
-            'F360M': dmags360[-1],
-            'F480M': dmags480[-1],
-        })
+        }
+        # Add the latest dmag for each filter
+        for filt in cmd_x:
+            dmag_row[filt] = dmags[filt][-1]
+        dmag_rows.append(dmag_row)
 
     return dmag_rows
 
