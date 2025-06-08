@@ -1,6 +1,5 @@
 import glob
 import os
-import time
 import multiprocessing as mp
 from functools import partial
 
@@ -11,8 +10,7 @@ from tqdm.auto import tqdm
 from tqdm.contrib.concurrent import process_map
 import molmass
 
-import icemodels
-from icemodels import absorbed_spectrum, absorbed_spectrum_Gaussians, convsum, fluxes_in_filters, load_molecule, load_molecule_ocdb, atmo_model, molecule_data
+from icemodels import absorbed_spectrum, fluxes_in_filters, atmo_model
 from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file
 
 import unicodedata
@@ -22,38 +20,38 @@ jfilts = SvoFps.get_filter_list('JWST')
 jfilts.add_index('filterID')
 
 cmd_x_default = (
-            'JWST/NIRCam.F210M',
-            'JWST/NIRCam.F212N',
-            'JWST/NIRCam.F250M',
-            'JWST/NIRCam.F277W',
-            'JWST/NIRCam.F300M',
-            'JWST/NIRCam.F323N',
-            'JWST/NIRCam.F322W2',
-            'JWST/NIRCam.F335M',
-            'JWST/NIRCam.F356W',
-            'JWST/NIRCam.F360M',
-            'JWST/NIRCam.F405N',
-            'JWST/NIRCam.F410M',
-            'JWST/NIRCam.F430M',
-            'JWST/NIRCam.F444W',
-            'JWST/NIRCam.F460M',
-            'JWST/NIRCam.F466N',
-            'JWST/NIRCam.F470N',
-            'JWST/NIRCam.F480M',
-            'JWST/MIRI.F560W',
-            'JWST/MIRI.F770W',
-            'JWST/MIRI.F1000W',
-            'JWST/MIRI.F1065C',
-            'JWST/MIRI.F1130W',
-            'JWST/MIRI.F1140C',
-            'JWST/MIRI.F1280W',
-            'JWST/MIRI.F1500W',
-            'JWST/MIRI.F1550C',
-            'JWST/MIRI.F1800W',
-            'JWST/MIRI.F2100W',
-            'JWST/MIRI.F2300C',
-            'JWST/MIRI.F2550W',
-        )
+    'JWST/NIRCam.F210M',
+    'JWST/NIRCam.F212N',
+    'JWST/NIRCam.F250M',
+    'JWST/NIRCam.F277W',
+    'JWST/NIRCam.F300M',
+    'JWST/NIRCam.F323N',
+    'JWST/NIRCam.F322W2',
+    'JWST/NIRCam.F335M',
+    'JWST/NIRCam.F356W',
+    'JWST/NIRCam.F360M',
+    'JWST/NIRCam.F405N',
+    'JWST/NIRCam.F410M',
+    'JWST/NIRCam.F430M',
+    'JWST/NIRCam.F444W',
+    'JWST/NIRCam.F460M',
+    'JWST/NIRCam.F466N',
+    'JWST/NIRCam.F470N',
+    'JWST/NIRCam.F480M',
+    'JWST/MIRI.F560W',
+    'JWST/MIRI.F770W',
+    'JWST/MIRI.F1000W',
+    'JWST/MIRI.F1065C',
+    'JWST/MIRI.F1130W',
+    'JWST/MIRI.F1140C',
+    'JWST/MIRI.F1280W',
+    'JWST/MIRI.F1500W',
+    'JWST/MIRI.F1550C',
+    'JWST/MIRI.F1800W',
+    'JWST/MIRI.F2100W',
+    'JWST/MIRI.F2300C',
+    'JWST/MIRI.F2550W',
+)
 
 
 def unicode_to_ascii(text):
@@ -70,30 +68,29 @@ def load_tables(cache):
         cotbs, h2otbs, co2tbs = {}, {}, {}
         for molname, tbs in {'H2O': h2otbs, 'CO': cotbs, 'CO2': co2tbs}.items():
             for fn in tqdm(glob.glob(f"{optical_constants_cache_dir}/*_{molname}:*") +
-                        glob.glob(f"{optical_constants_cache_dir}/*_{molname}_*") +
-                        glob.glob(f"{optical_constants_cache_dir}/*_{molname} *")
-                        ):
+                           glob.glob(f"{optical_constants_cache_dir}/*_{molname}_*") +
+                           glob.glob(f"{optical_constants_cache_dir}/*_{molname} *")
+                           ):
                 try:
                     tb = read_ocdb_file(fn)
                     basename = os.path.basename(os.path.splitext(fn)[0])
                     spl = basename.split("_")
                     idnum = int(spl[0])
-                    #temperature = int(float([x for x in spl if 'K' in x][0].strip('K')))
+                    # temperature = int(float([x for x in spl if 'K' in x][0].strip('K')))
                     temperature = int(tb.meta['temperature'].strip('K'))
                     tbs[('ocdb', idnum, temperature)] = tb
-                    #tbs['ocdb'][idnum][temperature] = tb
+                    # tbs['ocdb'][idnum][temperature] = tb
                 except Exception as ex:
                     with open(fn, 'r') as fh:
                         if 'ocdb' in fh.read().lower():
-                            #print(fn)
+                            # print(fn)
                             continue
                     tb = read_lida_file(fn)
                     temperature = int(tb.meta['temperature'])
                     tbs[('lida', int(tb.meta['index']), temperature)] = tb
                 except Exception as ex:
-                    #print(fn, spl)
+                    # print(fn, spl)
                     continue
-
 
         # rename columns to k
         for mol, tbs in {'H2O': h2otbs, 'CO': cotbs, 'CO2': co2tbs}.items():
@@ -102,7 +99,7 @@ def load_tables(cache):
                     tb['k'] = tb['k₁']
                 else:
                     pass
-                    #print(f'{key} -> {tb.meta} had no k₁')
+                    # print(f'{key} -> {tb.meta} had no k₁')
 
     cotbs[('ocdb', 63, 25)] = retrieve_gerakines_co(resolution='low')
     cotbs[('ocdb', 64, 25)] = retrieve_gerakines_co(resolution='high')
@@ -150,12 +147,12 @@ def make_mymix_tables():
     # 3-1 comes from Brandt's models plus the McClure 2023 paper
     mymix_tables = {}
 
-    water_mastrapa = read_ocdb_file(f'{optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt') # h2otbs[('ocdb', 242, 25)] 242 is 50K....
-    co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt') # co2tbs[('ocdb', 55, 8)]
+    water_mastrapa = read_ocdb_file(f'{optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt')  # h2otbs[('ocdb', 242, 25)] 242 is 50K....
+    co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
     ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
     methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
     ocn = read_lida_file(f'{optical_constants_cache_dir}/158_OCN-_1_12.0K.txt')
-    #nh3 = read_ocdb_file(f'{optical_constants_cache_dir}/65_NH3_(1)_100K_Gerakines.txt')
+    # nh3 = read_ocdb_file(f'{optical_constants_cache_dir}/65_NH3_(1)_100K_Gerakines.txt')
 
     # modify OCN to get rid of the non-OCN contributions
     ocn['k'][(ocn['Wavelength'] < 4.5*u.um) | (ocn['Wavelength'] > 4.75*u.um)] = 0
@@ -233,26 +230,25 @@ def make_mymix_tables():
 
         tbl = Table({'Wavelength': grid, 'k': co_plus_co2_plus_water_k})
         tbl.meta['composition'] = composition
-        tbl.meta['density'] = 1*u.g/u.cm**3 # everything is close to 1 g/cm^3.... so this is just a close-enough guess
-        tbl.meta['temperature'] = 25*u.K # really 8-25 K depending on molecule
+        tbl.meta['density'] = 1*u.g/u.cm**3  # everything is close to 1 g/cm^3.... so this is just a close-enough guess
+        tbl.meta['temperature'] = 25*u.K  # really 8-25 K depending on molecule
         tbl.meta['index'] = ii
         tbl.meta['molecule'] = mol
         tbl.meta['database'] = 'mymix'
         tbl.meta['author'] = 'Mastrapa 2024, Gerakines 2020, etc'
 
-
         mymix_tables[(mol, ii, 25)] = tbl
-        tbl.write(f'{optical_constants_cache_dir}/mymixes/{composition.replace(" ","_")}.ecsv', overwrite=True)
+        tbl.write(f'{optical_constants_cache_dir}/mymixes/{composition.replace(" ", "_")}.ecsv', overwrite=True)
 
     return mymix_tables
 
-mymix_tables = make_mymix_tables()
 
+mymix_tables = make_mymix_tables()
 
 xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
 phx4000 = atmo_model(4000, xarr=xarr)
-#xarr = phx4000['nu'].quantity.to(u.um, u.spectral())
 cols = np.geomspace(1e15, 1e21, 25)
+
 
 def process_table(args, cmd_x=None, transdata=None):
     """
@@ -338,9 +334,9 @@ def process_table(args, cmd_x=None, transdata=None):
     for col in cols:
         try:
             spec = absorbed_spectrum(col*u.cm**-2, consts, molecular_weight=molwt,
-                                    spectrum=phx4000['fnu'].quantity,
-                                    xarr=xarr,
-                                    )
+                                     spectrum=phx4000['fnu'].quantity,
+                                     xarr=xarr,
+                                     )
         except Exception as ex:
             print(f"Error processing file {molfn}: {ex}")
             print(consts)
@@ -349,7 +345,7 @@ def process_table(args, cmd_x=None, transdata=None):
 
         # Calculate magnitudes
         mags_x_star = tuple(-2.5*np.log10(flxd_ref[cmd] / u.Quantity(filter_data[cmd], u.Jy))
-                           for cmd in cmd_x)
+                            for cmd in cmd_x)
         mags_x = tuple(-2.5*np.log10(flxd[cmd] / u.Quantity(filter_data[cmd], u.Jy))
                        for cmd in cmd_x)
 
@@ -377,6 +373,7 @@ def process_table(args, cmd_x=None, transdata=None):
         dmag_rows.append(dmag_row)
 
     return dmag_rows
+
 
 if __name__ == '__main__':
 

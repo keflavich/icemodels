@@ -2,9 +2,9 @@ from astropy.table import Table
 import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as pl
-from molmass import Formula
+# from molmass import Formula
 from icemodels.core import composition_to_molweight
-from dust_extinction.averages import CT06_MWGC, G21_MWAvg
+from dust_extinction.averages import CT06_MWGC  # , G21_MWAvg
 from tqdm.auto import tqdm
 import os
 
@@ -13,11 +13,13 @@ pl.rcParams['axes.prop_cycle'] = pl.cycler(color=['#1f77b4', '#ff7f0e', '#2ca02c
 x = np.linspace(1.24*u.um, 5*u.um, 1000)
 pp_ct06 = np.polyfit(x, CT06_MWGC()(x), 7)
 
+
 def ext(x, model=CT06_MWGC()):
     if x > 1/model.x_range[1]*u.um and x < 1/model.x_range[0]*u.um:
         return model(x)
     else:
         return np.polyval(pp_ct06, x.value)
+
 
 def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axlims=[-1, 4, -2.5, 1],
                        nh2_to_av=2.21e21, abundance=2e-5, av_start=20, max_column=2e20, icemol='CO',
@@ -83,6 +85,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
 
     pl.axis(axlims)
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
+
 
 # Constants for abundances and percent ice
 carbon_abundance = 10**(8.7-12)
@@ -176,7 +179,7 @@ if __name__ == "__main__":
             abundance=plot_cfg['abundance'],
             max_column=plot_cfg['max_column'],
         )
-        pl.legend(loc='upper left', bbox_to_anchor=(1,1,0,0))
+        pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])
         pl.savefig(os.path.join(savefig_path, plot_cfg['filename']), bbox_inches='tight', dpi=150)
         pl.close()
