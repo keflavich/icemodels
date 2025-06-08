@@ -187,6 +187,10 @@ def make_mymix_tables():
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (10:1:2)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (10:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (10:1:0.5)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (15:1:0.5)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (15:1:1)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (20:1:0.5)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (20:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (10:1:10)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (1:1:10)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (3:1:0.8)'),
@@ -366,7 +370,10 @@ def process_table(args, cmd_x=None, transdata=None):
         }
         # Add the latest dmag for each filter
         for filt in cmd_x:
-            dmag_row[filt] = dmags[filt][-1]
+            if 'JWST/' in filt:
+                dmag_row[filt.replace('JWST/NIRCam.', '').replace('JWST/MIRI.', '')] = dmags[filt][-1]
+            else:
+                dmag_row[filt] = dmags[filt][-1]
         dmag_rows.append(dmag_row)
 
     return dmag_rows
@@ -408,3 +415,5 @@ if __name__ == '__main__':
     dmag_tbl.write(f'{output_dir}/combined_ice_absorption_tables.ecsv', overwrite=True)
     dmag_tbl.add_index('database')
     dmag_tbl.add_index('mol_id')
+
+    assert 'F212N' in dmag_tbl.colnames
