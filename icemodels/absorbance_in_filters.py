@@ -216,17 +216,9 @@ def make_mymix_tables():
 
         co_plus_co2_plus_water_k = np.sum([
             (mult * np.interp(grid,
-                              moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
-                              moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])])) for mol, mult in mults.items()
+                                moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
+                                moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])])) for mol, mult in mults.items()
         ], axis=0) / np.sum(list(mults.values()))
-        # co_plus_co2_plus_water_k = (co_mult * gerakines['k'] +
-        #                             h2o_mult * np.interp(grid, water_mastrapa['Wavelength'][inds], water_mastrapa['k'][inds],) +
-        #                             co2_mult * np.interp(grid, co2_gerakines['Wavelength'], co2_gerakines['k']) +
-        #                             ch3oh_mult * np.interp(grid, methanol['Wavelength'], methanol['k']) +
-        #                             ch3ch2oh_mult * np.interp(grid, ethanol['Wavelength'], ethanol['k'])
-        #                             ) / (
-        #                                 co_mult + h2o_mult + co2_mult + ch3oh_mult + ch3ch2oh_mult
-        #                                 )
 
         tbl = Table({'Wavelength': grid, 'k': co_plus_co2_plus_water_k})
         tbl.meta['composition'] = composition
@@ -238,12 +230,19 @@ def make_mymix_tables():
         tbl.meta['author'] = 'Mastrapa 2024, Gerakines 2020, etc'
 
         mymix_tables[(mol, ii, 25)] = tbl
+        os.makedirs(f'{optical_constants_cache_dir}/mymixes', exist_ok=True)
         tbl.write(f'{optical_constants_cache_dir}/mymixes/{composition.replace(" ", "_")}.ecsv', overwrite=True)
 
     return mymix_tables
 
 
-mymix_tables = make_mymix_tables()
+# Initialize mymix_tables as an empty dict by default
+mymix_tables = {}
+try:
+    mymix_tables = make_mymix_tables()
+except Exception as e:
+    print(f"Warning: Could not initialize mixed tables: {e}")
+    print("Some functionality may be limited. Run download_all_lida() to download required data files.")
 
 xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
 phx4000 = atmo_model(4000, xarr=xarr)

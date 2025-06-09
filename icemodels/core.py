@@ -239,14 +239,9 @@ def download_all_ocdb(n_ocdb=298, redo=False):
                 reference = shlex.split(row)[1].split()[0]
 
         filename = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{temperature}_{reference}.txt')
-        filename = filename.replace(
-            " ",
-            "_").replace(
-            "'",
-            "").replace(
-            '\\',
-            '')
+        filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
         filename = filename.replace('"', '')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, 'w') as fh:
             fh.write(resp.text)
 
@@ -830,7 +825,7 @@ def download_all_lida(
         for ii in range(1, 10):
             resp = S.get(f'{baseurl}/page/{ii}')
             soup = BeautifulSoup(resp.text, features='html5lib')
-            mollinks = soup.findAll('a', class_='name')
+            mollinks = soup.find_all('a', class_='name')
 
             tbl = Table.read(
                 f'{baseurl}/page/{ii}',
@@ -866,6 +861,7 @@ def download_all_lida(
                               'latex_molname': row['Analogue'],
                               # 'doi': doi
                               }
+        os.makedirs(os.path.dirname(os.path.join(optical_constants_cache_dir, 'lida_index.json')), exist_ok=True)
         with open(os.path.join(optical_constants_cache_dir, 'lida_index.json'), 'w') as fh:
             json.dump(index, fh)
     else:
@@ -883,7 +879,7 @@ def download_all_lida(
 
         soup = BeautifulSoup(resp1.text, features='html5lib')
 
-        datafiles = soup.findAll('a', text='TXT')
+        datafiles = soup.find_all('a', string='TXT')
 
         for df in datafiles:
             temperature = os.path.splitext(df.attrs["href"])[0].split(
@@ -892,6 +888,7 @@ def download_all_lida(
             index[ii]['index'] = int(
                 df.attrs["href"].split("/")[-1].split("_")[0])
             outfn = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{ratio}_{temperature}K.txt')
+            os.makedirs(os.path.dirname(outfn), exist_ok=True)
             if not os.path.exists(outfn) or redo:
                 url = f'{baseurl}/{df.attrs["href"]}'
                 resp = S.get(url)
