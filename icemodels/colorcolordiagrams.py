@@ -35,7 +35,12 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
     E_V_color2 = (ext(wavelength_of_filter(color2[0])) - ext(wavelength_of_filter(color2[1])))
 
     if molcomps is not None:
-        molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
+        try:
+            molids = [np.unique(dmag_tbl.loc['author', mc[0]].loc['composition', mc[1]].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
+        except Exception as ex:
+            # TODO: figure out what kind of exception this is
+            print(f"exception for author approach was {ex}, type={type(ex)}")
+            molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc[molids]['composition'])
 
@@ -148,6 +153,25 @@ example_plots = [
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_OCNmixes.png',
     },
+    {
+        'color1': ['F182M', 'F212N'],
+        'color2': ['F405N', 'F410M'],
+        'axlims': (0, 3, -1.5, 1.0),
+        'molcomps': [
+            ('Hudgins', ('CO2 (1)', '70K')),
+            ('Gerakines', ('CO2 (1)', '70K')),
+            ('Hudgins', ('CO2 (1)', '10K')),
+            ('Ehrenfreund', ('CO2 (1)', '10K')),
+            ('Hudgins', ('CO2 (1)', '30K')),
+            ('Hudgins', ('CO2 (1)', '50K')),
+            ('Ehrenfreund', ('CO2 (1)', '50K')),
+            ('Gerakines', ('CO2 (1)', '8K')),
+        ],
+        'abundance': (percent_ice/100.)*carbon_abundance,
+        'max_column': 5e19,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only.png',
+    },
     # Add more plot configs as needed...
 ]
 
@@ -165,6 +189,7 @@ if __name__ == "__main__":
     dmag_all.add_index('composition')
     dmag_all.add_index('temperature')
     dmag_all.add_index('database')
+    dmag_tbl.add_index('author')
 
     for plot_cfg in example_plots:
         if dmag_tbl is None:
