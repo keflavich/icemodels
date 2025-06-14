@@ -216,8 +216,8 @@ def make_mymix_tables():
 
         co_plus_co2_plus_water_k = np.sum([
             (mult * np.interp(grid,
-                                moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
-                                moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])])) for mol, mult in mults.items()
+                              moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
+                              moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])])) for mol, mult in mults.items()
         ], axis=0) / np.sum(list(mults.values()))
 
         tbl = Table({'Wavelength': grid, 'k': co_plus_co2_plus_water_k})

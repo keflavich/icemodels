@@ -37,7 +37,8 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
 
     if molcomps is not None:
         if isinstance(molcomps[0][1], tuple):
-            molids = [np.unique(dmag_tbl.loc['author', author].loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for (author, (mc, tem)) in molcomps]
+            molids = [np.unique(dmag_tbl.loc['author', author].loc['composition', mc].loc['temperature', str(tem)]['mol_id'])
+                      for (author, (mc, tem)) in molcomps]
             molcomps = [xx[1] for xx in molcomps]
         else:
             molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
@@ -56,6 +57,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
             tb = dmag_tbl.loc[mol_id].loc['composition', molcomp]
         comp = np.unique(tb['composition'])[0]
         temp = np.unique(tb['temperature'])[temperature_id]
+        author = np.unique(tb['author'])[0]
         tb = tb.loc['temperature', temp]
 
         sel = tb['column'] < max_column
@@ -90,9 +92,9 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
         else:
             label = comp
             if label_author:
-                label = label + f' ({tb.meta["author"]})'
-            elif label_temperature:
-                label = label + f' ({tb.meta["temperature"]} K)'
+                label = label + f' {author}'
+            if label_temperature:
+                label = label + f' {temp}'
             L, = pl.plot(c1, c2, label=label, )
 
     pl.axis(axlims)
@@ -166,7 +168,7 @@ example_plots = [
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F410M'],
-        'axlims': (0, 3, -0.5, 0.5),
+        'axlims': (-0.1, 2.5, -0.5, 0.15),
         'molcomps': [
             ('Hudgins', ('CO2 (1)', '70K')),
             ('Gerakines', ('CO2 (1)', '70K')),
@@ -176,13 +178,17 @@ example_plots = [
             ('Hudgins', ('CO2 (1)', '50K')),
             ('Ehrenfreund', ('CO2 (1)', '50K')),
             ('Gerakines', ('CO2 (1)', '8K')),
+            # ('Mastrapa 2024, Gerakines 2020, etc', ('H2O:CO:CO2 (1:1:1)', 25.0)),
+            # ('Mastrapa 2024, Gerakines 2020, etc', ('H2O:CO:CO2:CH3OH (1:1:1:1)', 25.0)),
+            # ('Mastrapa 2024, Gerakines 2020, etc', ('H2O:CO:CO2:CH3OH:CH3CH2OH (1:1:1:1:1)', 25.0)),
         ],
         'icemol': 'CO2',
         'abundance': (percent_ice/100.)*carbon_abundance,
-        'max_column': 5e19,
+        'max_column': 2e19,
+        'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e19 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only_nodata.png',
     },
     # Add more plot configs as needed...
@@ -219,6 +225,7 @@ if __name__ == "__main__":
             icemol=plot_cfg['icemol'],
             label_author=plot_cfg.get('label_author', False),
             label_temperature=plot_cfg.get('label_temperature', False),
+            av_start=plot_cfg.get('av_start', 0),
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])
