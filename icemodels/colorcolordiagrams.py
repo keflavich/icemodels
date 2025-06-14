@@ -35,17 +35,16 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
     E_V_color2 = (ext(wavelength_of_filter(color2[0])) - ext(wavelength_of_filter(color2[1])))
 
     if molcomps is not None:
-        try:
-            molids = [np.unique(dmag_tbl.loc['author', mc[0]].loc['composition', mc[1]].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
-            molcomps = [mc[1] for mc in molcomps]
-        except KeyError as ex:
-            # TODO: figure out what kind of exception this is
-            print(f"exception for author approach was {ex}, type={type(ex)}, molcomps={molcomps}")
+        if isinstance(molcomps[0][1], tuple):
+            molids = [np.unique(dmag_tbl.loc['author', author].loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for (author, (mc, tem)) in molcomps]
+            molcomps = [xx[1] for xx in molcomps]
+        else:
             molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc[molids]['composition'])
 
     assert len(molcomps) == len(molids)
+    assert len(molcomps) > 0
 
     dcol = 2
     for mol_id, (molcomp, temperature) in tqdm(zip(molids, molcomps)):
@@ -115,6 +114,7 @@ example_plots = [
             ('H2O:CO (15:1)', 25.0),
             ('H2O:CO (20:1)', 25.0),
         ],
+        'icemol': 'CO',
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
@@ -132,6 +132,7 @@ example_plots = [
             ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.01:1:0.1:0.1:1)', 25.0),
             ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.01:0.1:0.1:0.1:1)', 25.0),
         ],
+        'icemol': 'CO',
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
@@ -149,6 +150,7 @@ example_plots = [
             ('H2O:CO:OCN (2:1:0.1)', 25.0),
             ('H2O:CO:OCN (2:1:0.5)', 25.0),
         ],
+        'icemol': 'CO',
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 5e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
@@ -168,6 +170,7 @@ example_plots = [
             ('Ehrenfreund', ('CO2 (1)', '50K')),
             ('Gerakines', ('CO2 (1)', '8K')),
         ],
+        'icemol': 'CO2',
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 5e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
@@ -204,6 +207,7 @@ if __name__ == "__main__":
             axlims=plot_cfg['axlims'],
             abundance=plot_cfg['abundance'],
             max_column=plot_cfg['max_column'],
+            icemol=plot_cfg['icemol'],
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])
