@@ -24,6 +24,7 @@ def ext(x, model=CT06_MWGC()):
 def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axlims=[-1, 4, -2.5, 1],
                        nh2_to_av=2.21e21, abundance=2e-5, av_start=20, max_column=2e20, icemol='CO',
                        icemol2=None, icemol2_col=None, icemol2_abund=None, ext=ext, temperature_id=0,
+                       label_author=False, label_temperature=False,
                        pure_ice_no_dust=False):
     """
     Plot only the model tracks for given color combinations and ice compositions.
@@ -59,10 +60,11 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
 
         sel = tb['column'] < max_column
         if sel.sum() == 0:
+            print(f"No data for {comp} at {temp} K")
             continue
         try:
             molwt = u.Quantity(composition_to_molweight(comp), u.Da)
-            from brick2221.analysis.make_icecolumn_fig9 import molscomps  # TODO: move this to icemodels
+            from icemodels.core import molscomps
             mols, comps = molscomps(comp)
         except Exception as ex:
             print(f'Error converting composition {comp} to molwt: {ex}')
@@ -86,7 +88,12 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
             ind_icemol2 = np.argmin(np.abs(tb['column'][sel] * mol_frac2 - icemol2_col))
             L, = pl.plot(c1, c2, label=f'{comp} (X$_{{{icemol2}}}$ = {icemol2_col / h2col[ind_icemol2]:0.1e})', )
         else:
-            L, = pl.plot(c1, c2, label=comp, )
+            label = comp
+            if label_author:
+                label = label + f' ({tb.meta["author"]})'
+            elif label_temperature:
+                label = label + f' ({tb.meta["temperature"]} K)'
+            L, = pl.plot(c1, c2, label=label, )
 
     pl.axis(axlims)
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
@@ -118,7 +125,7 @@ example_plots = [
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
-        'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N.png',
+        'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_nodata.png',
     },
     # CO/H2O/CO2/CH3OH/CH3CH2OH mixes
     {
@@ -136,7 +143,7 @@ example_plots = [
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
-        'filename': 'CCD_icemodel_F182M-F212N_F466N-F480M_mixes.png',
+        'filename': 'CCD_icemodel_F182M-F212N_F466N-F480M_mixes_nodata.png',
     },
     # OCN mixes
     {
@@ -154,12 +161,12 @@ example_plots = [
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 5e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
-        'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_OCNmixes.png',
+        'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_OCNmixes_nodata.png',
     },
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F410M'],
-        'axlims': (0, 3, -1.5, 1.0),
+        'axlims': (0, 3, -0.5, 0.5),
         'molcomps': [
             ('Hudgins', ('CO2 (1)', '70K')),
             ('Gerakines', ('CO2 (1)', '70K')),
@@ -173,8 +180,10 @@ example_plots = [
         'icemol': 'CO2',
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 5e19,
+        'label_author': True,
+        'label_temperature': True,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
-        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only.png',
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only_nodata.png',
     },
     # Add more plot configs as needed...
 ]
@@ -208,6 +217,8 @@ if __name__ == "__main__":
             abundance=plot_cfg['abundance'],
             max_column=plot_cfg['max_column'],
             icemol=plot_cfg['icemol'],
+            label_author=plot_cfg.get('label_author', False),
+            label_temperature=plot_cfg.get('label_temperature', False),
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])

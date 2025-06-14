@@ -975,3 +975,19 @@ def parse_molscomps(comp):
         mols = re.split("[: ]", mols)
 
     return mols, comps
+
+
+def molscomps(comp):
+    if len(comp.split(" ")) == 2:
+        mols, comps = comp.split(" ")
+        comps = list(map(float, re.split("[: ]", comps.strip("()"))))
+        mols = re.split("[: ]", mols)
+    elif len(comp.split(" (")) == 1:
+        mols = [comp]
+        comps = [1]
+    else:
+        mols, comps = comp.split(" (")
+        comps = list(map(float, re.split("[: ]", comps.strip(")"))))
+        mols = re.split("[: ]", mols)
+
+    return mols, comps
