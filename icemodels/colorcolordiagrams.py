@@ -37,9 +37,10 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
     if molcomps is not None:
         try:
             molids = [np.unique(dmag_tbl.loc['author', mc[0]].loc['composition', mc[1]].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
-        except Exception as ex:
+            molcomps = [mc[1] for mc in molcomps]
+        except KeyError as ex:
             # TODO: figure out what kind of exception this is
-            print(f"exception for author approach was {ex}, type={type(ex)}")
+            print(f"exception for author approach was {ex}, type={type(ex)}, molcomps={molcomps}")
             molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc[molids]['composition'])
