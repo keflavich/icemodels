@@ -25,6 +25,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
                        nh2_to_av=2.21e21, abundance=2e-5, av_start=20, max_column=2e20, icemol='CO',
                        icemol2=None, icemol2_col=None, icemol2_abund=None, ext=ext, temperature_id=0,
                        label_author=False, label_temperature=False,
+                       column_to_plot_point=None,
                        pure_ice_no_dust=False):
     """
     Plot only the model tracks for given color combinations and ice compositions.
@@ -97,6 +98,10 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
                 label = label + f' {temp}'
             L, = pl.plot(c1, c2, label=label, )
 
+        if column_to_plot_point is not None:
+            sel2 = np.argmin(np.abs(tb['column'] - column_to_plot_point))
+            pl.plot(c1[sel2], c2[sel2], 'o', color='black', markersize=5)
+
     pl.axis(axlims)
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
 
@@ -168,7 +173,7 @@ example_plots = [
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F410M'],
-        'axlims': (-0.1, 2.5, -0.5, 0.15),
+        'axlims': (-0.1, 2.5, -0.4, 0.15),
         'molcomps': [
             ('Hudgins', ('CO2 (1)', '70K')),
             ('Gerakines', ('CO2 (1)', '70K')),
@@ -186,10 +191,35 @@ example_plots = [
         'abundance': (percent_ice/100.)*carbon_abundance,
         'max_column': 2e19,
         'av_start': 0,
+        'column_to_plot_point': 1e18,
         'label_author': True,
         'label_temperature': True,
-        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e19 cm$^{{-2}}$",
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e19 cm$^{{-2}}$, $N(\\bullet)=1e18 \\mathrm{{cm}}^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only_nodata.png',
+    },
+    {
+        'color1': ['F182M', 'F212N'],
+        'color2': ['F405N', 'F410M'],
+        'axlims': (-0.1, 2.5, -0.2, 0.15),
+        'molcomps': [
+            #('Curtis', ('H2O (1)', '146K')),
+            ('Bertie', ('H2O (1)', '100K')),
+            ('Mastrapa', ('H2O (1)', '100K')),
+            ('Kitta', ('H2O (1)', '23K')),
+            ('Mastrapa', ('H2O (1)', '50K')),
+            ('Hudgins', ('H2O (1)', '80K')),
+            ('Hudgins', ('H2O (1)', '10K')),
+            ('Léger', ('H2O (1)', '77K')),
+            ('Mastrapa', ('H2O (1)', '20K')),
+        ],
+        'icemol': 'H2O',
+        'abundance': (percent_ice/100.)*oxygen_abundance,
+        'max_column': 1e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2Oonly_nodata.png',
     },
     # Add more plot configs as needed...
 ]
@@ -226,6 +256,7 @@ if __name__ == "__main__":
             label_author=plot_cfg.get('label_author', False),
             label_temperature=plot_cfg.get('label_temperature', False),
             av_start=plot_cfg.get('av_start', 0),
+            column_to_plot_point=plot_cfg.get('column_to_plot_point', None),
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])
