@@ -20,6 +20,12 @@ jfilts = SvoFps.get_filter_list('JWST')
 jfilts.add_index('filterID')
 
 cmd_x_default = (
+    'JWST/NIRCam.F115W',
+    'JWST/NIRCam.F150W',
+    'JWST/NIRCam.F162M',
+    'JWST/NIRCam.F182M',
+    'JWST/NIRCam.F187N',
+    'JWST/NIRCam.F200W',
     'JWST/NIRCam.F210M',
     'JWST/NIRCam.F212N',
     'JWST/NIRCam.F250M',
