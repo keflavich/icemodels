@@ -121,6 +121,8 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
             pl.plot(c1[sel2], c2[sel2], 'o', color='black', markersize=5)
 
     pl.axis(axlims)
+    pl.xlabel(f"{color1[0]} - {color1[1]}")
+    pl.ylabel(f"{color2[0]} - {color2[1]}")
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
 
 
@@ -245,8 +247,9 @@ example_plots = [
         'axlims': (-0.1, 2.5, -0.2, 0.15),
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
-            ('Ehrenfreund', ('"H2O:CH3OH:CO2 (1:0.6:1)"', '180K')),
-            ('Ehrenfreund', ("H2O:CH3OH:CO2 (1:1:1)", '80K')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:0.6:1)", '180.0')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:1:1)", '80.0')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (9:1:2)", '30.0')),
             ('Hudgins', ('H2O (1)', '80K')),
             ('Hudgins', ('H2O (1)', '10K')),
         ],
@@ -262,11 +265,12 @@ example_plots = [
     {
         'color1': ['F200W', 'F356W'],
         'color2': ['F356W', 'F444W'],
-        'axlims': (-0.1, 5, -0.5, 1.5),
+        'axlims': (-1, 4, -0.5, 1.5),
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
-            ('Ehrenfreund et al.', ('"H2O:CH3OH:CO2 (1:0.6:1)"', '180K')),
-            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:1:1)", '80K')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:0.6:1)", '180.0')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:1:1)", '80.0')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (9:1:2)", '30.0')),
             ('Hudgins', ('H2O (1)', '80K')),
             ('Hudgins', ('H2O (1)', '10K')),
         ],
