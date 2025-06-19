@@ -8,41 +8,55 @@ from dust_extinction.averages import CT06_MWGC  # , G21_MWAvg
 from tqdm.auto import tqdm
 import os
 
-pl.rcParams['axes.prop_cycle'] = pl.cycler(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'], ) * pl.cycler(linestyle=['-', '--', ':', '-.'])
+pl.rcParams['axes.prop_cycle'] = pl.cycler(
+    color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+           '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'],
+) * pl.cycler(linestyle=['-', '--', ':', '-.'])
 
 x = np.linspace(1.24*u.um, 5*u.um, 1000)
 pp_ct06 = np.polyfit(x, CT06_MWGC()(x), 7)
 
 
 def ext(x, model=CT06_MWGC()):
-    if x > 1/model.x_range[1]*u.um and x < 1/model.x_range[0]*u.um:
+    if (x > 1/model.x_range[1]*u.um and
+            x < 1/model.x_range[0]*u.um):
         return model(x)
     else:
         return np.polyval(pp_ct06, x.value)
 
 
-def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axlims=[-1, 4, -2.5, 1],
-                       nh2_to_av=2.21e21, abundance=2e-5, av_start=20, max_column=2e20, icemol='CO',
-                       icemol2=None, icemol2_col=None, icemol2_abund=None, ext=ext, temperature_id=0,
+def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
+                       axlims=[-1, 4, -2.5, 1], nh2_to_av=2.21e21,
+                       abundance=2e-5, av_start=20, max_column=2e20,
+                       icemol='CO', icemol2=None, icemol2_col=None,
+                       icemol2_abund=None, ext=ext, temperature_id=0,
                        label_author=False, label_temperature=False,
-                       column_to_plot_point=None,
-                       pure_ice_no_dust=False):
+                       column_to_plot_point=None, pure_ice_no_dust=False):
     """
     Plot only the model tracks for given color combinations and ice compositions.
     """
     def wavelength_of_filter(filtername):
-        return u.Quantity(int(filtername[1:-1])/100, u.um).to(u.um, u.spectral())
+        return u.Quantity(int(filtername[1:-1])/100, u.um).to(
+            u.um, u.spectral())
 
-    E_V_color1 = (ext(wavelength_of_filter(color1[0])) - ext(wavelength_of_filter(color1[1])))
-    E_V_color2 = (ext(wavelength_of_filter(color2[0])) - ext(wavelength_of_filter(color2[1])))
+    E_V_color1 = (ext(wavelength_of_filter(color1[0])) -
+                  ext(wavelength_of_filter(color1[1])))
+    E_V_color2 = (ext(wavelength_of_filter(color2[0])) -
+                  ext(wavelength_of_filter(color2[1])))
 
     if molcomps is not None:
         if isinstance(molcomps[0][1], tuple):
-            molids = [np.unique(dmag_tbl.loc['author', author].loc['composition', mc].loc['temperature', str(tem)]['mol_id'])
+            molids = [np.unique(dmag_tbl
+                                .loc['author', author]
+                                .loc['composition', mc]
+                                .loc['temperature', str(tem)]['mol_id'])
                       for (author, (mc, tem)) in molcomps]
             molcomps = [xx[1] for xx in molcomps]
         else:
-            molids = [np.unique(dmag_tbl.loc['composition', mc].loc['temperature', str(tem)]['mol_id']) for mc, tem in molcomps]
+            molids = [np.unique(dmag_tbl
+                                .loc['composition', mc]
+                                .loc['temperature', str(tem)]['mol_id'])
+                      for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc[molids]['composition'])
 
@@ -83,8 +97,12 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None, axl
         a_color1 = h2col / nh2_to_av * E_V_color1 + av_start * E_V_color1
         a_color2 = h2col / nh2_to_av * E_V_color2 + av_start * E_V_color2
 
-        c1 = (tb[color1[0]][sel] if color1[0] in tb.colnames else 0) - (tb[color1[1]][sel] if color1[1] in tb.colnames else 0) + a_color1 * (not pure_ice_no_dust)
-        c2 = (tb[color2[0]][sel] if color2[0] in tb.colnames else 0) - (tb[color2[1]][sel] if color2[1] in tb.colnames else 0) + a_color2 * (not pure_ice_no_dust)
+        c1 = ((tb[color1[0]][sel] if color1[0] in tb.colnames else 0) -
+              (tb[color1[1]][sel] if color1[1] in tb.colnames else 0) +
+              a_color1 * (not pure_ice_no_dust))
+        c2 = ((tb[color2[0]][sel] if color2[0] in tb.colnames else 0) -
+              (tb[color2[1]][sel] if color2[1] in tb.colnames else 0) +
+              a_color2 * (not pure_ice_no_dust))
 
         if icemol2 is not None and icemol2 in mols and icemol2_col is not None:
             mol_frac2 = comps[mols.index(icemol2)] / sum(comps)
@@ -202,7 +220,7 @@ example_plots = [
         'color2': ['F405N', 'F410M'],
         'axlims': (-0.1, 2.5, -0.2, 0.15),
         'molcomps': [
-            #('Curtis', ('H2O (1)', '146K')),
+            # ('Curtis', ('H2O (1)', '146K')),
             ('Bertie', ('H2O (1)', '100K')),
             ('Mastrapa', ('H2O (1)', '100K')),
             ('Kitta', ('H2O (1)', '23K')),
@@ -221,6 +239,46 @@ example_plots = [
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2Oonly_nodata.png',
     },
+    {
+        'color1': ['F182M', 'F212N'],
+        'color2': ['F405N', 'F410M'],
+        'axlims': (-0.1, 2.5, -0.2, 0.15),
+        'molcomps': [
+            # ('Curtis', ('H2O (1)', '146K')),
+            ('Ehrenfreund', ('"H2O:CH3OH:CO2 (1:0.6:1)"', '180K')),
+            ('Ehrenfreund', ("H2O:CH3OH:CO2 (1:1:1)", '80K')),
+            ('Hudgins', ('H2O (1)', '80K')),
+            ('Hudgins', ('H2O (1)', '10K')),
+        ],
+        'icemol': 'H2O',
+        'abundance': (percent_ice/100.)*oxygen_abundance,
+        'max_column': 1e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2OandMethanolonly_nodata.png',
+    },
+    {
+        'color1': ['F200W', 'F356W'],
+        'color2': ['F356W', 'F444W'],
+        'axlims': (-0.1, 5, -0.5, 1.5),
+        'molcomps': [
+            # ('Curtis', ('H2O (1)', '146K')),
+            ('Ehrenfreund et al.', ('"H2O:CH3OH:CO2 (1:0.6:1)"', '180K')),
+            ('Ehrenfreund et al.', ("H2O:CH3OH:CO2 (1:1:1)", '80K')),
+            ('Hudgins', ('H2O (1)', '80K')),
+            ('Hudgins', ('H2O (1)', '10K')),
+        ],
+        'icemol': 'H2O',
+        'abundance': (percent_ice/100.)*oxygen_abundance,
+        'max_column': 1e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F200W-F356W_F356W-F444W_H2OandMethanolonly_nodata.png',
+    }
     # Add more plot configs as needed...
 ]
 
@@ -260,5 +318,6 @@ if __name__ == "__main__":
         )
         pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
         pl.title(plot_cfg['title'])
-        pl.savefig(os.path.join(savefig_path, plot_cfg['filename']), bbox_inches='tight', dpi=150)
+        pl.savefig(os.path.join(savefig_path, plot_cfg['filename']),
+                   bbox_inches='tight', dpi=150)
         pl.close()
