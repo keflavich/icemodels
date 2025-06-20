@@ -1,9 +1,8 @@
 """Configure Test Suite.
 
 This file is used to configure the behavior of pytest when using the Astropy
-test infrastructure. It needs to live inside the package in order for it to
-get picked up when running the tests inside an interpreter using
-`icemodels.test()`.
+test infrastructure. Run tests directly with pytest instead of using the
+deprecated test runner.
 
 """
 

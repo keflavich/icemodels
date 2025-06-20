@@ -43,7 +43,8 @@ f212n_f444w_color = tbl['F212N'] - tbl['F444W']
 ### Running the Demo
 
 ```bash
-python -m icemodels.tests.test_stellar_colors
+cd icemodels/
+python -m pytest tests/test_stellar_colors.py -v
 ```
 
 This will create plots showing:
