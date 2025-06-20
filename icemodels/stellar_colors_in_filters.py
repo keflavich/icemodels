@@ -5,7 +5,6 @@ from functools import partial
 import numpy as np
 import astropy.units as u
 from astropy.table import Table
-from tqdm.auto import tqdm
 from tqdm.contrib.concurrent import process_map
 
 from icemodels import fluxes_in_filters, atmo_model
@@ -107,7 +106,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
 
         # Calculate fluxes in filters
         fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
-                                 filterids=cmd_x, transdata=transdata)
+                                   filterids=cmd_x, transdata=transdata)
 
         # Calculate magnitudes
         mags = {}
@@ -186,10 +185,10 @@ if __name__ == '__main__':
 
     # Process all models in parallel
     results = process_map(partial(process_stellar_model, cmd_x=cmd_x, transdata=transdata, filter_data=filter_data),
-                         all_models,
-                         max_workers=mp.cpu_count(),
-                         desc="Processing stellar models",
-                         unit="model")
+                          all_models,
+                          max_workers=mp.cpu_count(),
+                          desc="Processing stellar models",
+                          unit="model")
 
     # Combine results
     mag_rows = []
