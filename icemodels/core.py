@@ -683,7 +683,7 @@ def absorbed_spectrum_Gaussians(
     return absorbed_spectrum
 
 
-def convsum(xarr, model_data, filter_table, doplot=False):
+def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
     """
     Convolve model data with filter transmission curves.
 
@@ -697,6 +697,10 @@ def convsum(xarr, model_data, filter_table, doplot=False):
         Table containing filter transmission curves
     doplot : bool
         Whether to plot the results
+    finite_only : bool
+        Whether to include only finite flux values in the filter function
+        normalization.  If this is false, the whole bandwidth is included in the
+        denominator, even if invalid pixels are excluded from the numerator.
 
     Returns
     -------
@@ -709,16 +713,29 @@ def convsum(xarr, model_data, filter_table, doplot=False):
 
     interpd = np.interp(filtwav,
                         xarr.to(u.um)[inds],
-                        model_data[inds])
+                        model_data[inds],
+                        left=np.nan,
+                        right=np.nan,
+                        )
+
+    valid = np.isfinite(interpd)
+
     # print(interpd, model_data, filter_table['Transmission'])
     # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
-    result = (interpd * filter_table['Transmission'].value)
+    result = (interpd * filter_table['Transmission'].value)[valid]
     if doplot:
         L, = pl.plot(filtwav, filter_table['Transmission'])
         pl.plot(filtwav, result, color=L.get_color())
         pl.plot(filtwav, interpd, color=L.get_color())
+
     # looking for average flux over the filter
-    result = result.sum() / filter_table['Transmission'].sum()
+    if finite_only:
+        result = result.sum() / filter_table['Transmission'][valid].sum()
+    else:
+        result = result.sum() / filter_table['Transmission'].sum()
+
+    assert np.isfinite(result)
+
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
     return result
 
