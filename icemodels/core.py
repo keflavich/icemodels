@@ -705,7 +705,7 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
     Returns
     -------
     convolved_data : `numpy.ndarray`
-        The convolved data
+        The convolved data.  Will be nan if there are no valid pixels.
     """
     filtwav = u.Quantity(filter_table['Wavelength'], u.AA).to(u.um)
 
@@ -719,6 +719,9 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
                         )
 
     valid = np.isfinite(interpd)
+
+    if valid.sum() == 0:
+        return np.nan
 
     # print(interpd, model_data, filter_table['Transmission'])
     # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
