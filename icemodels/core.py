@@ -743,7 +743,10 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
     assert np.isfinite(result)
 
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
-    return result
+    if hasattr(model_data, 'unit'):
+        return u.Quantity(result, model_data.unit)
+    else:
+        return result
 
 
 def fluxes_in_filters(
