@@ -184,6 +184,7 @@ def make_mymix_tables():
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:0.5)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (3:1:0.5)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:0.5)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (2:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (3:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:2)'),

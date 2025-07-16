@@ -721,7 +721,10 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
     valid = np.isfinite(interpd)
 
     if valid.sum() == 0:
-        return np.nan
+        if hasattr(model_data, 'unit'):
+            return model_data.unit * np.nan
+        else:
+            return np.nan
 
     # print(interpd, model_data, filter_table['Transmission'])
     # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
