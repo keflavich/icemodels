@@ -366,7 +366,7 @@ def process_table(args, cmd_x=None, transdata=None):
             'database': database,
             'author': author,
             'composition': consts.meta['composition'],
-            'temperature': temperature,
+            'temperature': str(temperature),
             'density': consts.meta['density'],
             'column': col,
         }
