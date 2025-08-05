@@ -11,7 +11,7 @@ from tqdm.contrib.concurrent import process_map
 import molmass
 
 from icemodels import absorbed_spectrum, fluxes_in_filters, atmo_model
-from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file, tau_to_kay
+from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file, tau_to_kay, load_molecule_univap, read_univap_file
 
 import unicodedata
 
@@ -131,7 +131,14 @@ def read_table_file(fn):
             if 'index' not in tb.meta:
                 tb.meta['index'] = int(os.path.basename(fn).split('_')[0])
         except Exception as ex:
-            return None
+            try:
+                tb = read_univap_file(fn)
+                tb.meta['database'] = 'univap'
+                if 'index' not in tb.meta:
+                    tb.meta['index'] = int(os.path.basename(fn).split('_')[1])
+            except Exception as ex:
+                print(f"Error reading table {fn}: {ex}")
+                return None
 
     try:
         tb['k'] = tb['k'].astype(float)
@@ -199,6 +206,8 @@ def make_mymix_tables():
     co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
     ethanol = load_molecule_univap('ethanol')
     methanol = load_molecule_univap('methanol')
+
+    assert ethanol['Wavelength'].unit == u.um
 
     # Don't trust LIDA: they give absorbances, not k, and we need k.
     #ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
@@ -280,11 +289,7 @@ def make_mymix_tables():
 
 # Initialize mymix_tables as an empty dict by default
 mymix_tables = {}
-try:
-    mymix_tables = make_mymix_tables()
-except Exception as e:
-    print(f"Warning: Could not initialize mixed tables: {e}")
-    print("Some functionality may be limited. Run download_all_lida() to download required data files.")
+mymix_tables = make_mymix_tables()
 
 xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
 phx4000 = atmo_model(4000, xarr=xarr)
@@ -322,6 +327,7 @@ def process_table(args, cmd_x=None, transdata=None):
         molfn, xarr, phx4000, cols, filter_data, user_transdata, basepath = args
         consts = tb = read_table_file(molfn)
         if tb is None:
+            print(f"Error reading table {molfn} with error {tb}")
             return []
 
     # Use provided cmd_x or default
@@ -342,10 +348,12 @@ def process_table(args, cmd_x=None, transdata=None):
     dmag_rows = []
 
     if 'k' not in consts.colnames:
+        print(f"Table {molfn} has no k column")
         return []
 
     # if the wavelength range doesn't match, it just extrapolates.
     if u.Quantity(consts['Wavelength'].min(), u.um) > 5.0*u.um:
+        print(f"Table {molfn} starts at {u.Quantity(consts['Wavelength'].min(), u.um)} um, so has no overlap with NIRCAM")
         return []
 
     # Initialize dmags dictionary
@@ -429,7 +437,7 @@ if __name__ == '__main__':
     # Create list of all tables to process
     all_tables = []
     for key, consts in mymix_tables.items():
-        all_tables.append(('H2O+CO', key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
+        all_tables.append((key[0], key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
     for fn in glob.glob(f'{optical_constants_cache_dir}/*txt'):
         all_tables.append((fn, xarr, phx4000, cols, filter_data, transdata, basepath))
 

@@ -155,10 +155,13 @@ def load_molecule(molname):
     return consts
 
 
-def get_univap_meta_table(univap_url='https://www1.univap.br/gaa/nkabs-database/data.htm'):
+def get_univap_meta_table(univap_url='https://www1.univap.br/gaa/nkabs-database/data.htm', use_cached=True):
     """Get the metadata table from the Univap database."""
     if 'univap_meta_table' in cache:
         return cache['univap_meta_table']
+    elif use_cached and os.path.exists(os.path.join(optical_constants_cache_dir, 'univap_meta_table.ecsv')):
+        return Table.read(os.path.join(optical_constants_cache_dir, 'univap_meta_table.ecsv'))
+
     meta1 = Table.read(univap_url,
                        format='html', htmldict={'table_id': 1})
     meta2 = Table.read(univap_url,
@@ -193,10 +196,13 @@ def get_univap_meta_table(univap_url='https://www1.univap.br/gaa/nkabs-database/
     meta_table = meta_table[~(meta_table['datalabel'] == 'Data Label')]
 
     cache['univap_meta_table'] = meta_table
+
+    meta_table.write(os.path.join(optical_constants_cache_dir, 'univap_meta_table.ecsv'), overwrite=True)
+
     return meta_table
 
 
-def load_molecule_univap(molname, meta_table=None, use_cached=True):
+def load_molecule_univap(molname, meta_table=None, use_cached=True, overwrite=False):
     """
     Load a molecule based on its name from the dictionary of molecular data files above.
     """
@@ -206,6 +212,7 @@ def load_molecule_univap(molname, meta_table=None, use_cached=True):
 
     row = meta_table.loc[molname]
 
+    url = row['url']
     molid = row['datalabel']
     molname = row['sample']
     temperature = row['temperature']
@@ -215,38 +222,91 @@ def load_molecule_univap(molname, meta_table=None, use_cached=True):
         reference = reference.replace(ch, '_')
 
     filename = os.path.join(optical_constants_cache_dir, f'univap_{molid}_{molname}_{temperature}_{reference}.txt')
+
+    return read_univap_file(filename, meta_row=row, use_cached=use_cached, overwrite=overwrite)
+
+univap_molname_lookup = {
+    'ethanol': 'C2H5OH',
+    'methanol': 'CH3OH',
+    'acetic acid': 'CH3COOH',
+    'formic acid': 'HCOOH',
+    'H2O (amorphous)': 'H2O',
+    'H2O (crystalline)': 'H2O',
+}
+
+def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwrite=False):
+    """
+    If overwrite is set, the file will be rewritten with attached metadata.
+    """
     if use_cached and os.path.exists(filename):
-        return Table.read(filename, format='ascii', data_start=3)
+        consts = Table.read(filename, format='ascii', data_start=3)
+        if 'source' in consts.meta:
+            return consts
+        elif meta_row is None:
+            raise ValueError(f"File {filename} has no source metadata, so meta_row must be provided.")
 
     else:
         #url = univap_molecule_data[molname]['url']
-        url = row['url']
         #molid = url.split('/')[-1].split('.')[0]
 
         consts = Table.read(url, format='ascii', data_start=3)
-        if 'col1' in consts.colnames:
-            consts['col1'].unit = u.cm**-1
-            consts.rename_column('col1', 'WaveNum')
-            consts.rename_column('col2', 'absorbance')
-            consts.rename_column('col3', 'k')
-            consts.rename_column('col4', 'n')
-            consts['Wavelength'] = consts['WaveNum'].quantity.to(
-                u.um, u.spectral())
-        consts.meta['density'] = 1 * u.g / u.cm**3
-        consts.meta['author'] = row['reference']
-        consts.meta['source'] = url
-        consts.meta['temperature'] = int(temperature)
-        consts.meta['molecule'] = molname
-        consts.meta['composition'] = molname
-        consts.meta['molwt'] = Formula(molscomps(molname)).mass
-        consts.meta['database'] = 'univap'
-        consts.meta['filename'] = filename
-        consts.write(filename, format='ascii')
 
-        return consts
+    if 'col1' in consts.colnames:
+        consts['col1'].unit = u.cm**-1
+        consts.rename_column('col1', 'WaveNum')
+        consts.rename_column('col2', 'absorbance')
+        consts.rename_column('col3', 'k')
+        consts.rename_column('col4', 'n')
+        consts['Wavelength'] = consts['WaveNum'].quantity.to(
+            u.um, u.spectral())
+    elif consts.colnames[0] == 'Description:':
+        col1, col2, col3, col4 = consts.colnames
+        consts[col1].unit = u.cm**-1
+        consts.rename_column(col1, 'WaveNum')
+        consts.rename_column(col2, 'absorbance')
+        consts.rename_column(col3, 'k')
+        consts.rename_column(col4, 'n')
+        consts['Wavelength'] = consts['WaveNum'].quantity.to(
+            u.um, u.spectral())
 
 
-def download_all_univap(meta_table=None, redo=False):
+    consts['Wavelength'].unit = u.um
+    consts['WaveNum'].unit = u.cm**-1
+
+    url = meta_row['url']
+    molid = meta_row['datalabel']
+    molname = meta_row['sample']
+    temperature = meta_row['temperature']
+    reference = meta_row['reference']
+
+    if molname in univap_molname_lookup:
+        molname = univap_molname_lookup[molname]
+    elif ':' in molname:
+        spl = molname.split(':')
+        spl = (univap_molname_lookup[x] if x in univap_molname_lookup else x for x in spl)
+        molname = ':'.join(spl)
+
+    consts.meta['density'] = 1 * u.g / u.cm**3
+    consts.meta['author'] = reference
+    consts.meta['source'] = url
+    consts.meta['temperature'] = int(temperature)
+    consts.meta['molecule'] = molname
+    consts.meta['composition'] = molname
+    try:
+        consts.meta['molwt'] = Formula(molname).mass
+    except Exception as ex:
+        print(f"Error calculating molwt for {molname}: {ex}")
+        consts.meta['molwt'] = molname
+
+    consts.meta['database'] = 'univap'
+    consts.meta['filename'] = filename
+    if not os.path.exists(filename) or overwrite:
+        consts.write(filename, format='ascii', overwrite=overwrite)
+
+    return consts
+
+
+def download_all_univap(meta_table=None, redo=False, redo_meta=True):
     """
     Download all data files from the Univap database.
     """
@@ -257,11 +317,14 @@ def download_all_univap(meta_table=None, redo=False):
         url = row['url']
         if url == '':
             continue
+        if 'http' not in url:
+            print(f"Skipping {url} because it is not a valid URL")
+            continue
 
         molid = row['datalabel']
         molname = row['sample']
         temperature = row['temperature']
-        reference = row['reference'].replace("\n", " ")
+        reference = str(row['reference']).replace("\n", " ")
         # Sanitize reference to be safe for file saving
         for ch in [' ', "'", '"', '\\', '/', ':', '*', '?', '<', '>', '|']:
             reference = reference.replace(ch, '_')
@@ -270,7 +333,7 @@ def download_all_univap(meta_table=None, redo=False):
         filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
         filename = filename.replace('"', '')
         if not redo and os.path.exists(filename):
-            continue
+            pass
         else:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
 
@@ -280,6 +343,9 @@ def download_all_univap(meta_table=None, redo=False):
 
             with open(filename, 'w') as fh:
                 fh.write(resp.text)
+
+        if redo_meta or redo:
+            read_univap_file(filename, meta_row=row, use_cached=True, overwrite=True)
 
 # defunct def load_molecule_icedb():
 # defunct     response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
@@ -297,7 +363,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
     for ii in tqdm(range(1, n_ocdb + 1)):
         if not redo and len(
             glob.glob(
-                os.path.join(optical_constants_cache_dir, f'{ii}*'))) > 0:
+                os.path.join(optical_constants_cache_dir, f'ocdb_{ii}*'))) > 0:
             # note that this can miss important parameters when there are many
             # temperatures
             continue
@@ -311,7 +377,7 @@ def download_all_ocdb(n_ocdb=298, redo=False):
             if row.startswith('Reference:'):
                 reference = shlex.split(row)[1].split()[0]
 
-        filename = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{temperature}_{reference}.txt')
+        filename = os.path.join(optical_constants_cache_dir, f'ocdb_{ii}_{molname}_{temperature}_{reference}.txt')
         filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
         filename = filename.replace('"', '')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -1016,7 +1082,7 @@ def download_all_lida(
             index[ii]['ice_column_density'] = ice_column_density
             index[ii]['index'] = int(
                 df.attrs["href"].split("/")[-1].split("_")[0])
-            outfn = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{ratio}_{temperature}K.txt')
+            outfn = os.path.join(optical_constants_cache_dir, f'lida_{ii}_{molname}_{ratio}_{temperature}K.txt')
             os.makedirs(os.path.dirname(outfn), exist_ok=True)
             if not os.path.exists(outfn) or redo:
                 url = f'{baseurl}/{df.attrs["href"]}'
@@ -1061,7 +1127,6 @@ def read_lida_file(filename):
     monolayer = 1e15 / u.cm**2
     ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
     ice_depth = (ice_thickness / density * molwt).to(u.um)
-    print(f"molecule {tb.meta['molecule']} ice_depth: {ice_depth}")
     tb['ice_layer_depth'] = ice_depth.to(u.um)
     kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
