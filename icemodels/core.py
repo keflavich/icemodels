@@ -616,6 +616,15 @@ def absorbed_spectrum(
     return absorbed_spectrum
 
 
+def tau_to_kay(tau, xarr, ice_column, rho_n):
+    xarr_icm = xarr.to(u.cm**-1, u.spectral())
+
+    alpha = tau / ice_column * rho_n
+    kay = alpha / (xarr_icm * 4 * np.pi)
+
+    return kay.decompose()
+
+
 def isscalar(x):
     """Check if x is a scalar value."""
     return np.isscalar(x) or (hasattr(x, 'isscalar') and x.isscalar)
@@ -683,7 +692,7 @@ def absorbed_spectrum_Gaussians(
     return absorbed_spectrum
 
 
-def convsum(xarr, model_data, filter_table, doplot=False):
+def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
     """
     Convolve model data with filter transmission curves.
 
@@ -697,11 +706,15 @@ def convsum(xarr, model_data, filter_table, doplot=False):
         Table containing filter transmission curves
     doplot : bool
         Whether to plot the results
+    finite_only : bool
+        Whether to include only finite flux values in the filter function
+        normalization.  If this is false, the whole bandwidth is included in the
+        denominator, even if invalid pixels are excluded from the numerator.
 
     Returns
     -------
     convolved_data : `numpy.ndarray`
-        The convolved data
+        The convolved data.  Will be nan if there are no valid pixels.
     """
     filtwav = u.Quantity(filter_table['Wavelength'], u.AA).to(u.um)
 
@@ -709,18 +722,40 @@ def convsum(xarr, model_data, filter_table, doplot=False):
 
     interpd = np.interp(filtwav,
                         xarr.to(u.um)[inds],
-                        model_data[inds])
+                        model_data[inds],
+                        left=np.nan,
+                        right=np.nan,
+                        )
+
+    valid = np.isfinite(interpd)
+
+    if valid.sum() == 0:
+        if hasattr(model_data, 'unit'):
+            return model_data.unit * np.nan
+        else:
+            return np.nan
+
     # print(interpd, model_data, filter_table['Transmission'])
     # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
-    result = (interpd * filter_table['Transmission'].value)
+    result = (interpd * filter_table['Transmission'].value)[valid]
     if doplot:
         L, = pl.plot(filtwav, filter_table['Transmission'])
         pl.plot(filtwav, result, color=L.get_color())
         pl.plot(filtwav, interpd, color=L.get_color())
+
     # looking for average flux over the filter
-    result = result.sum() / filter_table['Transmission'].sum()
+    if finite_only:
+        result = result.sum() / filter_table['Transmission'][valid].sum()
+    else:
+        result = result.sum() / filter_table['Transmission'].sum()
+
+    assert np.isfinite(result)
+
     # dnu = np.abs(xarr[1].to(u.Hz, u.spectral()) - xarr[0].to(u.Hz, u.spectral()))
-    return result
+    if hasattr(model_data, 'unit'):
+        return u.Quantity(result, model_data.unit)
+    else:
+        return result
 
 
 def fluxes_in_filters(
@@ -814,7 +849,7 @@ def retrieve_gerakines_co(resolution='low'):
 
 
 def download_all_lida(
-        n_lida=178,
+        n_lida=179,
         redo=False,
         baseurl='https://icedb.strw.leidenuniv.nl'):
     S = requests.Session()
@@ -868,6 +903,10 @@ def download_all_lida(
         with open(os.path.join(optical_constants_cache_dir, 'lida_index.json'), 'r') as fh:
             index = json.load(fh)
 
+    # a monolayer as defined by van Broekhuizen 2006 pg 725 table 1
+    # use just 1/cm^-2, not mol/cm^2
+    monolayer = 1e15 / u.cm**2
+
     for ii in tqdm(index):
         url = index[ii]['url']
         molname = index[ii]['name']
@@ -876,8 +915,23 @@ def download_all_lida(
         # doi = index[ii]['doi']
 
         resp1 = S.get(url)
+        if resp1.status_code != 200:
+            print(f"Error downloading {url}: {resp1.status_code}")
+            continue
 
         soup = BeautifulSoup(resp1.text, features='html5lib')
+
+        # units are usually ML
+        # ML = monolayer?
+        # 1 L =10^15 mol/cm^2 = 1 monolayer, from van Broekhuizen 2006 pg 725 table 1
+        ice_thickness = soup.find('strong', string='Ice thickness: ').next_sibling.text.strip()
+        #if ice_thickness.endswith('ML'):
+        #    ice_thickness = float(ice_thickness.replace('ML', '')) * monolayer
+
+        ice_column_density = soup.find('strong', string='Ice column density: ').next_sibling.text.strip()
+        # unit is cm^-2, but -2 is in <sup>
+        if ice_column_density.endswith('cm'):
+            ice_column_density = ice_column_density.replace('cm', 'cm-2')
 
         datafiles = soup.find_all('a', string='TXT')
 
@@ -885,6 +939,8 @@ def download_all_lida(
             temperature = os.path.splitext(df.attrs["href"])[0].split(
                 "/")[-1].split("_")[1].strip("K")
             index[ii]['temperature'] = float(temperature)
+            index[ii]['ice_thickness'] = ice_thickness
+            index[ii]['ice_column_density'] = ice_column_density
             index[ii]['index'] = int(
                 df.attrs["href"].split("/")[-1].split("_")[0])
             outfn = os.path.join(optical_constants_cache_dir, f'{ii}_{molname}_{ratio}_{temperature}K.txt')
@@ -907,8 +963,10 @@ def read_lida_file(filename):
     tb.meta.update(meta)
     tb.rename_column('col1', 'Wavenumber')
     tb['Wavenumber'].unit = u.cm**-1
-    tb.rename_column('col2', 'k')
     tb['Wavelength'] = (tb['Wavenumber'].quantity).to(u.um, u.spectral())
+
+    # column 2 is absorbance, not k
+    tb.rename_column('col2', 'absorbance')
 
     tb.meta['density'] = 1 * u.g / u.cm**3
     if 'index' not in tb.meta:
@@ -920,6 +978,19 @@ def read_lida_file(filename):
     tb.meta['temperature'] = float(
         filename.split("_")[-1].split(".")[0].strip("K"))
     tb.meta['database'] = 'lida'
+
+    # k = absorbance * wavelength / 4 pi d
+    # d is the ice thickness, but it's in units of cm, not area, so we have to convert using density
+    # this holds IF absorbance is defined as ln(I_0/I), not N^-1 ln(I_0/I), the latter from Hudgins 1993
+    density = (tb.meta['density'])
+    molwt = composition_to_molweight(tb.meta['composition'])
+    monolayer = 1e15 / u.cm**2
+    ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
+    ice_depth = (ice_thickness / density * molwt).to(u.cm)
+    print(f"molecule {tb.meta['molecule']} ice_depth: {ice_depth}")
+    kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
+    assert kay.unit.is_equivalent(u.dimensionless_unscaled)
+    tb.add_column(kay, name='k')
 
     return tb
 
