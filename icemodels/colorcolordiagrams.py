@@ -3,7 +3,7 @@ import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as pl
 # from molmass import Formula
-from icemodels.core import composition_to_molweight
+# from icemodels.core import composition_to_molweight
 from dust_extinction.averages import CT06_MWGC  # , G21_MWAvg
 from tqdm.auto import tqdm
 import os
@@ -80,7 +80,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
             print(f"No data for {comp} at {temp} K")
             continue
         try:
-            molwt = u.Quantity(composition_to_molweight(comp), u.Da)
+            #molwt = u.Quantity(composition_to_molweight(comp), u.Da)
             from icemodels.core import molscomps
             mols, comps = molscomps(comp)
         except Exception as ex:
