@@ -11,7 +11,7 @@ from tqdm.contrib.concurrent import process_map
 import molmass
 
 from icemodels import absorbed_spectrum, fluxes_in_filters, atmo_model
-from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file
+from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file, tau_to_kay
 
 import unicodedata
 
@@ -148,6 +148,48 @@ def read_table_file(fn):
     return tb
 
 
+def make_mixtable(composition, moltbls, density=1*u.g/u.cm**3, temperature=25*u.K, authors='Mastrapa 2024, Gerakines 2020, etc',
+                  index=0,
+                  grid=np.linspace(2.5*u.um, 5.0*u.um, 200)):
+    """
+    Default grid is way too coarse, but I didn't want to take memory at initialization time.
+    """
+    molspl = composition.split(' ')[0].split(':')
+    compspl = composition.split(' ')[1].strip('()').split(':')
+
+    mults = {key: float(mul) for key, mul in zip(molspl, compspl, )}
+
+    opacities = u.Quantity([absorbed_spectrum(xarr=grid,
+                                  ice_column=1,
+                                  ice_model_table=moltbls[mol],
+                                  molecular_weight=u.Quantity(composition_to_molweight(moltbls[mol].meta['composition']), u.Da),
+                                  return_tau=True).to(u.cm**2) * mult
+                for mol, mult in mults.items()],
+                u.cm**2)
+    mean_opacity = opacities.sum(axis=0) / np.sum(list(mults.values()))
+    molwt = u.Quantity(composition_to_molweight(composition), u.Da)
+    mean_kay = tau_to_kay(mean_opacity, grid, 1, density / molwt)
+
+    # co_plus_co2_plus_water_k = np.sum([
+    #     (mult * np.interp(grid,
+    #                       moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
+    #                       moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])]))
+    #     for mol, mult in mults.items()
+    # ], axis=0) / np.sum(list(mults.values()))
+
+    tbl = Table({'Wavelength': grid, 'k': mean_kay})
+    tbl.meta['composition'] = composition
+    tbl.meta['density'] = density # everything is close to 1 g/cm^3.... so this is just a close-enough guess
+    tbl.meta['temperature'] = temperature  # really 8-25 K depending on molecule
+    tbl.meta['index'] = index
+    tbl.meta['molecule'] = ":".join(molspl)
+    tbl.meta['database'] = 'mymix'
+    tbl.meta['author'] = authors
+
+    return tbl
+
+
+
 def make_mymix_tables():
     # make up our own H2O + CO at 25K with 3:1 ratio
     # 3-1 comes from Brandt's models plus the McClure 2023 paper
@@ -165,6 +207,7 @@ def make_mymix_tables():
 
     co_gerakines = gerakines = retrieve_gerakines_co()
     moltbls = {'CO': co_gerakines, 'H2O': water_mastrapa, 'CO2': co2_gerakines, 'CH3OH': methanol, 'CH3CH2OH': ethanol, 'OCN': ocn}
+    authors = {mol: tb.meta['author'] for mol, tb in moltbls.items()}
 
     grid = co_gerakines['Wavelength']
     grid = np.linspace(2.5*u.um, 5.0*u.um, 20000)
@@ -184,6 +227,7 @@ def make_mymix_tables():
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:0.5)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (3:1:0.5)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:0.5)'),
+                                            ('COplusH2OplusCO2', 'H2O:CO:CO2 (2:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (3:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:1)'),
                                             ('COplusH2OplusCO2', 'H2O:CO:CO2 (5:1:2)'),
@@ -200,6 +244,8 @@ def make_mymix_tables():
                                             ('CO', 'CO 1'),
                                             ('H2O', 'H2O 1'),
                                             ('CO2', 'CO2 1'),
+                                            ('CH3OH', 'CH3OH 1'),
+                                            ('CH3CH2OH', 'CH3CH2OH 1'),
                                             ('COplusH2OplusCO2plusCH3OH', 'H2O:CO:CO2:CH3OH (1:1:1:1)'),
                                             ('COplusH2OplusCO2plusCH3OH', 'H2O:CO:CO2:CH3OH (1:1:0.1:0.1)'),
                                             ('COplusH2OplusCO2plusCH3OH', 'H2O:CO:CO2:CH3OH (1:1:0.1:1)'),
@@ -215,25 +261,10 @@ def make_mymix_tables():
                                             ('COplusH2OplusOCN', 'H2O:CO:OCN (2:1:0.1)'),
                                             ('COplusH2OplusOCN', 'H2O:CO:OCN (2:1:0.5)'),
                                             ]):
-        molspl = composition.split(' ')[0].split(':')
-        compspl = composition.split(' ')[1].strip('()').split(':')
-
-        mults = {key: float(mul) for key, mul in zip(molspl, compspl, )}
-
-        co_plus_co2_plus_water_k = np.sum([
-            (mult * np.interp(grid,
-                              moltbls[mol]['Wavelength'][np.argsort(moltbls[mol]['Wavelength'])],
-                              moltbls[mol]['k'][np.argsort(moltbls[mol]['Wavelength'])])) for mol, mult in mults.items()
-        ], axis=0) / np.sum(list(mults.values()))
-
-        tbl = Table({'Wavelength': grid, 'k': co_plus_co2_plus_water_k})
-        tbl.meta['composition'] = composition
-        tbl.meta['density'] = 1*u.g/u.cm**3  # everything is close to 1 g/cm^3.... so this is just a close-enough guess
-        tbl.meta['temperature'] = 25*u.K  # really 8-25 K depending on molecule
-        tbl.meta['index'] = ii
-        tbl.meta['molecule'] = mol
-        tbl.meta['database'] = 'mymix'
-        tbl.meta['author'] = 'Mastrapa 2024, Gerakines 2020, etc'
+        tbl = make_mixtable(composition, moltbls, grid=grid,
+                            density=1*u.g/u.cm**3, temperature=25*u.K,
+                            authors=', '.join([authors[mol] for mol in composition.split(' ')[0].split(':')]),
+                            index=ii)
 
         mymix_tables[(mol, ii, 25)] = tbl
         os.makedirs(f'{optical_constants_cache_dir}/mymixes', exist_ok=True)
@@ -252,7 +283,8 @@ except Exception as e:
 
 xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
 phx4000 = atmo_model(4000, xarr=xarr)
-cols = np.geomspace(1e15, 1e21, 25)
+# 2025-07-25: increased minimum to 1e17 to enable finer sampling at high-N
+cols = np.geomspace(1e17, 1e21, 50)
 
 
 def process_table(args, cmd_x=None, transdata=None):
@@ -365,7 +397,7 @@ def process_table(args, cmd_x=None, transdata=None):
             'database': database,
             'author': author,
             'composition': consts.meta['composition'],
-            'temperature': temperature,
+            'temperature': u.Quantity(temperature, u.K),
             'density': consts.meta['density'],
             'column': col,
         }
