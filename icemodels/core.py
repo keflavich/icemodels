@@ -246,7 +246,7 @@ def load_molecule_univap(molname, meta_table=None, use_cached=True):
         return consts
 
 
-def download_all_univap(meta_table=None):
+def download_all_univap(meta_table=None, redo=False):
     """
     Download all data files from the Univap database.
     """
@@ -257,9 +257,6 @@ def download_all_univap(meta_table=None):
         url = row['url']
         if url == '':
             continue
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            print(f"Error downloading {url}: {resp.status_code}")
 
         molid = row['datalabel']
         molname = row['sample']
@@ -272,9 +269,17 @@ def download_all_univap(meta_table=None):
         filename = os.path.join(optical_constants_cache_dir, f'univap_{molid}_{molname}_{temperature}_{reference}.txt')
         filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
         filename = filename.replace('"', '')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as fh:
-            fh.write(resp.text)
+        if not redo and os.path.exists(filename):
+            continue
+        else:
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+            resp = requests.get(url)
+            if resp.status_code != 200:
+                print(f"Error downloading {url}: {resp.status_code}")
+
+            with open(filename, 'w') as fh:
+                fh.write(resp.text)
 
 # defunct def load_molecule_icedb():
 # defunct     response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
