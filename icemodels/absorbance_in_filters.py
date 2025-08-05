@@ -197,11 +197,16 @@ def make_mymix_tables():
 
     water_mastrapa = read_ocdb_file(f'{optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt')  # h2otbs[('ocdb', 242, 25)] 242 is 50K....
     co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
-    ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
-    methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
-    ocn = read_lida_file(f'{optical_constants_cache_dir}/158_OCN-_1_12.0K.txt')
+    ethanol = load_molecule_univap('ethanol')
+    methanol = load_molecule_univap('methanol')
+
+    # Don't trust LIDA: they give absorbances, not k, and we need k.
+    #ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
+    #methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
     # nh3 = read_ocdb_file(f'{optical_constants_cache_dir}/65_NH3_(1)_100K_Gerakines.txt')
 
+    # no choice with OCN...
+    ocn = read_lida_file(f'{optical_constants_cache_dir}/158_OCN-_1_12.0K.txt')
     # modify OCN to get rid of the non-OCN contributions
     ocn['k'][(ocn['Wavelength'] < 4.5*u.um) | (ocn['Wavelength'] > 4.75*u.um)] = 0
 

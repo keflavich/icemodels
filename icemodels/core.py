@@ -7,6 +7,7 @@ import numpy as np
 from bs4 import BeautifulSoup
 import mysg  # Tom Robitaille's YSO grid tool
 from astropy.table import Table
+from astropy import table
 from astropy.io import ascii
 from astropy import units as u
 from astropy import log
@@ -154,13 +155,13 @@ def load_molecule(molname):
     return consts
 
 
-def get_univap_meta_table():
+def get_univap_meta_table(univap_url='https://www1.univap.br/gaa/nkabs-database/data.htm'):
     """Get the metadata table from the Univap database."""
     if 'univap_meta_table' in cache:
         return cache['univap_meta_table']
-    meta1 = Table.read('https://www1.univap.br/gaa/nkabs-database/data.htm',
+    meta1 = Table.read(univap_url,
                        format='html', htmldict={'table_id': 1})
-    meta2 = Table.read('https://www1.univap.br/gaa/nkabs-database/data.htm',
+    meta2 = Table.read(univap_url,
                        format='html', htmldict={'table_id': 2})
     meta1.rename_column('col1', 'datalabel')
     meta1.rename_column('col2', 'temperature')
@@ -172,41 +173,108 @@ def get_univap_meta_table():
     meta2.rename_column('col4', 'projectile')
     meta2.rename_column('col5', 'flucence')
     meta2.rename_column('col6', 'reference')
-    meta_table = Table.vstack([meta1, meta2])
+
+    resp = requests.get(univap_url)
+    soup = BeautifulSoup(resp.text, features='html5lib')
+
+    for htmltable, meta in zip(soup.find_all('table'), [meta1, meta2]):
+        urls = []
+        for row in htmltable.find_all('tr'):
+            datalabel = row.find('td').string
+            if row.find('a'):
+                url = row.find('a')['href']
+                urls.append(url)
+            else:
+                urls.append('')
+        meta['url'] = urls
+
+    meta_table = table.vstack([meta1, meta2])
+
+    meta_table = meta_table[~(meta_table['datalabel'] == 'Data Label')]
+
     cache['univap_meta_table'] = meta_table
     return meta_table
 
 
-def load_molecule_univap(molname, meta_table=None):
+def load_molecule_univap(molname, meta_table=None, use_cached=True):
     """
     Load a molecule based on its name from the dictionary of molecular data files above.
     """
     if meta_table is None:
         meta_table = get_univap_meta_table()
-    meta_table.add_index('datalabel')
+    meta_table.add_index('sample')
 
-    url = univap_molecule_data[molname]['url']
-    molid = url.split('/')[-1].split('.')[0]
+    row = meta_table.loc[molname]
 
-    consts = Table.read(url, format='ascii', data_start=3)
-    if 'col1' in consts.colnames:
-        consts['col1'].unit = u.cm**-1
-        consts.rename_column('col1', 'WaveNum')
-        consts.rename_column('col2', 'absorbance')
-        consts.rename_column('col3', 'k')
-        consts.rename_column('col4', 'n')
-        consts['Wavelength'] = consts['WaveNum'].quantity.to(
-            u.um, u.spectral())
-    consts.meta['density'] = 1 * u.g / u.cm**3
-    consts.meta['author'] = meta_table.loc[molid]['reference'][0]
-    consts.meta['source'] = url
-    consts.meta['temperature'] = 10
-    consts.meta['molecule'] = molname
-    consts.meta['composition'] = meta_table.loc[molid]['sample'][0]
-    consts.meta['molwt'] = Formula(meta_table.loc[molid]['sample'][0]).mass
+    molid = row['datalabel']
+    molname = row['sample']
+    temperature = row['temperature']
+    reference = row['reference'].replace("\n", " ")
+    # Sanitize reference to be safe for file saving
+    for ch in [' ', "'", '"', '\\', '/', ':', '*', '?', '<', '>', '|']:
+        reference = reference.replace(ch, '_')
 
-    return consts
+    filename = os.path.join(optical_constants_cache_dir, f'univap_{molid}_{molname}_{temperature}_{reference}.txt')
+    if use_cached and os.path.exists(filename):
+        return Table.read(filename, format='ascii', data_start=3)
 
+    else:
+        #url = univap_molecule_data[molname]['url']
+        url = row['url']
+        #molid = url.split('/')[-1].split('.')[0]
+
+        consts = Table.read(url, format='ascii', data_start=3)
+        if 'col1' in consts.colnames:
+            consts['col1'].unit = u.cm**-1
+            consts.rename_column('col1', 'WaveNum')
+            consts.rename_column('col2', 'absorbance')
+            consts.rename_column('col3', 'k')
+            consts.rename_column('col4', 'n')
+            consts['Wavelength'] = consts['WaveNum'].quantity.to(
+                u.um, u.spectral())
+        consts.meta['density'] = 1 * u.g / u.cm**3
+        consts.meta['author'] = row['reference']
+        consts.meta['source'] = url
+        consts.meta['temperature'] = int(temperature)
+        consts.meta['molecule'] = molname
+        consts.meta['composition'] = molname
+        consts.meta['molwt'] = Formula(molscomps(molname)).mass
+        consts.meta['database'] = 'univap'
+        consts.meta['filename'] = filename
+        consts.write(filename, format='ascii')
+
+        return consts
+
+
+def download_all_univap(meta_table=None):
+    """
+    Download all data files from the Univap database.
+    """
+    if meta_table is None:
+        meta_table = get_univap_meta_table()
+
+    for row in tqdm(meta_table):
+        url = row['url']
+        if url == '':
+            continue
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            print(f"Error downloading {url}: {resp.status_code}")
+
+        molid = row['datalabel']
+        molname = row['sample']
+        temperature = row['temperature']
+        reference = row['reference'].replace("\n", " ")
+        # Sanitize reference to be safe for file saving
+        for ch in [' ', "'", '"', '\\', '/', ':', '*', '?', '<', '>', '|']:
+            reference = reference.replace(ch, '_')
+
+        filename = os.path.join(optical_constants_cache_dir, f'univap_{molid}_{molname}_{temperature}_{reference}.txt')
+        filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
+        filename = filename.replace('"', '')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w') as fh:
+            fh.write(resp.text)
 
 # defunct def load_molecule_icedb():
 # defunct     response = requests.get('https://icedb.strw.leidenuniv.nl/spectrum/download/754/754_15.0K.txt', verify=False)
@@ -982,15 +1050,18 @@ def read_lida_file(filename):
     # k = absorbance * wavelength / 4 pi d
     # d is the ice thickness, but it's in units of cm, not area, so we have to convert using density
     # this holds IF absorbance is defined as ln(I_0/I), not N^-1 ln(I_0/I), the latter from Hudgins 1993
+    # Rocha & Pilling 2014 define absorbance this way; I would call this value optical depth (tau)
     density = (tb.meta['density'])
     molwt = composition_to_molweight(tb.meta['composition'])
     monolayer = 1e15 / u.cm**2
     ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
-    ice_depth = (ice_thickness / density * molwt).to(u.cm)
+    ice_depth = (ice_thickness / density * molwt).to(u.um)
     print(f"molecule {tb.meta['molecule']} ice_depth: {ice_depth}")
+    tb['ice_layer_depth'] = ice_depth.to(u.um)
     kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
-    tb.add_column(kay, name='k')
+    tb.add_column(kay, name='k', )
+    tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * lambda / (4 pi d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
 
     return tb
 
