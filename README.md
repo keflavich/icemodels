@@ -4,3 +4,6 @@ Example/demo in https://github.com/keflavich/icemodels/blob/main/notebooks/CO2_P
 
 
 Docs at https://keflavich.github.io/icemodels/
+
+
+![Ices Measure Metals](metalice.png)
