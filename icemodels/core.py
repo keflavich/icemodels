@@ -1094,6 +1094,7 @@ def download_all_lida(
 
 
 def read_lida_file(filename):
+    """ Read a LIDA file with absorbance and do the appropriate conversion from absorbance to k """
 
     meta = {}
     with open(filename, 'r') as fh:
@@ -1107,11 +1108,6 @@ def read_lida_file(filename):
     # column 2 is absorbance, not k
     tb.rename_column('col2', 'absorbance')
 
-    # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
-    # inspired by, but not using at all, https://github.com/leiden-laboratory-for-astrophysics/refractive-index
-    alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
-    imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
-    tb['k'] = imag
 
     tb.meta['density'] = 1 * u.g / u.cm**3
     if 'index' not in tb.meta:
@@ -1128,16 +1124,30 @@ def read_lida_file(filename):
     # d is the ice thickness, but it's in units of cm, not area, so we have to convert using density
     # this holds IF absorbance is defined as ln(I_0/I), not N^-1 ln(I_0/I), the latter from Hudgins 1993
     # Rocha & Pilling 2014 define absorbance this way; I would call this value optical depth (tau)
+    # Rocha+ 2022 LIDA paper defines the terms more clearly
     density = (tb.meta['density'])
     molwt = composition_to_molweight(tb.meta['composition'])
     monolayer = 1e15 / u.cm**2
     ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
     ice_depth = (ice_thickness / density * molwt).to(u.um)
-    tb['ice_layer_depth'] = ice_depth.to(u.um)
-    kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
+    tb.meta['ice_layer_depth'] = ice_depth.to(u.um)
+    # wrong kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
+    kay = (tb['absorbance'] * np.log(10) / (4 * np.pi * ice_depth * tb['Wavenumber'].quantity)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
+
+
+    # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
+    # inspired by, but not using at all, https://github.com/leiden-laboratory-for-astrophysics/refractive-index
+    # This all turns out to be wrong by ~20 orders of magnitude
+    #alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    #imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    #tb['k'] = imag
+    #alpha = 1/ice_thickness.to(u.cm**-2).value * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    #kay = imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+
     tb.add_column(kay, name='k', )
-    tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * lambda / (4 pi d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
+    tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * ln(10) / (4 pi wavenumber d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
+
 
     return tb
 
