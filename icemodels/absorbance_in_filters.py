@@ -287,7 +287,6 @@ def make_mymix_tables():
 
 # Initialize mymix_tables as an empty dict by default
 mymix_tables = {}
-mymix_tables = make_mymix_tables()
 
 xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
 phx4000 = atmo_model(4000, xarr=xarr)
@@ -426,6 +425,8 @@ def process_table(args, cmd_x=None, transdata=None):
 if __name__ == '__main__':
     jfilts = SvoFps.get_filter_list('JWST')
     jfilts.add_index('filterID')
+
+    mymix_tables = make_mymix_tables()
 
     basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
