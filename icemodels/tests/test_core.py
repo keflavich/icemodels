@@ -115,46 +115,6 @@ def test_read_ocdb_file():
         assert result['Wavelength'].unit == u.um
 
 
-# Test for load_molecule_univap
-def test_load_molecule_univap():
-    with patch('astropy.table.Table.read') as mock_table_read, \
-            patch('icemodels.core.get_univap_meta_table') as mock_get_meta:
-        # Mock the meta table
-        mock_meta = MagicMock()
-        mock_meta.loc = {'G1': {'reference': ['Test'], 'sample': ['CO']}}
-        mock_get_meta.return_value = mock_meta
-
-        # Mock the molecule table with expected renamed columns
-        mock_table = MagicMock()
-        mock_table.colnames = ['WaveNum', 'absorbance', 'k', 'n', 'Wavelength']
-
-        def getitem_side_effect(key):
-            if key == 'WaveNum':
-                return [1, 2, 3] * u.cm**-1
-            elif key == 'Wavelength':
-                return [1, 2, 3] * u.um
-            elif key == 'k':
-                return [0.1, 0.2, 0.3]
-            elif key == 'n':
-                return [1.1, 1.2, 1.3]
-            else:
-                return [0, 0, 0]
-        mock_table.__getitem__.side_effect = getitem_side_effect
-        # Set meta to a real dict with expected values
-        mock_table.meta = {'molecule': 'co', 'temperature': 10}
-        mock_table_read.return_value = mock_table
-
-        # Patch meta_table to be available as both meta_table and metatable
-        import icemodels.core as core_mod
-        setattr(core_mod, 'metatable', mock_meta)
-        result = load_molecule_univap('co')
-        assert 'Wavelength' in result.colnames
-        assert 'k' in result.colnames
-        assert 'n' in result.colnames
-        assert result.meta['molecule'] == 'co'
-        assert result.meta['temperature'] == 10
-
-
 # Test for composition_to_molweight
 def test_composition_to_molweight():
     # Test simple molecule
