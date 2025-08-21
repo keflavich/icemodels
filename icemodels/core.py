@@ -1108,7 +1108,10 @@ def read_lida_file(filename):
     tb.rename_column('col2', 'absorbance')
 
     # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
-    #tb['k'] =
+    # inspired by, but not using at all, https://github.com/leiden-laboratory-for-astrophysics/refractive-index
+    alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    tb['k'] = imag
 
     tb.meta['density'] = 1 * u.g / u.cm**3
     if 'index' not in tb.meta:
