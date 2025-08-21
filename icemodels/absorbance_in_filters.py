@@ -16,8 +16,6 @@ from icemodels.core import composition_to_molweight, retrieve_gerakines_co, opti
 import unicodedata
 
 from astroquery.svo_fps import SvoFps
-jfilts = SvoFps.get_filter_list('JWST')
-jfilts.add_index('filterID')
 
 cmd_x_default = (
     'JWST/NIRCam.F115W',
@@ -426,6 +424,8 @@ def process_table(args, cmd_x=None, transdata=None):
 
 
 if __name__ == '__main__':
+    jfilts = SvoFps.get_filter_list('JWST')
+    jfilts.add_index('filterID')
 
     basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

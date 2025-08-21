@@ -123,9 +123,6 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
     return mod
 
 
-phx4000 = atmo_model(4000)
-
-
 def load_molecule(molname):
     """
     Load a molecule based on its name from the dictionary of molecular data files above.
@@ -694,6 +691,9 @@ def cde_correct(freq, m):
     return cabs, cabs_vol, cscat_vol, ctot
 
 
+phx4000 = atmo_model(4000)
+
+
 def absorbed_spectrum(
     ice_column,
     ice_model_table,
@@ -1106,6 +1106,9 @@ def read_lida_file(filename):
 
     # column 2 is absorbance, not k
     tb.rename_column('col2', 'absorbance')
+
+    # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
+    #tb['k'] =
 
     tb.meta['density'] = 1 * u.g / u.cm**3
     if 'index' not in tb.meta:
