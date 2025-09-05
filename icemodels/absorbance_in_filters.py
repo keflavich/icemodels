@@ -285,6 +285,13 @@ def make_mymix_tables():
     return mymix_tables
 
 
+def make_kp5_table():
+    co2_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/86_CO2_(1)_10K_Hudgins.txt')
+    h2o_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/107_H2O_(1)_10K_Mastrapa.txt')
+    co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
+    co2 = hudgins
+
+
 # Initialize mymix_tables as an empty dict by default
 mymix_tables = {}
 
