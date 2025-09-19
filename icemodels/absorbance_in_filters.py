@@ -89,8 +89,13 @@ def load_tables(cache):
                         if 'ocdb' in fh.read().lower():
                             # print(fn)
                             continue
-                    tb = read_lida_file(fn)
-                    temperature = int(tb.meta['temperature'])
+                    try:
+                        tb = read_lida_file(fn)
+                    except ValueError as ex:
+                        if 'Ice thickness is None' in str(ex):
+                            print(f"Ice thickness is None for {fn}")
+                            continue
+                    temperature = float(tb.meta['temperature'].strip('K')) if isinstance(tb.meta['temperature'], str) else tb.meta['temperature']
                     tbs[('lida', int(tb.meta['index']), temperature)] = tb
                 except Exception as ex:
                     # print(fn, spl)
