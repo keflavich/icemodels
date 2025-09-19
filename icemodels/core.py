@@ -166,6 +166,11 @@ univap_molname_lookup = {
     'methionine': 'C5H11NOS',
 }
 
+lida_molname_lookup = {
+    'H2O UV irr.': 'H2O',
+    'H2O 10000 L': 'H2O',
+    'H2O 3000 L': 'H2O',
+}
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
     """
@@ -1190,6 +1195,8 @@ def read_lida_file(filename, ice_thickness=None):
     if 'index' not in tb.meta:
         tb.meta['index'] = int(os.path.basename(filename).split('_')[0+pp])
     tb.meta['molecule'] = os.path.basename(filename).split('_')[1+pp]
+    if tb.meta['molecule'] in lida_molname_lookup:
+        tb.meta['molecule'] = lida_molname_lookup[tb.meta['molecule']]
     tb.meta['ratio'] = os.path.basename(filename).split('_')[2+pp]
     tb.meta['author'] = tb.meta['author']
     tb.meta['composition'] = tb.meta['molecule'] + ' ' + tb.meta['ratio']
@@ -1416,7 +1423,7 @@ def download_lida_optcon(
 
         for link in spectrum_links:
             href = link.get('href')
-            if href:
+            if href and href.endswith('.txt'):
                 # Extract temperature and spectrum type from the URL
                 filename = href.split('/')[-1]
                 parts = filename.replace('.txt', '').split('_')
@@ -1455,6 +1462,7 @@ def download_lida_optcon(
                             'url': spectrum_url,
                             'database': 'lida_optcon',
                             'index': compound_id,
+                            'composition': compound_name + " 1" if len(compound_name.split()) == 1 else compound_name,
                         }
 
                         with open(outfn, 'w') as fh:
@@ -1463,6 +1471,21 @@ def download_lida_optcon(
 
 
 def read_lida_optcon_file(filename):
+    if filename.endswith('n.txt'):
+        enn = read_lida_optcon_file_(filename)
+        kay = read_lida_optcon_file_(filename.replace('n.txt', 'k.txt'))
+    elif filename.endswith('k.txt'):
+        kay = read_lida_optcon_file_(filename)
+        enn = read_lida_optcon_file_(filename.replace('k.txt', 'n.txt'))
+    else:
+        raise ValueError(f"unknown spectrum type for {filename}")
+
+    tb = enn
+    tb['k'] = kay['k']
+    return tb
+
+
+def read_lida_optcon_file_(filename):
     """
     Read a LIDA optical constants file.
 
@@ -1480,10 +1503,12 @@ def read_lida_optcon_file(filename):
         Table with wavelength and optical constants data
     """
     meta = {}
+
     with open(filename, 'r') as fh:
         first_line = fh.readline()
         if first_line.startswith('# '):
             meta = json.loads(first_line.lstrip('# '))
+
 
     # Read the data starting from line 1 (after metadata)
     tb = ascii.read(filename, data_start=1)
@@ -1497,12 +1522,13 @@ def read_lida_optcon_file(filename):
 
         # The second column contains the optical constant (n or k)
         spectrum_type = tb.meta.get('spectrum_type', 'unknown')
-        if spectrum_type == 'n':
-            tb.rename_column('col2', 'n')
-        elif spectrum_type == 'k':
-            tb.rename_column('col2', 'k')
-        else:
-            tb.rename_column('col2', 'optical_constant')
+        if 'col2' in tb.colnames:
+            if spectrum_type == 'n':
+                tb.rename_column('col2', 'n')
+            elif spectrum_type == 'k':
+                tb.rename_column('col2', 'k')
+            else:
+                raise ValueError(f"unknown spectrum type {spectrum_type} for {filename}")
 
     # Set standard metadata
     tb.meta['density'] = 1 * u.g / u.cm**3  # Default density
@@ -1510,23 +1536,7 @@ def read_lida_optcon_file(filename):
 
     # Set composition based on compound name
     compound_name = tb.meta.get('compound_name', '')
-    if 'H2O' in compound_name and 'CO2' in compound_name:
-        tb.meta['composition'] = 'H2O:CO2'
-        tb.meta['molecule'] = 'H2O:CO2'
-    elif 'CO' in compound_name and 'CO2' in compound_name:
-        tb.meta['composition'] = 'CO:CO2'
-        tb.meta['molecule'] = 'CO:CO2'
-    elif 'H2O' in compound_name:
-        tb.meta['composition'] = 'H2O'
-        tb.meta['molecule'] = 'H2O'
-    elif 'CO2' in compound_name:
-        tb.meta['composition'] = 'CO2'
-        tb.meta['molecule'] = 'CO2'
-    elif 'CO' in compound_name:
-        tb.meta['composition'] = 'CO'
-        tb.meta['molecule'] = 'CO'
-    else:
-        tb.meta['composition'] = compound_name
-        tb.meta['molecule'] = compound_name
+    tb.meta['composition'] = compound_name
+    tb.meta['molecule'] = compound_name
 
     return tb
