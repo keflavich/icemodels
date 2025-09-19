@@ -23,6 +23,7 @@ def compute_molecular_column(unextincted_1m2, dmag_tbl, icemol='CO', filter1='F4
     dmags1 = dmag_tbl[filter1]
     dmags2 = dmag_tbl[filter2]
 
+    assert len(np.unique(dmag_tbl['composition'])) == 1, "dmag_tbl must have only one composition"
     comp = np.unique(dmag_tbl['composition'])[0]
     # molwt = u.Quantity(composition_to_molweight(comp), u.Da)
     mols, comps = molscomps(comp)
@@ -51,6 +52,7 @@ def compute_dmag_from_column(cols_of_icemol_observed, dmag_tbl, icemol='CO', fil
     dmags1 = np.nan_to_num(dmag_tbl[filter1])
     dmags2 = np.nan_to_num(dmag_tbl[filter2])
 
+    assert len(np.unique(dmag_tbl['composition'])) == 1, "dmag_tbl must have only one composition"
     comp = np.unique(dmag_tbl['composition'])[0]
     # molwt = u.Quantity(composition_to_molweight(comp), u.Da)
     mols, comps = molscomps(comp)

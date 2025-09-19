@@ -110,6 +110,9 @@ def load_tables(cache):
                     pass
                     # print(f'{key} -> {tb.meta} had no k₁')
 
+    else:
+        cotbs, h2otbs, co2tbs = cache['cotbs'], cache['h2otbs'], cache['co2tbs']
+
     cotbs[('ocdb', 63, 25)] = retrieve_gerakines_co(resolution='low')
     cotbs[('ocdb', 64, 25)] = retrieve_gerakines_co(resolution='high')
 
@@ -212,7 +215,7 @@ def make_mymix_tables():
 
     assert ethanol['Wavelength'].unit == u.um
 
-    # Don't trust LIDA: they give absorbances, not k, and we need k.
+    # Don't use LIDA: they give absorbances, not k, and we need k.  May have solved this problem, but still favor OCDB.
     #ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
     #methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
     # nh3 = read_ocdb_file(f'{optical_constants_cache_dir}/65_NH3_(1)_100K_Gerakines.txt')
