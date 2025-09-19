@@ -97,6 +97,75 @@ univap_molecule_data = {
     },
 }
 
+univap_molname_lookup = {
+    'alpha-gycine': 'C2H5NO2',
+    'alpha-glycine': 'C2H5NO2',
+    'beta-glycine': 'C2H5NO2',
+    'DL-proline': 'C5H9NO2',
+    'DL-valine': 'C5H11NO2',
+    'adenine': 'C5H5N5',
+    'uracil': 'C4H4N2O2',
+    'H2O (amorphous)': 'H2O',
+    'H2O (crystalline)': 'H2O',
+    'acetone': 'C3H6O',
+    'acetonitrile': 'C2H3N',
+    'acetonirtile': 'C2H3N',
+    'cycle-hexane': 'C6H12',
+    'Titanaerosol-N2CH4(19:1)': 'N2CH4',
+    'Titan aerosol - N2CH4 (19:1)': 'N2CH4',
+    'acetic acid': 'C2H4O2',
+    'formic acid': 'CH2O2',
+    'ethanol': 'C2H6O',
+    'methanol': 'CH4O',
+    'formamide': 'CH3NO',
+    'pyrimidine': 'C4H4N2',
+    'benzene': 'C6H6',
+    'toluene': 'C7H8',
+    'pyridine': 'C5H5N',
+    'aniline': 'C6H7N',
+    'phenol': 'C6H6O',
+    'nitrobenzene': 'C6H5NO2',
+    'benzonitrile': 'C7H5N',
+    'anisole': 'C7H8O',
+    'H2O:NH3:c-C6H6 (1:0.3:0.7)': 'H2O:NH3:C6H6 (1:0.3:0.7)',
+    'H2O:NH3:c-C6H12 (1:0.3:0.7)': 'H2O:NH3:C6H12 (1:0.3:0.7)',
+    'Enceladus - H2O:CO2:NH3:CH4 (9:1:1:1)': 'H2O:CO2:NH3:CH4 (9:1:1:1)',
+    'Europa -H2O:CO2:NH3:SO2 (10:1:1:1)': 'H2O:CO2:NH3:SO2 (10:1:1:1)',
+    'c-C6H6': 'C6H6',
+    'c-C6H12': 'C6H12',
+    'water': 'H2O',
+    'ammonia': 'NH3',
+    'carbon monoxide': 'CO',
+    'carbon dioxide': 'CO2',
+    'methane': 'CH4',
+    'formaldehyde': 'CH2O',
+    'hydrogen sulfide': 'H2S',
+    'sulfur dioxide': 'SO2',
+    'nitrogen': 'N2',
+    'oxygen': 'O2',
+    'hydrogen': 'H2',
+    'glycine': 'C2H5NO2',
+    'proline': 'C5H9NO2',
+    'valine': 'C5H11NO2',
+    'alanine': 'C3H7NO2',
+    'serine': 'C3H7NO3',
+    'threonine': 'C4H9NO3',
+    'leucine': 'C6H13NO2',
+    'isoleucine': 'C6H13NO2',
+    'phenylalanine': 'C9H11NO2',
+    'tyrosine': 'C9H11NO3',
+    'tryptophan': 'C11H12N2O2',
+    'histidine': 'C6H9N3O2',
+    'lysine': 'C6H14N2O2',
+    'arginine': 'C6H14N4O2',
+    'aspartic acid': 'C4H7NO4',
+    'glutamic acid': 'C5H9NO4',
+    'asparagine': 'C4H8N2O3',
+    'glutamine': 'C5H10N2O3',
+    'cysteine': 'C3H7NOS',
+    'methionine': 'C5H11NOS',
+}
+
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
     """
@@ -222,14 +291,6 @@ def load_molecule_univap(molname, meta_table=None, use_cached=True, overwrite=Fa
 
     return read_univap_file(filename, meta_row=row, use_cached=use_cached, overwrite=overwrite)
 
-univap_molname_lookup = {
-    'ethanol': 'C2H5OH',
-    'methanol': 'CH3OH',
-    'acetic acid': 'CH3COOH',
-    'formic acid': 'HCOOH',
-    'H2O (amorphous)': 'H2O',
-    'H2O (crystalline)': 'H2O',
-}
 
 def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwrite=False):
     """
@@ -273,6 +334,11 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
     url = meta_row['url']
     molid = meta_row['datalabel']
     molname = meta_row['sample']
+    if molname in univap_molname_lookup:
+        molname = univap_molname_lookup[molname]
+    # Should not be needed
+    composition = molname.replace('\n', ' ')
+    molname = composition.split()[0]
     temperature = meta_row['temperature']
     reference = meta_row['reference']
 
@@ -288,12 +354,12 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
     consts.meta['source'] = url
     consts.meta['temperature'] = int(temperature)
     consts.meta['molecule'] = molname
-    consts.meta['composition'] = molname
+    consts.meta['composition'] = composition
     try:
-        consts.meta['molwt'] = Formula(molname).mass
+        consts.meta['molwt'] = composition_to_molweight(composition)
     except Exception as ex:
         print(f"Error calculating molwt for {molname}: {ex}")
-        consts.meta['molwt'] = molname
+        raise
 
     consts.meta['database'] = 'univap'
     consts.meta['filename'] = filename
@@ -315,7 +381,8 @@ def download_all_univap(meta_table=None, redo=False, redo_meta=True):
         if url == '':
             continue
         if 'http' not in url:
-            print(f"Skipping {url} because it is not a valid URL")
+            if url != '--':
+                print(f"Skipping {url} because it is not a valid URL")
             continue
 
         molid = row['datalabel']
@@ -433,7 +500,7 @@ def read_ocdb_file(filename):
             u.um,
             u.spectral())
     else:
-        raise ValueError(f"No wavelength column found in {tb.colnames}")
+        raise ValueError(f"No wavelength column found in {tb.colnames} for file {filename}")
 
     if 'k₁' in tb.colnames:
         tb['k'] = tb['k₁']
@@ -990,7 +1057,9 @@ def retrieve_gerakines_co(resolution='low'):
 def download_all_lida(
         n_lida=179,
         redo=False,
-        baseurl='https://icedb.strw.leidenuniv.nl'):
+        baseurl='https://icedb.strw.leidenuniv.nl',
+        download_optcon=True,
+        ):
     S = requests.Session()
 
     if redo or not os.path.exists(
@@ -1054,9 +1123,7 @@ def download_all_lida(
         # doi = index[ii]['doi']
 
         resp1 = S.get(url)
-        if resp1.status_code != 200:
-            print(f"Error downloading {url}: {resp1.status_code}")
-            continue
+        resp1.raise_for_status()
 
         soup = BeautifulSoup(resp1.text, features='html5lib')
 
@@ -1092,9 +1159,15 @@ def download_all_lida(
 
                     fh.write(resp.text)
 
+    if download_optcon:
+        download_lida_optcon(redo=redo, baseurl=baseurl)
 
-def read_lida_file(filename):
+
+def read_lida_file(filename, ice_thickness=None):
     """ Read a LIDA file with absorbance and do the appropriate conversion from absorbance to k """
+
+    if 'lida_optcon' in filename:
+        return read_lida_optcon_file(filename)
 
     meta = {}
     with open(filename, 'r') as fh:
@@ -1108,12 +1181,16 @@ def read_lida_file(filename):
     # column 2 is absorbance, not k
     tb.rename_column('col2', 'absorbance')
 
+    if os.path.basename(filename).split('_')[0] == 'lida':
+        pp = 1
+    else:
+        pp = 0
 
     tb.meta['density'] = 1 * u.g / u.cm**3
     if 'index' not in tb.meta:
-        tb.meta['index'] = int(os.path.basename(filename).split('_')[0])
-    tb.meta['molecule'] = os.path.basename(filename).split('_')[1]
-    tb.meta['ratio'] = os.path.basename(filename).split('_')[2]
+        tb.meta['index'] = int(os.path.basename(filename).split('_')[0+pp])
+    tb.meta['molecule'] = os.path.basename(filename).split('_')[1+pp]
+    tb.meta['ratio'] = os.path.basename(filename).split('_')[2+pp]
     tb.meta['author'] = tb.meta['author']
     tb.meta['composition'] = tb.meta['molecule'] + ' ' + tb.meta['ratio']
     tb.meta['temperature'] = float(
@@ -1128,11 +1205,18 @@ def read_lida_file(filename):
     density = (tb.meta['density'])
     molwt = composition_to_molweight(tb.meta['composition'])
     monolayer = 1e15 / u.cm**2
-    ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
+    if ice_thickness is None:
+        if 'None' in tb.meta['ice_thickness']:
+            raise ValueError(f"Ice thickness is None for {filename}")
+        ice_thickness = float(tb.meta['ice_thickness'].replace('ML', '')) * monolayer
+    else:
+        ice_thickness = ice_thickness * monolayer
     ice_depth = (ice_thickness / density * molwt).to(u.um)
     tb.meta['ice_layer_depth'] = ice_depth.to(u.um)
     # wrong kay = (tb['absorbance'] * tb['Wavelength'].quantity / (4 * np.pi * ice_depth)).decompose()
-    kay = (tb['absorbance'] * np.log(10) / (4 * np.pi * ice_depth * tb['Wavenumber'].quantity)).decompose()
+    # Equation 10 in Rocha+ 2022 LIDA paper, ignoring second term
+    # they use 2.3 exactly, ln(10) = 2.3026
+    kay = (tb['absorbance'] * 2.3 / (4 * np.pi * ice_depth * tb['Wavenumber'].quantity)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
 
 
@@ -1148,8 +1232,28 @@ def read_lida_file(filename):
     tb.add_column(kay, name='k', )
     tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * ln(10) / (4 pi wavenumber d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
 
-
     return tb
+
+
+def parse_isotope(mol, excess_mass=0):
+    if '^' in mol:
+        isoreg = re.compile(r'\^([0-9]+)([A-Z][a-z]?)')
+        match = isoreg.search(mol)
+        mass = int(match.groups()[0])
+        atom_name = match.groups()[1]
+        nominal_mass = Formula(atom_name).nominal_mass
+        excess_mass = mass - nominal_mass
+        nonisotope_mol = isoreg.sub(atom_name, mol)
+        if '^' in nonisotope_mol:
+            return parse_isotope(nonisotope_mol, excess_mass)
+        return nonisotope_mol, excess_mass
+    else:
+        return mol, 0
+
+
+def get_molmass(mol):
+    mol, excess_mass = parse_isotope(mol)
+    return Formula(mol).nominal_mass + excess_mass
 
 
 def composition_to_molweight(compstr):
@@ -1174,10 +1278,11 @@ def composition_to_molweight(compstr):
     """
 
     if 'under' in compstr or 'over' in compstr or len(compstr.split(" ")) == 1:
-        return Formula(compstr.split()[0]).mass * u.Da
+        return get_molmass(compstr.split()[0]) * u.Da
 
     mols, comps = parse_molscomps(compstr)
-    molvals = [Formula(mol).mass for mol in mols]
+
+    molvals = [get_molmass(mol) for mol in mols]
 
     if len(comps) == 0:
         raise ValueError(f"No comps found for compstr='{compstr}'")
@@ -1219,3 +1324,209 @@ def molscomps(comp):
         mols = re.split("[: ]", mols)
 
     return mols, comps
+
+
+def download_lida_optcon(
+        redo=False,
+        baseurl='https://icedb.strw.leidenuniv.nl'):
+    """
+    Download optical constants data from the Leiden ice database.
+
+    This function downloads n and k constants directly from the optical constants
+    section of the database, which provides data for 6 compounds (IDs 2-6).
+    Unlike download_all_lida, this doesn't need to compute ice thickness or column
+    density since the files directly report n and k constants.
+
+    Parameters
+    ----------
+    redo : bool
+        If True, redownload files even if they already exist
+    baseurl : str
+        Base URL for the Leiden ice database
+    """
+    S = requests.Session()
+
+    # The optical constants page lists 6 compounds with IDs 2-6
+    # Based on the search results, these are:
+    # 2: H2O, 3: CO2, 4: CO, 5: CO:CO2 (100:70), 6: H2O:CO2 (100:14)
+    # optcon_ids = [2, 3, 4, 5, 6]
+
+    if redo or not os.path.exists(
+            os.path.join(optical_constants_cache_dir, 'lida_optcon_index.json')):
+        index = {}
+
+        # Get the main optical constants page to extract metadata
+        optcon_resp = S.get(f'{baseurl}/refrac_index')
+        if optcon_resp.status_code != 200:
+            print(f"Error accessing optical constants page: {optcon_resp.status_code}")
+            return
+
+        soup = BeautifulSoup(optcon_resp.text, features='html5lib')
+
+        # Parse the table to get compound information
+        table_rows = soup.find_all('tr')[1:]  # Skip header row
+
+        for row in table_rows:
+            cells = row.find_all('td')
+            if len(cells) >= 3:
+                # Extract compound name from first cell
+                compound_cell = cells[0]
+                compound_link = compound_cell.find('a')
+                if compound_link:
+                    compound_url = compound_link.get('href')
+                    compound_id = int(compound_url.split('/')[-1])
+                    compound_name = compound_cell.get_text(strip=True)
+
+                    # Clean up compound name (remove LaTeX formatting)
+                    compound_name = LatexNodes2Text().latex_to_text(compound_name)
+
+                    # Extract author from third cell
+                    author_cell = cells[2]
+                    author = author_cell.get_text(strip=True)
+
+                    index[compound_id] = {
+                        'name': compound_name,
+                        'author': author,
+                        'url': f'{baseurl}/data_opt_const/{compound_id}',
+                        'compound_id': compound_id
+                    }
+
+        os.makedirs(os.path.dirname(os.path.join(optical_constants_cache_dir, 'lida_optcon_index.json')), exist_ok=True)
+        with open(os.path.join(optical_constants_cache_dir, 'lida_optcon_index.json'), 'w') as fh:
+            json.dump(index, fh)
+    else:
+        with open(os.path.join(optical_constants_cache_dir, 'lida_optcon_index.json'), 'r') as fh:
+            index = json.load(fh)
+
+    # Download data for each compound
+    for compound_id in tqdm(index):
+        compound_data = index[compound_id]
+        compound_name = compound_data['name']
+        author = compound_data['author']
+
+        # Get the compound's data page to find available spectra
+        compound_resp = S.get(compound_data['url'])
+        compound_resp.raise_for_status()
+
+        compound_soup = BeautifulSoup(compound_resp.text, features='html5lib')
+
+        # Look for spectrum download links
+        # These should be in the format: spectrum_nval/download/{id}_{temperature}.txt
+        spectrum_links = compound_soup.find_all('a', href=lambda x: x and 'spectrum_nval/download' in x)
+
+        for link in spectrum_links:
+            href = link.get('href')
+            if href:
+                # Extract temperature and spectrum type from the URL
+                filename = href.split('/')[-1]
+                parts = filename.replace('.txt', '').split('_')
+                if len(parts) >= 2:
+                    spectrum_id = parts[0]
+                    temperature = parts[1]
+
+                    # Determine if this is n or k from the link context
+                    # The parent element or nearby text should indicate n or k
+                    parent_text = link.parent.get_text() if link.parent else ""
+                    if 'Warm-up N' in parent_text:
+                        spectrum_type = 'n'
+                    elif 'Warm-up K' in parent_text:
+                        spectrum_type = 'k'
+                    else:
+                        raise ValueError(f"Unknown spectrum type for {compound_id} {compound_name} {temperature} {parent_text}")
+
+                    outfn = os.path.join(optical_constants_cache_dir,
+                                       f'lida_optcon_{compound_id}_{compound_name}_{temperature}_{spectrum_type}.txt')
+                    outfn = outfn.replace(' ', '_').replace(':', '_')
+
+                    os.makedirs(os.path.dirname(outfn), exist_ok=True)
+
+                    if not os.path.exists(outfn) or redo:
+                        spectrum_url = f'{baseurl}/{href}'
+                        spectrum_resp = S.get(spectrum_url)
+                        spectrum_resp.raise_for_status()
+                        # Add metadata to the file
+                        metadata = {
+                            'compound_id': compound_id,
+                            'compound_name': compound_name,
+                            'author': author,
+                            'temperature': temperature,
+                            'spectrum_type': spectrum_type,
+                            'spectrum_id': spectrum_id,
+                            'url': spectrum_url,
+                            'database': 'lida_optcon',
+                            'index': compound_id,
+                        }
+
+                        with open(outfn, 'w') as fh:
+                            fh.write("# " + json.dumps(metadata) + "\n")
+                            fh.write(spectrum_resp.text)
+
+
+def read_lida_optcon_file(filename):
+    """
+    Read a LIDA optical constants file.
+
+    These files contain direct n and k values, unlike the regular LIDA files
+    which contain absorbance that needs to be converted to k.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the LIDA optical constants file
+
+    Returns
+    -------
+    astropy.table.Table
+        Table with wavelength and optical constants data
+    """
+    meta = {}
+    with open(filename, 'r') as fh:
+        first_line = fh.readline()
+        if first_line.startswith('# '):
+            meta = json.loads(first_line.lstrip('# '))
+
+    # Read the data starting from line 1 (after metadata)
+    tb = ascii.read(filename, data_start=1)
+    tb.meta.update(meta)
+
+    # Standard column naming for optical constants files
+    if len(tb.colnames) >= 2:
+        tb.rename_column('col1', 'Wavenumber')
+        tb['Wavenumber'].unit = u.cm**-1
+        tb['Wavelength'] = (tb['Wavenumber'].quantity).to(u.um, u.spectral())
+
+        # The second column contains the optical constant (n or k)
+        spectrum_type = tb.meta.get('spectrum_type', 'unknown')
+        if spectrum_type == 'n':
+            tb.rename_column('col2', 'n')
+        elif spectrum_type == 'k':
+            tb.rename_column('col2', 'k')
+        else:
+            tb.rename_column('col2', 'optical_constant')
+
+    # Set standard metadata
+    tb.meta['density'] = 1 * u.g / u.cm**3  # Default density
+    tb.meta['database'] = 'lida_optcon'
+
+    # Set composition based on compound name
+    compound_name = tb.meta.get('compound_name', '')
+    if 'H2O' in compound_name and 'CO2' in compound_name:
+        tb.meta['composition'] = 'H2O:CO2'
+        tb.meta['molecule'] = 'H2O:CO2'
+    elif 'CO' in compound_name and 'CO2' in compound_name:
+        tb.meta['composition'] = 'CO:CO2'
+        tb.meta['molecule'] = 'CO:CO2'
+    elif 'H2O' in compound_name:
+        tb.meta['composition'] = 'H2O'
+        tb.meta['molecule'] = 'H2O'
+    elif 'CO2' in compound_name:
+        tb.meta['composition'] = 'CO2'
+        tb.meta['molecule'] = 'CO2'
+    elif 'CO' in compound_name:
+        tb.meta['composition'] = 'CO'
+        tb.meta['molecule'] = 'CO'
+    else:
+        tb.meta['composition'] = compound_name
+        tb.meta['molecule'] = compound_name
+
+    return tb
