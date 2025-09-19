@@ -1463,6 +1463,7 @@ def download_lida_optcon(
                             'database': 'lida_optcon',
                             'index': compound_id,
                             'composition': compound_name + " 1" if len(compound_name.split()) == 1 else compound_name,
+                            'filename': outfn,
                         }
 
                         with open(outfn, 'w') as fh:
@@ -1540,3 +1541,18 @@ def read_lida_optcon_file_(filename):
     tb.meta['molecule'] = compound_name
 
     return tb
+
+
+def retrieve_kp5():
+    if not os.path.exists(f'{optical_constants_cache_dir}/kp5.fits'):
+        url = 'https://content.cld.iop.org/journals/2515-5172/8/3/68/revision2/rnaasad303ff1.tar.gz'
+        response = requests.get(url)
+        response.raise_for_status()
+        with tempfile.NamedTemporaryFile(delete=True) as tempfile:
+            with open(tempfile.name, 'wb') as fh:
+                fh.write(response.content)
+            with tarfile.open(tempfile.name) as fh:
+                kp5 = fh.extractfile('kp5.fits')
+                with open(f'{optical_constants_cache_dir}/kp5.fits', 'wb') as fh:
+                    fh.write(kp5.read())
+    return Table.read(f'{optical_constants_cache_dir}/kp5.fits')

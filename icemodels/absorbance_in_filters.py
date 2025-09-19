@@ -11,11 +11,21 @@ from tqdm.contrib.concurrent import process_map
 import molmass
 
 from icemodels import absorbed_spectrum, fluxes_in_filters, atmo_model
-from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file, tau_to_kay, load_molecule_univap, read_univap_file
+from icemodels.core import composition_to_molweight, retrieve_gerakines_co, optical_constants_cache_dir, read_lida_file, read_ocdb_file, tau_to_kay, load_molecule_univap, read_univap_file, retrieve_kp5
 
 import unicodedata
 
 from astroquery.svo_fps import SvoFps
+
+# Initialize mymix_tables as an empty dict by default
+mymix_tables = {}
+
+xarr = np.linspace(1.0*u.um, 30.0*u.um, 50000)
+phx4000 = atmo_model(4000, xarr=xarr)
+# 2025-07-25: increased minimum to 1e17 to enable finer sampling at high-N
+cols = np.geomspace(1e17, 1e21, 50)
+
+
 
 cmd_x_default = (
     'JWST/NIRCam.F115W',
@@ -163,7 +173,7 @@ def read_table_file(fn):
 
 def make_mixtable(composition, moltbls, density=1*u.g/u.cm**3, temperature=25*u.K, authors='Mastrapa 2024, Gerakines 2020, etc',
                   index=0,
-                  grid=np.linspace(2.5*u.um, 5.0*u.um, 200)):
+                  grid=xarr):
     """
     Default grid is way too coarse, but I didn't want to take memory at initialization time.
     """
@@ -229,8 +239,10 @@ def make_mymix_tables():
     moltbls = {'CO': co_gerakines, 'H2O': water_mastrapa, 'CO2': co2_gerakines, 'CH3OH': methanol, 'CH3CH2OH': ethanol, 'OCN': ocn}
     authors = {mol: tb.meta['author'] for mol, tb in moltbls.items()}
 
-    grid = co_gerakines['Wavelength']
-    grid = np.linspace(2.5*u.um, 5.0*u.um, 20000)
+    #grid = co_gerakines['Wavelength']
+    #grid = np.linspace(2.5*u.um, 5.0*u.um, 20000)
+    #grid = np.linspace(2.0*u.um, 30.0*u.um, 50000)
+    grid = xarr
 
     for ii, (mol, composition) in enumerate([
                                             ('COplusH2O', 'H2O:CO (0.5:1)'),
@@ -294,19 +306,26 @@ def make_mymix_tables():
 
 
 def make_kp5_table():
-    co2_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/86_CO2_(1)_10K_Hudgins.txt')
-    h2o_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/107_H2O_(1)_10K_Mastrapa.txt')
-    co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
-    co2 = hudgins
+    # co2_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/86_CO2_(1)_10K_Hudgins.txt')
+    # h2o_hudgins = read_ocdb_file(f'{optical_constants_cache_dir}/107_H2O_(1)_10K_Mastrapa.txt')
+    # co2_gerakines = read_ocdb_file(f'{optical_constants_cache_dir}/55_CO2_(1)_8K_Gerakines.txt')  # co2tbs[('ocdb', 55, 8)]
+    # co2 = hudgins
 
+    tb = retrieve_kp5()
 
-# Initialize mymix_tables as an empty dict by default
-mymix_tables = {}
+    tb.meta['molecule'] = 'H2O:CO2:CO 100:20:3'
+    tb.meta['database'] = 'kp5'
+    tb.meta['index'] = 0
+    tb.meta['temperature'] = -999*u.K
 
-xarr = np.linspace(2.5*u.um, 5.0*u.um, 10000)
-phx4000 = atmo_model(4000, xarr=xarr)
-# 2025-07-25: increased minimum to 1e17 to enable finer sampling at high-N
-cols = np.geomspace(1e17, 1e21, 50)
+    # cm^2/g of dust
+    ktot = (tb['kabs'] + tb['ksca'])*u.cm**2/u.g
+    # 12% ice by mass
+
+    wavenumber = 1/(u.Quantity(tb['wavelength'], u.um))
+    tb['k'] = (ktot * 0.12 * 1 * u.g/u.cm**3 / wavenumber).decompose()
+
+    return tb
 
 
 def process_table(args, cmd_x=None, transdata=None):
@@ -364,9 +383,9 @@ def process_table(args, cmd_x=None, transdata=None):
         return []
 
     # if the wavelength range doesn't match, it just extrapolates.
-    if u.Quantity(consts['Wavelength'].min(), u.um) > 5.0*u.um:
-        print(f"Table {molfn} starts at {u.Quantity(consts['Wavelength'].min(), u.um)} um, so has no overlap with NIRCAM")
-        return []
+    # if u.Quantity(consts['Wavelength'].min(), u.um) > 5.0*u.um:
+    #     print(f"Table {molfn} starts at {u.Quantity(consts['Wavelength'].min(), u.um)} um, so has no overlap with NIRCAM")
+    #     return []
 
     # Initialize dmags dictionary
     dmags = {filt: [] for filt in cmd_x}
@@ -454,6 +473,7 @@ if __name__ == '__main__':
     all_tables = []
     for key, consts in mymix_tables.items():
         all_tables.append((key[0], key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
+    all_tables.append(('kp5', make_kp5_table(), xarr, phx4000, cols, filter_data, transdata, basepath))
     for fn in glob.glob(f'{optical_constants_cache_dir}/*txt'):
         all_tables.append((fn, xarr, phx4000, cols, filter_data, transdata, basepath))
 
