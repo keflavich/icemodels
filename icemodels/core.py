@@ -1556,3 +1556,381 @@ def retrieve_kp5():
                 with open(f'{optical_constants_cache_dir}/kp5.fits', 'wb') as fh:
                     fh.write(kp5.read())
     return Table.read(f'{optical_constants_cache_dir}/kp5.fits')
+
+# =============================================================================
+# Wayback Machine Ice Database Functions
+# =============================================================================
+# These functions retrieve ice opacity tables from the old Leiden ice databases
+# via the wayback machine. The original databases are no longer available at
+# their original URLs, but archived versions can be accessed through:
+# - https://web.archive.org/web/20010503051921/http://www.strw.leidenuniv.nl/~lab/isodb/
+# - https://web.archive.org/web/20050212070342/http://www.strw.leidenuniv.nl/~schutte/database/
+#
+#
+# Usage example:
+#   import icemodels.core as icemodels
+#
+#   # Retrieve all wayback machine data
+#   wayback_data = icemodels.retrieve_wayback_ice_tables()
+#
+#   # Get summary of available tables
+#   summary = icemodels.get_wayback_ice_tables_summary()
+#
+#   # Find specific molecule data
+#   h2o_files = icemodels.find_wayback_ice_data(molecule='H2O')
+#
+#   # Load ice data for a specific molecule
+#   h2o_tables = icemodels.load_wayback_ice_data('H2O')
+
+def retrieve_wayback_ice_tables(use_cached=True, redo=False):
+    """
+    Retrieve ice opacity tables from the old Leiden ice databases via the wayback machine.
+
+    This function accesses archived versions of the Leiden ice databases that are no longer
+    available at their original URLs. It retrieves data from two main sources:
+    1. The Leiden Laboratory for Astrophysics ice database (isodb)
+    2. The Schutte database
+
+    Parameters
+    ----------
+    use_cached : bool, optional
+        If True, use cached data if available. Default is True.
+    redo : bool, optional
+        If True, redownload data even if cached files exist. Default is False.
+
+    Returns
+    -------
+    dict
+        Dictionary containing metadata about retrieved tables and their file paths
+
+    Notes
+    -----
+    The function accesses these wayback machine URLs:
+    - https://web.archive.org/web/20010503051921/http://www.strw.leidenuniv.nl/~lab/isodb/
+    - https://web.archive.org/web/20050212070342/http://www.strw.leidenuniv.nl/~schutte/database/
+    """
+    import tempfile
+    import tarfile
+    from urllib.parse import urljoin, urlparse
+
+    wayback_urls = {
+        'isodb': 'https://web.archive.org/web/20010503051921/http://www.strw.leidenuniv.nl/~lab/isodb/',
+        'schutte': 'https://web.archive.org/web/20050212070342/http://www.strw.leidenuniv.nl/~schutte/database/'
+    }
+
+    cache_file = os.path.join(optical_constants_cache_dir, 'wayback_ice_tables.json')
+
+    # Check if we have cached metadata
+    if use_cached and os.path.exists(cache_file) and not redo:
+        with open(cache_file, 'r') as fh:
+            return json.load(fh)
+
+    retrieved_data = {}
+
+    for db_name, base_url in wayback_urls.items():
+        print(f"Retrieving data from {db_name} database...")
+
+        # Get the main page to find available data files
+        resp = requests.get(base_url, timeout=30)
+        resp.raise_for_status()
+
+        soup = BeautifulSoup(resp.text, features='html5lib')
+
+        data_links = []
+
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if href.startswith('http'):
+                full_url = href
+            else:
+                full_url = urljoin(base_url, href)
+            data_links.append({
+                'url': full_url,
+                'filename': os.path.basename(urlparse(href).path),
+                'text': link.get_text(strip=True)
+            })
+
+
+        retrieved_data[db_name] = {
+            'base_url': base_url,
+            'data_links': data_links,
+            'downloaded_files': []
+        }
+
+        # Download the data files
+        for link_info in tqdm(data_links, desc=f"Downloading {db_name} files"):
+            filename = link_info['filename']
+            url = link_info['url']
+
+            # Create safe filename for caching
+            safe_filename = filename.replace(' ', '_').replace('/', '_')
+            cache_filename = os.path.join(optical_constants_cache_dir, f'wayback_{db_name}_{safe_filename}')
+
+            if not os.path.exists(cache_filename) or redo:
+                file_resp = requests.get(url, timeout=30)
+                if file_resp.status_code == 404 and 'The Wayback Machine has not archived that URL.' in file_resp.text:
+                    print(f"Wayback machine has not archived {url} - 404.  Sad!")
+                    continue
+                file_resp.raise_for_status()
+
+                if link_info.get('is_archive', False):
+                    # Handle compressed archives
+                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        temp_file.write(file_resp.content)
+                        temp_file.flush()
+
+                        if filename.endswith('.tar.gz') or filename.endswith('.tgz'):
+                            with tarfile.open(temp_file.name, 'r:gz') as tar:
+                                for member in tar.getmembers():
+                                    if member.isfile() and any(member.name.lower().endswith(ext) for ext in data_extensions):
+                                        extracted_file = tar.extractfile(member)
+                                        if extracted_file:
+                                            extracted_filename = os.path.join(optical_constants_cache_dir,
+                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                            with open(extracted_filename, 'wb') as fh:
+                                                fh.write(extracted_file.read())
+                                            retrieved_data[db_name]['downloaded_files'].append(extracted_filename)
+                        elif filename.endswith('.tar'):
+                            with tarfile.open(temp_file.name, 'r') as tar:
+                                for member in tar.getmembers():
+                                    if member.isfile() and any(member.name.lower().endswith(ext) for ext in data_extensions):
+                                        extracted_file = tar.extractfile(member)
+                                        if extracted_file:
+                                            extracted_filename = os.path.join(optical_constants_cache_dir,
+                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                            with open(extracted_filename, 'wb') as fh:
+                                                fh.write(extracted_file.read())
+                                            retrieved_data[db_name]['downloaded_files'].append(extracted_filename)
+                        os.unlink(temp_file.name)
+                else:
+                    # Handle regular text files
+                    with open(cache_filename, 'w', encoding='utf-8', errors='ignore') as fh:
+                        fh.write(file_resp.text)
+                    retrieved_data[db_name]['downloaded_files'].append(cache_filename)
+            else:
+                retrieved_data[db_name]['downloaded_files'].append(cache_filename)
+
+    # Cache the metadata
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    with open(cache_file, 'w') as fh:
+        json.dump(retrieved_data, fh, indent=2)
+
+    return retrieved_data
+
+
+def read_wayback_ice_file(filename):
+    """
+    Read a wayback machine ice data file and return a standardized table.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the wayback machine ice data file
+
+    Returns
+    -------
+    astropy.table.Table
+        Table with wavelength and optical constants data
+    """
+    # First, check if this is a metadata file rather than spectral data
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as fh:
+        first_lines = [fh.readline().strip() for _ in range(5)]
+
+    # Check if this looks like a metadata/experiment list file
+    if any(keyword in ' '.join(first_lines).lower() for keyword in ['experiment', 'composition', 'date', 'comment']):
+        # This is likely a metadata file, not spectral data
+        # Return a minimal table with metadata
+        tb = Table()
+        tb.meta['database'] = 'wayback_machine'
+        tb.meta['filename'] = filename
+        tb.meta['file_type'] = 'metadata'
+        tb.meta['density'] = 1 * u.g / u.cm**3
+        return tb
+
+    # Try to read the file with different formats
+    tb = None
+    for data_start in [0, 1, 2, 3]:
+        try:
+            tb = ascii.read(filename, data_start=data_start)
+            if len(tb) > 0:  # Make sure we got some data
+                break
+        except Exception:
+            continue
+
+    if tb is None or len(tb) == 0:
+        # If all else fails, try reading as a simple text file and parse manually
+        with open(filename, 'r', encoding='utf-8', errors='ignore') as fh:
+            lines = fh.readlines()
+
+        # Look for lines that look like data (contain numbers)
+        data_lines = []
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith('#') and not line.startswith('!'):
+                # Check if line contains numbers
+                parts = line.split()
+                if len(parts) >= 2:
+                    try:
+                        float(parts[0])
+                        float(parts[1])
+                        data_lines.append(line)
+                    except ValueError:
+                        continue
+
+        if not data_lines:
+            raise ValueError(f"No numerical data found in {filename}")
+
+        # Create a temporary file with just the data
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+            for line in data_lines:
+                temp_file.write(line + '\n')
+            temp_filename = temp_file.name
+
+        try:
+            tb = ascii.read(temp_filename)
+        finally:
+            os.unlink(temp_filename)
+
+    # Standardize column names
+    if len(tb.colnames) >= 2:
+        # Try to identify wavelength column
+        wavelength_col = None
+        for col in tb.colnames:
+            col_lower = col.lower()
+            if any(term in col_lower for term in ['wavelength', 'lambda', 'wave', 'freq', 'wavenum']):
+                wavelength_col = col
+                break
+
+        if wavelength_col is None and len(tb.colnames) >= 1:
+            wavelength_col = tb.colnames[0]
+
+        if wavelength_col:
+            tb.rename_column(wavelength_col, 'Wavelength')
+            # Assume wavelength is in microns if no unit specified
+            if not hasattr(tb['Wavelength'], 'unit'):
+                tb['Wavelength'].unit = u.um
+
+        # Try to identify k column
+        k_col = None
+        for col in tb.colnames:
+            col_lower = col.lower()
+            if any(term in col_lower for term in ['k', 'imag', 'imaginary', 'absorb']):
+                k_col = col
+                break
+
+        if k_col is None and len(tb.colnames) >= 2:
+            k_col = tb.colnames[1]
+
+        if k_col and k_col != 'Wavelength':
+            tb.rename_column(k_col, 'k')
+
+    # Add standard metadata
+    tb.meta['database'] = 'wayback_machine'
+    tb.meta['filename'] = filename
+    tb.meta['density'] = 1 * u.g / u.cm**3  # Default density
+
+    # Try to extract molecule name from filename
+    basename = os.path.basename(filename)
+    if 'wayback_' in basename:
+        parts = basename.split('_')
+        if len(parts) >= 3:
+            tb.meta['molecule'] = parts[2].split('.')[0]
+            tb.meta['composition'] = tb.meta['molecule']
+
+    return tb
+
+
+def get_wayback_ice_tables_summary():
+    """
+    Get a summary of all available wayback machine ice tables.
+
+    Returns
+    -------
+    astropy.table.Table
+        Summary table with information about available ice data files
+    """
+    wayback_data = retrieve_wayback_ice_tables()
+
+    summary_data = []
+    for db_name, db_info in wayback_data.items():
+        for file_path in db_info['downloaded_files']:
+            tb = read_wayback_ice_file(file_path)
+            summary_data.append({
+                'database': db_name,
+                'filename': os.path.basename(file_path),
+                'filepath': file_path,
+                'molecule': tb.meta.get('molecule', 'unknown'),
+                'n_points': len(tb),
+                'wavelength_range': f"{tb['Wavelength'].min():.2f} - {tb['Wavelength'].max():.2f} μm" if 'Wavelength' in tb.colnames else 'unknown',
+                'has_k': 'k' in tb.colnames,
+                'has_n': 'n' in tb.colnames
+            })
+
+    return Table(summary_data)
+
+
+def find_wayback_ice_data(molecule=None, database=None, use_cached=True):
+    """
+    Find specific ice data from the wayback machine databases.
+
+    Parameters
+    ----------
+    molecule : str, optional
+        Name of the molecule to search for (e.g., 'H2O', 'CO', 'CO2')
+    database : str, optional
+        Specific database to search ('isodb' or 'schutte')
+    use_cached : bool, optional
+        Whether to use cached data if available
+
+    Returns
+    -------
+    list
+        List of file paths containing matching ice data
+    """
+    summary_table = get_wayback_ice_tables_summary()
+
+    # Filter by database if specified
+    if database:
+        summary_table = summary_table[summary_table['database'] == database]
+
+    # Filter by molecule if specified
+    if molecule:
+        molecule_lower = molecule.lower()
+        matching_files = []
+        for row in summary_table:
+            if molecule_lower in row['molecule'].lower():
+                matching_files.append(row['filepath'])
+        return matching_files
+
+    return summary_table['filepath'].tolist()
+
+
+def load_wayback_ice_data(molecule, database=None, use_cached=True):
+    """
+    Load ice data for a specific molecule from the wayback machine.
+
+    Parameters
+    ----------
+    molecule : str
+        Name of the molecule to load (e.g., 'H2O', 'CO', 'CO2')
+    database : str, optional
+        Specific database to search ('isodb' or 'schutte')
+    use_cached : bool, optional
+        Whether to use cached data if available
+
+    Returns
+    -------
+    list
+        List of astropy.table.Table objects containing the ice data
+    """
+    matching_files = find_wayback_ice_data(molecule=molecule, database=database, use_cached=use_cached)
+
+    ice_tables = []
+    for file_path in matching_files:
+        ice_table = read_wayback_ice_file(file_path)
+        # Only include tables that actually have spectral data
+        if ice_table.meta.get('file_type') != 'metadata' and len(ice_table) > 0:
+            ice_tables.append(ice_table)
+
+    return ice_tables
