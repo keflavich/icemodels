@@ -9,7 +9,8 @@ from ._astropy_init import *   # noqa
 from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    fluxes_in_filters, load_molecule, load_molecule_ocdb,
                    atmo_model, molecule_data, download_all_ocdb, read_ocdb_file,
-                   optical_constants_cache_dir)
+                   optical_constants_cache_dir, get_dream_meta_table,
+                   download_all_dream, read_dream_file, load_molecule_dream)
 from . import gaussian_model_components
 from . import colorcolordiagrams
 from . import absorbance_in_filters
@@ -31,4 +32,8 @@ __all__ = [
     'colorcolordiagrams',
     'plot_ccd_icemodels',
     'absorbance_in_filters',
+    'get_dream_meta_table',
+    'download_all_dream',
+    'read_dream_file',
+    'load_molecule_dream',
 ]

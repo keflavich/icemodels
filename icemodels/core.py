@@ -3,9 +3,10 @@ import re
 import glob
 import shlex
 import json
+import tempfile
+import tarfile
 import numpy as np
 from bs4 import BeautifulSoup
-import mysg  # Tom Robitaille's YSO grid tool
 from astropy.table import Table
 from astropy import table
 from astropy.io import ascii
@@ -181,8 +182,7 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
 
     (the default spectral grid has essentially no sampling from 10-25 microns)
     """
-    if mysg is None:
-        raise ImportError("mysg module is not available")
+    import mysg
     mod = Table(mysg.atmosphere.interp_atmos(temperature))
     mod['nu'].unit = u.Hz
     mod['fnu'].unit = u.erg / u.s / u.cm**2 / u.Hz
@@ -1556,6 +1556,359 @@ def retrieve_kp5():
                 with open(f'{optical_constants_cache_dir}/kp5.fits', 'wb') as fh:
                     fh.write(kp5.read())
     return Table.read(f'{optical_constants_cache_dir}/kp5.fits')
+
+
+def get_dream_meta_table(
+        dream_url='https://hebergement.universite-paris-saclay.fr/edartois/dream_database.html',
+        use_cached=True):
+    """
+    Get the metadata table from the DREAM database.
+
+    The DREAM database (Database Referencing Extraterrestrial/Astrophysical Matter)
+    provides optical constants for various ice mixtures at different temperatures
+    and compositions.
+
+    Parameters
+    ----------
+    dream_url : str
+        URL of the DREAM database webpage
+    use_cached : bool
+        If True, use cached metadata table if available
+
+    Returns
+    -------
+    astropy.table.Table
+        Metadata table with columns for composition, ratio, data type, reference, and URL
+    """
+    if 'dream_meta_table' in cache:
+        return cache['dream_meta_table']
+    elif use_cached and os.path.exists(
+            os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv')):
+        return Table.read(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'))
+
+    # Fetch the webpage
+    resp = requests.get(dream_url)
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.text, features='html5lib')
+
+    # Find the data table
+    # The DREAM database uses a DataTables table structure
+    table = soup.find('table')
+
+    compositions = []
+    ratios = []
+    data_types = []
+    references = []
+    urls = []
+
+    # Parse the table rows
+    for row in table.find_all('tr')[1:]:  # Skip header row
+        cells = row.find_all('td')
+        if len(cells) >= 7:
+            # Extract composition (column 0)
+            composition = cells[0].get_text(strip=True)
+            # Extract ratio (column 1)
+            ratio = cells[1].get_text(strip=True)
+            # Extract data type (column 3)
+            data_type = cells[3].get_text(strip=True)
+            # Extract reference (column 5)
+            ref_link = cells[5].find('a')
+            reference = ref_link.get_text(strip=True) if ref_link else cells[5].get_text(strip=True)
+            # Extract data URL (column 6)
+            data_link = cells[6].find('a')
+            if data_link and data_link.get('href'):
+                url = data_link.get('href')
+                # Make absolute URL if needed
+                if not url.startswith('http'):
+                    base_url = '/'.join(dream_url.split('/')[:-1])
+                    url = f"{base_url}/{url}"
+
+                compositions.append(composition)
+                ratios.append(ratio)
+                data_types.append(data_type)
+                references.append(reference)
+                urls.append(url)
+
+    # Create the metadata table
+    meta_table = Table({
+        'composition': compositions,
+        'ratio': ratios,
+        'data_type': data_types,
+        'reference': references,
+        'url': urls
+    })
+
+    cache['dream_meta_table'] = meta_table
+
+    # Save to cache
+    os.makedirs(optical_constants_cache_dir, exist_ok=True)
+    meta_table.write(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'), overwrite=True)
+
+    return meta_table
+
+
+def download_all_dream(meta_table=None, redo=False):
+    """
+    Download all data files from the DREAM database.
+
+    The DREAM database (Database Referencing Extraterrestrial/Astrophysical Matter)
+    provides optical constants for ice mixtures relevant to astrophysical environments.
+
+    Parameters
+    ----------
+    meta_table : astropy.table.Table, optional
+        Metadata table from get_dream_meta_table(). If None, it will be retrieved.
+    redo : bool
+        If True, redownload files even if they already exist
+
+    Notes
+    -----
+    Files are saved to the optical_constants_cache_dir with naming convention:
+    dream_{composition}_{ratio}_{reference}.txt
+    """
+    if meta_table is None:
+        meta_table = get_dream_meta_table()
+
+    for row in tqdm(meta_table):
+        url = row['url']
+        composition = row['composition']
+        ratio = row['ratio']
+        reference = row['reference']
+
+        # Sanitize filename components
+        safe_composition = composition.replace(':', '_').replace(' ', '_')
+        safe_ratio = ratio.replace(':', '_').replace(' ', '_')
+        safe_reference = reference.replace(' ', '_').replace('.', '_')
+
+        filename = os.path.join(
+            optical_constants_cache_dir,
+            f'dream_{safe_composition}_{safe_ratio}_{safe_reference}.txt'
+        )
+
+        if not redo and os.path.exists(filename):
+            continue
+
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        try:
+            resp = requests.get(url)
+            resp.raise_for_status()
+
+            # Add metadata as a JSON header
+            metadata = {
+                'composition': composition,
+                'ratio': ratio,
+                'reference': reference,
+                'url': url,
+                'database': 'dream',
+                'filename': filename
+            }
+
+            with open(filename, 'w') as fh:
+                fh.write("# " + json.dumps(metadata) + "\n")
+                fh.write(resp.text)
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading {url}: {e}")
+
+
+def read_dream_file(filename):
+    """
+    Read a DREAM database file and return a table with optical constants.
+
+    DREAM database files contain optical constants (n and k) as a function of wavelength
+    for various ice mixtures. The files include citation information in the header.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the DREAM database file
+
+    Returns
+    -------
+    astropy.table.Table
+        Table with columns:
+        - Wavelength: wavelength in microns
+        - Wavenumber: wavenumber in cm^-1
+        - n: real part of refractive index
+        - k: imaginary part of refractive index (extinction coefficient)
+
+        Metadata includes:
+        - density: assumed density (1 g/cm^3)
+        - database: 'dream'
+        - composition: ice composition
+        - ratio: mixing ratio
+        - reference: literature reference
+        - doi: DOI if available
+        - citation: full citation text
+
+    Examples
+    --------
+    >>> import icemodels
+    >>> icemodels.download_all_dream()
+    >>> data = icemodels.read_dream_file(
+    ...     f'{icemodels.optical_constants_cache_dir}/dream_H2O_CO2_100_14_Dartois_et_al_2022.txt'
+    ... )
+    """
+    meta = {}
+
+    # Read metadata if present
+    with open(filename, 'r') as fh:
+        first_line = fh.readline()
+        if first_line.startswith('# {'):
+            meta = json.loads(first_line.lstrip('# '))
+
+    # Find where the data starts by looking for the header line with column names
+    data_start = None
+    citation = []
+    doi = None
+
+    with open(filename, 'r') as fh:
+        for i, line in enumerate(fh):
+            if line.startswith('# {'):
+                continue
+            elif 'Lammbda' in line or 'Lambda' in line or 'lambda' in line.lower():
+                data_start = i
+                break
+            else:
+                # Collect citation information
+                citation.append(line.strip())
+                if 'doi:' in line.lower():
+                    doi = line.split('doi:')[-1].strip()
+
+    if data_start is None:
+        raise ValueError(f"Could not find data header in {filename}")
+
+    # Read the data
+    tb = ascii.read(filename, data_start=data_start)
+
+    # Rename columns based on what we find
+    if len(tb.colnames) >= 3:
+        # First column is wavelength
+        tb.rename_column(tb.colnames[0], 'Wavelength')
+        tb['Wavelength'].unit = u.um
+
+        # Second column is n (real part)
+        tb.rename_column(tb.colnames[1], 'n')
+
+        # Third column is k (imaginary part)
+        tb.rename_column(tb.colnames[2], 'k')
+
+        # Calculate wavenumber
+        tb['Wavenumber'] = tb['Wavelength'].quantity.to(u.cm**-1, u.spectral())
+
+    # Set metadata
+    tb.meta['density'] = 1 * u.g / u.cm**3  # Default density
+    tb.meta['database'] = 'dream'
+
+    if meta:
+        tb.meta.update(meta)
+
+    if citation:
+        tb.meta['citation'] = '\n'.join(citation)
+
+    if doi:
+        tb.meta['doi'] = doi
+
+    # Parse composition and calculate molecular weight
+    if 'composition' in tb.meta:
+        composition = tb.meta['composition']
+        ratio = tb.meta.get('ratio', '1')
+
+        # Store the molecule name
+        tb.meta['molecule'] = composition.split(':')[0].strip()
+
+        # Try to calculate molecular weight from composition and ratio
+        # Format the composition string for composition_to_molweight
+        # Remove extra spaces around colons and format properly
+        clean_comp = composition.replace(' : ', ':').replace(': ', ':').replace(' :', ':')
+        clean_ratio = ratio.replace(' : ', ':').replace(': ', ':').replace(' :', ':')
+        tb.meta['molwt'] = composition_to_molweight(f"{clean_comp} ({clean_ratio})")
+
+    return tb
+
+
+def load_molecule_dream(composition, ratio=None, use_cached=True):
+    """
+    Load optical constants from the DREAM database for a specific composition.
+
+    Parameters
+    ----------
+    composition : str
+        The ice composition (e.g., 'H2O : CO2')
+    ratio : str, optional
+        The mixing ratio (e.g., '100 : 14'). If None, returns the first match.
+    use_cached : bool
+        If True, use cached files if available
+
+    Returns
+    -------
+    astropy.table.Table
+        Table with optical constants and metadata
+
+    Examples
+    --------
+    >>> import icemodels
+    >>> # Download all DREAM data first
+    >>> icemodels.download_all_dream()
+    >>> # Load specific composition
+    >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
+    """
+    if use_cached:
+        # Search for matching files
+        pattern = composition.replace(':', '_').replace(' ', '_')
+        search_pattern = os.path.join(optical_constants_cache_dir, f'dream_{pattern}*')
+        files = glob.glob(search_pattern)
+
+        if files:
+            if ratio is not None:
+                # Filter by ratio
+                ratio_pattern = ratio.replace(':', '_').replace(' ', '_')
+                files = [f for f in files if ratio_pattern in f]
+
+            if files:
+                return read_dream_file(files[0])
+
+    # If not cached, download from the database
+    meta_table = get_dream_meta_table()
+
+    # Find matching entry
+    for row in meta_table:
+        if row['composition'] == composition:
+            if ratio is None or row['ratio'] == ratio:
+                # Download this file
+                url = row['url']
+                safe_composition = composition.replace(':', '_').replace(' ', '_')
+                safe_ratio = row['ratio'].replace(':', '_').replace(' ', '_')
+                safe_reference = row['reference'].replace(' ', '_').replace('.', '_')
+
+                filename = os.path.join(
+                    optical_constants_cache_dir,
+                    f'dream_{safe_composition}_{safe_ratio}_{safe_reference}.txt'
+                )
+
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+                resp = requests.get(url)
+                resp.raise_for_status()
+
+                metadata = {
+                    'composition': composition,
+                    'ratio': row['ratio'],
+                    'reference': row['reference'],
+                    'url': url,
+                    'database': 'dream',
+                    'filename': filename
+                }
+
+                with open(filename, 'w') as fh:
+                    fh.write("# " + json.dumps(metadata) + "\n")
+                    fh.write(resp.text)
+
+                return read_dream_file(filename)
+
+    raise ValueError(f"Could not find composition '{composition}' with ratio '{ratio}' in DREAM database")
 
 # =============================================================================
 # Wayback Machine Ice Database Functions
