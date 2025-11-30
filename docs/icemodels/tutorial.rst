@@ -259,4 +259,59 @@ IceModels can access data from multiple databases. Here's how to compare data fr
     plt.legend()
     plt.show()
 
+
+Using the DREAM Database
+-------------------------
+
+The DREAM database provides optical constants for ice mixtures relevant to astrophysical environments.
+
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Download DREAM data (if not already cached)
+    icemodels.download_all_dream()
+
+    # Load H2O:CO2 mixture data
+    dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
+
+    print(f"Loaded {len(dream_data)} data points")
+    print(f"Composition: {dream_data.meta['composition']}")
+    print(f"Reference: {dream_data.meta['reference']}")
+
+    # Focus on infrared region
+    wavelength = np.linspace(2, 20, 1000) * u.um
+
+    # Create a simple blackbody spectrum
+    from astropy.modeling.models import BlackBody
+    bb = BlackBody(temperature=4000 * u.K)
+    spectrum = bb(wavelength).to(u.erg / u.s / u.cm**2 / u.Hz,
+                                  equivalencies=u.spectral_density(wavelength))
+
+    # Calculate absorption
+    ice_column = 1e17 / u.cm**2
+    absorbed = icemodels.absorbed_spectrum(
+        ice_column=ice_column,
+        ice_model_table=dream_data,
+        spectrum=spectrum,
+        xarr=wavelength,
+        molecular_weight=dream_data.meta['molwt']
+    )
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(wavelength, spectrum, label='Original', linewidth=2)
+    plt.plot(wavelength, absorbed, label='With H$_2$O:CO$_2$ ice', linewidth=2, alpha=0.7)
+    plt.xlabel('Wavelength (μm)')
+    plt.ylabel('Flux (erg/s/cm²/Hz)')
+    plt.title(f'Ice Absorption from DREAM Database\nColumn: {ice_column:.1e}')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+
 These examples demonstrate the main functionality of IceModels. For more advanced usage and specific applications, see the :doc:`examples` section.

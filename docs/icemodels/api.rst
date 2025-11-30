@@ -19,6 +19,33 @@ Loading Ice Data
 .. autofunction:: icemodels.core.load_molecule_ocdb
    :no-index:
 
+.. autofunction:: icemodels.core.load_molecule_dream
+   :no-index:
+
+Database Functions
+------------------
+
+OCDB Database
+^^^^^^^^^^^^^
+
+.. autofunction:: icemodels.core.download_all_ocdb
+   :no-index:
+
+.. autofunction:: icemodels.core.read_ocdb_file
+   :no-index:
+
+DREAM Database
+^^^^^^^^^^^^^^
+
+.. autofunction:: icemodels.core.get_dream_meta_table
+   :no-index:
+
+.. autofunction:: icemodels.core.download_all_dream
+   :no-index:
+
+.. autofunction:: icemodels.core.read_dream_file
+   :no-index:
+
 Spectral Analysis
 -----------------
 
