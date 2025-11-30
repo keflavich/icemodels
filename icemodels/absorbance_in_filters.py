@@ -313,17 +313,33 @@ def make_kp5_table():
 
     tb = retrieve_kp5()
 
-    tb.meta['molecule'] = 'H2O:CO2:CO 100:20:3'
+    tb.meta['molecule'] = 'H2O:CO2:CO 72:25:2.7'
+    #tb.meta['composition'] = 'H2O:CO2:CO 100:20:3'
+    tb.meta['composition'] = 'H2O:CO2:CO 72:25:2.7'
     tb.meta['database'] = 'kp5'
     tb.meta['index'] = 0
     tb.meta['temperature'] = -999*u.K
+    tb.meta['author'] = 'Pontoppidan'
+    tb.meta['density'] = (0.92*0.8 + 1.2 * 0.2)*u.g/u.cm**3
 
     # cm^2/g of dust
     ktot = (tb['kabs'] + tb['ksca'])*u.cm**2/u.g
     # 12% ice by mass
 
     wavenumber = 1/(u.Quantity(tb['wavelength'], u.um))
-    tb['k'] = (ktot * 0.12 * 1 * u.g/u.cm**3 / wavenumber).decompose()
+    fractions = {
+        'CO': 5.4e-6,
+        'CO2': 2.6e-5,
+        'H2O': 7.275e-5,
+    }
+    ice_mass_fraction_of_solids = 0.12
+
+    tb['k'] = (ktot * ice_mass_fraction_of_solids * 1 * u.g/u.cm**3 / wavenumber).decompose()
+    # HMM.
+    # The CO ice abundance is fixed to 5.4e-6 wrt H2
+
+    tb['Wavelength'] = u.Quantity(tb['wavelength'], u.um)
+    tb['wavelength'].unit = u.um
 
     return tb
 
@@ -473,7 +489,7 @@ if __name__ == '__main__':
     all_tables = []
     for key, consts in mymix_tables.items():
         all_tables.append((key[0], key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))
-    all_tables.append(('kp5', make_kp5_table(), xarr, phx4000, cols, filter_data, transdata, basepath))
+    all_tables.append(('kp5', ('kp5', 0, -999), make_kp5_table(), xarr, phx4000, cols, filter_data, transdata, basepath))
     for fn in glob.glob(f'{optical_constants_cache_dir}/*txt'):
         all_tables.append((fn, xarr, phx4000, cols, filter_data, transdata, basepath))
 
