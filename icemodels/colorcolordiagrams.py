@@ -2,6 +2,7 @@ from astropy.table import Table
 import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as pl
+import matplotlib as mpl
 # from molmass import Formula
 # from icemodels.core import composition_to_molweight
 from dust_extinction.averages import CT06_MWGC  # , G21_MWAvg
@@ -9,7 +10,8 @@ from tqdm.auto import tqdm
 import os
 from icemodels.core import molscomps
 
-pl.rcParams['axes.prop_cycle'] = pl.cycler(
+# pl.rcParams['axes.prop_cycle']
+propcycle = pl.cycler(
     color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'],
 ) * pl.cycler(linestyle=['-', '--', ':', '-.'])
@@ -83,6 +85,7 @@ def ext(x, model=CT06_MWGC()):
         return np.polyval(pp_ct06, x.value)
 
 
+@mpl.rc_context({'axes.prop_cycle': propcycle})
 def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
                        axlims=[-1, 4, -2.5, 1], nh_to_av=2.21e21,
                        abundance_wrt_h2=2e-5, av_start=20, max_column=2e20,
@@ -254,7 +257,7 @@ example_plots = [
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F466N'],
-        'axlims': (0, 3, -1.5, 1.0),
+        'axlims': (0, 4, -1.5, 1.0),
         'molcomps': [
             ('H2O:CO:CO2 (1:1:1)', 25.0),
             ('H2O:CO:CO2 (3:1:1)', 25.0),
@@ -262,18 +265,19 @@ example_plots = [
             ('H2O:CO:CO2 (10:1:1)', 25.0),
             ('H2O:CO:CO2 (15:1:1)', 25.0),
             ('H2O:CO:CO2 (20:1:1)', 25.0),
+            ('H2O:CO2:CO 72:25:2.7', -999),
         ],
         'icemol': 'CO',
         'abundance_wrt_h2': (percent_ice/100.)*carbon_abundance,
-        'max_column': 2e20,
-        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
+        'max_column': 5e19,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_nodata.png',
     },
     {
         # This one is totally pointless - it's just a vertical line
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F466N'],
-        'axlims': (-0.1, 0.1, -2.5, 1.0),
+        'axlims': (-0.3, 0.3, -2.5, 1.0),
         'molcomps': [
             ('H2O:CO:CO2 (1:1:1)', 25.0),
             ('H2O:CO:CO2 (3:1:1)', 25.0),
@@ -281,6 +285,7 @@ example_plots = [
             ('H2O:CO:CO2 (10:1:1)', 25.0),
             ('H2O:CO:CO2 (15:1:1)', 25.0),
             ('H2O:CO:CO2 (20:1:1)', 25.0),
+            ('H2O:CO2:CO 72:25:2.7', -999),
         ],
         'icemol': 'CO',
         'abundance_wrt_h2': (percent_ice/100.)*carbon_abundance,
@@ -289,6 +294,21 @@ example_plots = [
         'column_to_plot_point': 1e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_pureicenodust_nodata.png',
+    },
+    {
+        'color1': ['F182M', 'F212N'],
+        'color2': ['F405N', 'F466N'],
+        'axlims': (-0.3, 0.3, -2.5, 1.0),
+        'molcomps': [
+            ('H2O:CO2:CO 72:25:2.7', -999),
+        ],
+        'icemol': 'CO',
+        'abundance_wrt_h2': 5.4e-6,
+        'max_column': 2e20,
+        'pure_ice_no_dust': True,
+        'column_to_plot_point': 1e19,
+        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_pureicenodust_nodata_kp5.png',
     },
     # CO/H2O/CO2/CH3OH/CH3CH2OH mixes
     {
@@ -427,39 +447,40 @@ if __name__ == "__main__":
     The "main" example is intended to be run in the Brick 2221 project's directory.
     """
 
-    savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
+    with mpl.rc_context({'axes.prop_cycle': propcycle}):
+        savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
 
-    basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    dmag_tbl = dmag_all = Table.read(os.path.join(basepath, 'icemodels', 'data', 'combined_ice_absorption_tables.ecsv'))
-    dmag_all.add_index('mol_id')
-    dmag_all.add_index('composition')
-    dmag_all.add_index('temperature')
-    dmag_all.add_index('database')
-    dmag_tbl.add_index('author')
+        dmag_tbl = dmag_all = Table.read(os.path.join(basepath, 'icemodels', 'data', 'combined_ice_absorption_tables.ecsv'))
+        dmag_all.add_index('mol_id')
+        dmag_all.add_index('composition')
+        dmag_all.add_index('temperature')
+        dmag_all.add_index('database')
+        dmag_tbl.add_index('author')
 
-    for plot_cfg in example_plots:
-        if dmag_tbl is None:
-            raise ValueError("dmag_tbl not loaded. Please load your model table in the __main__ block.")
-        pl.figure()
-        plot_ccd_icemodels(
-            color1=plot_cfg['color1'],
-            color2=plot_cfg['color2'],
-            dmag_tbl=dmag_tbl,
-            molcomps=plot_cfg['molcomps'],
-            axlims=plot_cfg['axlims'],
-            abundance_wrt_h2=plot_cfg['abundance_wrt_h2'],
-            max_column=plot_cfg['max_column'],
-            icemol=plot_cfg['icemol'],
-            label_author=plot_cfg.get('label_author', False),
-            label_temperature=plot_cfg.get('label_temperature', False),
-            av_start=plot_cfg.get('av_start', 0),
-            column_to_plot_point=plot_cfg.get('column_to_plot_point', None),
-            pure_ice_no_dust=plot_cfg.get('pure_ice_no_dust', False),
-            **plot_cfg.get('kwargs', {})
-        )
-        pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
-        pl.title(plot_cfg['title'])
-        pl.savefig(os.path.join(savefig_path, plot_cfg['filename']),
-                   bbox_inches='tight', dpi=150)
-        pl.close()
+        for plot_cfg in example_plots:
+            if dmag_tbl is None:
+                raise ValueError("dmag_tbl not loaded. Please load your model table in the __main__ block.")
+            pl.figure()
+            plot_ccd_icemodels(
+                color1=plot_cfg['color1'],
+                color2=plot_cfg['color2'],
+                dmag_tbl=dmag_tbl,
+                molcomps=plot_cfg['molcomps'],
+                axlims=plot_cfg['axlims'],
+                abundance_wrt_h2=plot_cfg['abundance_wrt_h2'],
+                max_column=plot_cfg['max_column'],
+                icemol=plot_cfg['icemol'],
+                label_author=plot_cfg.get('label_author', False),
+                label_temperature=plot_cfg.get('label_temperature', False),
+                av_start=plot_cfg.get('av_start', 0),
+                column_to_plot_point=plot_cfg.get('column_to_plot_point', None),
+                pure_ice_no_dust=plot_cfg.get('pure_ice_no_dust', False),
+                **plot_cfg.get('kwargs', {})
+            )
+            pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
+            pl.title(plot_cfg['title'])
+            pl.savefig(os.path.join(savefig_path, plot_cfg['filename']),
+                    bbox_inches='tight', dpi=150)
+            pl.close()
