@@ -425,6 +425,8 @@ def download_all_univap(meta_table=None, redo=False, redo_meta=True):
 def download_all_ocdb(n_ocdb=298, redo=False):
     """
     Retrieve and locally cache all data files from the OCDB.
+
+    n_ocdb is hard-coded because the search tool does not return a correct number of entries (entries exist at least up to 296 as of 2025-11-30).
     """
     S = requests.Session()
     S.get('https://ocdb.smce.nasa.gov/search/ice')
@@ -543,6 +545,7 @@ def read_ocdb_file(filename):
     return tb
 
 
+#@deprecated(details="Use download_all_ocdb() and read_ocdb_file() instead.")
 def load_molecule_ocdb(molname, temperature=10):
     """
     Load a molecule from the OCDB by performing a query.
