@@ -6,14 +6,15 @@ This section describes the various ice spectroscopy databases supported by IceMo
 Built-in Database
 -----------------
 
-The built-in database contains a curated set of ice optical constants from various sources.
+The built-in database contains a set of ice optical constants from various sources.
 These data are included with the package and are immediately available without additional downloads.
 
 Available molecules:
-- H2O (water ice)
-- CO2 (carbon dioxide ice)
-- CO (carbon monoxide ice)
-- CH3OH (methanol ice)
+
+* H2O (water ice)
+* CO2 (carbon dioxide ice)
+* CO (carbon monoxide ice)
+* CH3OH (methanol ice)
 
 OCDB Database
 -------------
@@ -22,24 +23,30 @@ The Optical Constants Database (OCDB) provides temperature-dependent optical con
 Data from this database can be accessed using the `load_molecule_ocdb` function.
 
 Features:
-- Temperature-dependent measurements
-- Multiple ice phases
-- Extensive metadata
-- Regular updates
+
+* Temperature-dependent measurements
+* Multiple ice phases
+* Extensive metadata
+* Regular updates
 
 Example usage:
-```python
-data = icemodels.load_molecule_ocdb('co', temperature=10)
-```
+
+.. code-block:: python
+
+    data = icemodels.load_molecule_ocdb('co', temperature=10)
+
+
+However, the recommended approach is to first download all OCDB data files using `download_all_ocdb()`, and then read specific files with `read_ocdb_file()`.
+The metadata provided by `load_molecule_ocdb` is wacky and overloaded; it may produce surprising results.
 
 Data Format
 -----------
 
 All databases provide data in a consistent format using astropy Tables with the following columns:
 
-- Wavelength: Wavelength in microns
-- n: Real part of the refractive index
-- k: Imaginary part of the refractive index (extinction coefficient)
+* Wavelength: Wavelength in microns
+* n: Real part of the refractive index
+* k: Imaginary part of the refractive index (extinction coefficient)
 
 Additional metadata may be included in the table's metadata dictionary.
 
@@ -200,7 +207,7 @@ Here's a complete example showing how to load DREAM data and calculate ice absor
 
     # Only download if not building docs (to avoid timeouts on ReadTheDocs)
     skip_downloads = os.environ.get('ICEMODELS_SKIP_DOWNLOADS') == 'true'
-    
+
     if not skip_downloads:
         # Download DREAM data (if not already cached)
         icemodels.download_all_dream()
