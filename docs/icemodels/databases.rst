@@ -192,7 +192,7 @@ Primary references:
   A&A 666, A153, doi:10.1051/0004-6361/202243929
 
 Example: Plotting DREAM Database Spectra
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Here's a complete example showing how to load DREAM data and calculate ice absorption:
 
@@ -224,7 +224,7 @@ Here's a complete example showing how to load DREAM data and calculate ice absor
         print("Using built-in CO2 data for documentation example")
 
     # Focus on infrared region
-    wavelength = np.linspace(2, 20, 1000) * u.um
+    wavelength = np.linspace(2.5, 5, 1000) * u.um
 
     # Create a simple blackbody spectrum
     from astropy.modeling.models import BlackBody
