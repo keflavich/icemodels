@@ -27,27 +27,30 @@ Example creating a Phooenix 4000 K stellar spectrum with CO2 absorption:
     spectrum = f(wavelength)
 
     # Load CO data at different temperatures
-    temperatures = [10, 20, 30, 40]
-    spectra = []
-
-    # First, download all OCDB data (if not already downloaded)
-    icemodels.download_all_ocdb()
-
-    # Calculate spectra for each temperature
-    for temp in temperatures:
-        # Find the appropriate file for CO at this temperature
-        import glob
-        files = glob.glob(f'{icemodels.optical_constants_cache_dir}/*CO*{temp}K*.txt')
-        if files:
-            data = icemodels.read_ocdb_file(files[0])
-            spec = icemodels.absorbed_spectrum(
-                ice_column=1e17 * u.cm**-2,
-                ice_model_table=data,
-                molecular_weight=28*u.Da,
-                xarr=wavelength,
-                spectrum=spectrum
-            )
-            spectra.append(spec)
+    # For this example, we'll use the built-in data instead of downloading OCDB
+    # to avoid timeouts during documentation builds
+    import os
+    
+    # Use built-in data (single temperature, but demonstrates the concept)
+    co_data = icemodels.load_molecule('co')
+    
+    # Calculate spectrum with the built-in data
+    spec = icemodels.absorbed_spectrum(
+        ice_column=1e17 * u.cm**-2,
+        ice_model_table=co_data,
+        molecular_weight=28*u.Da,
+        xarr=wavelength,
+        spectrum=spectrum
+    )
+    
+    # For demonstration, show the same spectrum labeled as "10K" (the built-in data temperature)
+    # In practice, you would download OCDB data for multiple temperatures
+    spectra = [spec]
+    temperatures = [10]
+    
+    # Note: To get data at multiple temperatures, use:
+    # icemodels.download_all_ocdb()
+    # Then search for files with glob: glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb_*CO*{temp}K*.txt')
 
     # Create the plot
     plt.figure(figsize=(10, 6))
@@ -207,37 +210,58 @@ IceModels can access data from multiple databases. Here's how to compare data fr
     import matplotlib.pyplot as plt
     import numpy as np
     from scipy.interpolate import interp1d
+    import os
 
     # Create a common wavelength grid
     # For CO, this should be 4.5-5 microns
     wavelength = np.linspace(4.5, 5, 1000) * u.um
 
-    # First, download all OCDB data (if not already downloaded)
-    icemodels.download_all_ocdb()
-
-    # Get CO data from different sources
+    # Get CO data from different sources - start with built-in
     co_builtin = icemodels.load_molecule('co')  # Built-in data from Palumbo
 
-    # Find and load the OCDB data for CO at 10K
-    import glob
-    ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb_*CO*10K*.txt')
-    if ocdb_files:
-        co_ocdb = icemodels.read_ocdb_file(ocdb_files[0])
-    else:
-        raise ValueError("Could not find CO data at 10K in OCDB cache")
+    # Only download external databases if not building docs
+    skip_downloads = os.environ.get('ICEMODELS_SKIP_DOWNLOADS') == 'true'
+    
+    co_ocdb = None
+    co_lida = None
+    
+    if not skip_downloads:
+        # Download data from different databases (if not already cached)
+        icemodels.download_all_ocdb()
+        icemodels.download_all_lida()
+
+        # Find and load the OCDB data for CO at 10K
+        import glob
+        ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb_*CO*10K*.txt')
+        if ocdb_files:
+            co_ocdb = icemodels.read_ocdb_file(ocdb_files[0])
+
+        # Load LIDA data for CO at 15K
+        lida_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/*CO*15K*.txt')
+        # Filter for LIDA files (they don't start with 'ocdb_' or 'dream_')
+        lida_files = [f for f in lida_files if not any(x in f for x in ['ocdb_', 'dream_'])]
+        if lida_files:
+            co_lida = icemodels.read_lida_file(lida_files[0])
 
     # Extract metadata from the tables
     # The metadata is stored in the table's .meta dictionary
     builtin_author = co_builtin.meta.get('author', 'Palumbo')
     builtin_ref = co_builtin.meta.get('reference', 'Default')
     
-    ocdb_author = co_ocdb.meta.get('author', 'Unknown')
-    ocdb_ref = co_ocdb.meta.get('reference', 'OCDB')
-    ocdb_temp = co_ocdb.meta.get('temperature', '10K')
-    
     # Print metadata for user inspection
     print(f"Built-in data: {builtin_author}, {builtin_ref}")
-    print(f"OCDB data: {ocdb_author}, {ocdb_ref}, Temperature: {ocdb_temp}")
+    
+    if co_ocdb is not None:
+        ocdb_author = co_ocdb.meta.get('author', 'Unknown')
+        ocdb_ref = co_ocdb.meta.get('reference', 'OCDB')
+        ocdb_temp = co_ocdb.meta.get('temperature', '10K')
+        print(f"OCDB data: {ocdb_author}, {ocdb_ref}, Temperature: {ocdb_temp}")
+    
+    if co_lida is not None:
+        lida_author = co_lida.meta.get('author', 'Unknown')
+        lida_ref = co_lida.meta.get('reference', 'LIDA')
+        lida_temp = co_lida.meta.get('temperature', '15K')
+        print(f"LIDA data: {lida_author}, {lida_ref}, Temperature: {lida_temp}")
 
     # Create interpolation functions for each dataset
     def interpolate_constants(data):
@@ -264,24 +288,36 @@ IceModels can access data from multiple databases. Here's how to compare data fr
 
     # Interpolate all datasets to common wavelength grid
     n_builtin, k_builtin = interpolate_constants(co_builtin)
-    n_ocdb, k_ocdb = interpolate_constants(co_ocdb)
+    
+    if co_ocdb is not None:
+        n_ocdb, k_ocdb = interpolate_constants(co_ocdb)
+    
+    if co_lida is not None:
+        n_lida, k_lida = interpolate_constants(co_lida)
 
     # Create labels with author information from metadata
     builtin_label = f'{builtin_author}'
-    ocdb_label = f'{ocdb_author} ({ocdb_temp})'
 
     # Plot optical constants from each source
     plt.figure(figsize=(12, 8))
     plt.subplot(211)
     plt.plot(wavelength, n_builtin, label=builtin_label)
-    plt.plot(wavelength, n_ocdb, label=ocdb_label)
+    if co_ocdb is not None:
+        ocdb_label = f'{ocdb_author} ({ocdb_temp})'
+        plt.plot(wavelength, n_ocdb, label=ocdb_label)
+    if co_lida is not None:
+        lida_label = f'{lida_author} ({lida_temp})'
+        plt.plot(wavelength, n_lida, label=lida_label, linestyle='--')
     plt.ylabel('n')
     plt.title('CO Ice Optical Constants from Different Sources')
     plt.legend()
 
     plt.subplot(212)
     plt.semilogy(wavelength, k_builtin, label=builtin_label)
-    plt.semilogy(wavelength, k_ocdb, label=ocdb_label)
+    if co_ocdb is not None:
+        plt.semilogy(wavelength, k_ocdb, label=ocdb_label)
+    if co_lida is not None:
+        plt.semilogy(wavelength, k_lida, label=lida_label, linestyle='--')
     plt.xlabel('Wavelength (μm)')
     plt.ylabel('k')
     plt.legend()
