@@ -203,25 +203,16 @@ Here's a complete example showing how to load DREAM data and calculate ice absor
     import astropy.units as u
     import matplotlib.pyplot as plt
     import numpy as np
-    import os
 
-    # Only download if not building docs (to avoid timeouts on ReadTheDocs)
-    skip_downloads = os.environ.get('ICEMODELS_SKIP_DOWNLOADS') == 'true'
+    # Download DREAM data (if not already cached)
+    icemodels.download_all_dream()
 
-    if not skip_downloads:
-        # Download DREAM data (if not already cached)
-        icemodels.download_all_dream()
+    # Load H2O:CO2 mixture data
+    dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
 
-        # Load H2O:CO2 mixture data
-        dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
-
-        print(f"Loaded {len(dream_data)} data points")
-        print(f"Composition: {dream_data.meta['composition']}")
-        print(f"Reference: {dream_data.meta['reference']}")
-    else:
-        # Use built-in data for documentation builds
-        dream_data = icemodels.load_molecule('co2')
-        print("Using built-in CO2 data for documentation example")
+    print(f"Loaded {len(dream_data)} data points")
+    print(f"Composition: {dream_data.meta['composition']}")
+    print(f"Reference: {dream_data.meta['reference']}")
 
     # Focus on infrared region
     wavelength = np.linspace(2.5, 5, 1000) * u.um
@@ -235,22 +226,21 @@ Here's a complete example showing how to load DREAM data and calculate ice absor
 
     # Calculate absorption
     ice_column = 1e17 / u.cm**2
-    molwt = dream_data.meta.get('molwt', 44*u.Da)  # Default to CO2 molecular weight
     absorbed = icemodels.absorbed_spectrum(
         ice_column=ice_column,
         ice_model_table=dream_data,
         spectrum=spectrum,
         xarr=wavelength,
-        molecular_weight=molwt
+        molecular_weight=dream_data.meta['molwt']
     )
 
     # Plot
     plt.figure(figsize=(10, 6))
     plt.plot(wavelength, spectrum, label='Original', linewidth=2)
-    plt.plot(wavelength, absorbed, label='With ice absorption', linewidth=2, alpha=0.7)
+    plt.plot(wavelength, absorbed, label='With H$_2$O:CO$_2$ ice', linewidth=2, alpha=0.7)
     plt.xlabel('Wavelength (μm)')
     plt.ylabel('Flux (erg/s/cm²/Hz)')
-    plt.title(f'Ice Absorption Example\nColumn: {ice_column:.1e}')
+    plt.title(f'Ice Absorption from DREAM Database\nColumn: {ice_column:.1e}')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()

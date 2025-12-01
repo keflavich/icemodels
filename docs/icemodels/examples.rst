@@ -33,43 +33,28 @@ Analyzing how ice spectra change with temperature:
     spectrum = f(wavelength)
 
     # Load CO data at different temperatures
-    import os
     import glob
     
-    # Check if we should skip downloads (e.g., during ReadTheDocs build)
-    skip_downloads = os.environ.get('ICEMODELS_SKIP_DOWNLOADS') == 'true'
-    
-    if not skip_downloads:
-        # Download all OCDB data (if not already cached)
-        icemodels.download_all_ocdb()
-        temperatures = [10, 12, 12.5, 25, 30]
-    else:
-        # Use only built-in data for documentation builds
-        temperatures = [10]  # Built-in data temperature
+    # Download all OCDB data (if not already cached)
+    icemodels.download_all_ocdb()
+    temperatures = [10, 12, 12.5, 25, 30]
     
     spectra = []
 
     # Calculate spectra for each temperature
     for temp in temperatures:
-        if not skip_downloads:
-            # Find the OCDB file for CO at this temperature
-            ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb*_CO_*{temp}K*.txt')
-            if ocdb_files:
-                data = icemodels.read_ocdb_file(ocdb_files[0])
-            else:
-                continue
-        else:
-            # Use built-in data
-            data = icemodels.load_molecule('co')
-        
-        spec = icemodels.absorbed_spectrum(
-            ice_column=1e18 * u.cm**-2,
-            ice_model_table=data,
-            molecular_weight=28*u.Da,
-            xarr=wavelength,
-            spectrum=spectrum
-        )
-        spectra.append(spec)
+        # Find the OCDB file for CO at this temperature
+        ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb*_CO_*{temp}K*.txt')
+        if ocdb_files:
+            data = icemodels.read_ocdb_file(ocdb_files[0])
+            spec = icemodels.absorbed_spectrum(
+                ice_column=1e18 * u.cm**-2,
+                ice_model_table=data,
+                molecular_weight=28*u.Da,
+                xarr=wavelength,
+                spectrum=spectrum
+            )
+            spectra.append(spec)
 
     # Create the plot
     plt.figure(figsize=(10, 6))
