@@ -24,7 +24,7 @@ Analyzing how ice spectra change with temperature:
     from scipy.interpolate import interp1d
 
     # Create a common wavelength grid
-    wavelength = np.linspace(1, 28, 1000) * u.um
+    wavelength = np.linspace(4.5, 4.8, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
     default_spectrum = icemodels.core.phx4000['fnu']
@@ -40,7 +40,7 @@ Analyzing how ice spectra change with temperature:
     for temp in temperatures:
         data = icemodels.load_molecule_ocdb('co', temperature=temp)
         spec = icemodels.absorbed_spectrum(
-            ice_column=1e17 * u.cm**-2,
+            ice_column=1e18 * u.cm**-2,
             ice_model_table=data,
             molecular_weight=28*u.Da,
             xarr=wavelength,
