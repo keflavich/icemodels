@@ -33,12 +33,35 @@ Analyzing how ice spectra change with temperature:
     spectrum = f(wavelength)
 
     # Load CO data at different temperatures
-    temperatures = [10, 20, 30, 40]
+    import os
+    import glob
+    
+    # Check if we should skip downloads (e.g., during ReadTheDocs build)
+    skip_downloads = os.environ.get('ICEMODELS_SKIP_DOWNLOADS') == 'true'
+    
+    if not skip_downloads:
+        # Download all OCDB data (if not already cached)
+        icemodels.download_all_ocdb()
+        temperatures = [10, 12, 12.5, 25, 30]
+    else:
+        # Use only built-in data for documentation builds
+        temperatures = [10]  # Built-in data temperature
+    
     spectra = []
 
     # Calculate spectra for each temperature
     for temp in temperatures:
-        data = icemodels.load_molecule_ocdb('co', temperature=temp)
+        if not skip_downloads:
+            # Find the OCDB file for CO at this temperature
+            ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb*_CO_*{temp}K*.txt')
+            if ocdb_files:
+                data = icemodels.read_ocdb_file(ocdb_files[0])
+            else:
+                continue
+        else:
+            # Use built-in data
+            data = icemodels.load_molecule('co')
+        
         spec = icemodels.absorbed_spectrum(
             ice_column=1e18 * u.cm**-2,
             ice_model_table=data,
@@ -78,7 +101,7 @@ Analyzing ice mixtures with different ratios:
     from scipy.interpolate import interp1d
 
     # Create a common wavelength grid
-    wavelength = np.linspace(1, 28, 1000) * u.um
+    wavelength = np.linspace(2.5, 4.5, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
     default_spectrum = icemodels.core.phx4000['fnu']
@@ -90,32 +113,41 @@ Analyzing ice mixtures with different ratios:
     h2o = icemodels.load_molecule('h2o')
     co2 = icemodels.load_molecule('co2')
 
-    # Define mixture ratios (H2O:CO2)
+    # Define mixture ratios (H2O:CO2) - these represent molecular ratios
+    # The total column density is conserved across all mixtures
     ratios = [(1, 0.2), (1, 0.5), (1, 1)]
-    base_column = 1e17 * u.cm**-2
+    total_column = 1e18 * u.cm**-2  # Total ice column density
 
     plt.figure(figsize=(10, 6))
     for h2o_ratio, co2_ratio in ratios:
-        # Calculate optical depths for each component
-        # When combining ices, we sum their optical depths
-        h2o_tau = icemodels.absorbed_spectrum(
-            ice_column=base_column * h2o_ratio,
+        # Calculate the weighted mean opacity
+        # Each component is calculated with ice_column=1, weighted by its ratio,
+        # then divided by total ratio to get mean opacity per molecule
+        total_ratio = h2o_ratio + co2_ratio
+        
+        h2o_tau_per_molecule = icemodels.absorbed_spectrum(
+            ice_column=1,  # Calculate per molecule
             ice_model_table=h2o,
             molecular_weight=18*u.Da,
             xarr=wavelength,
             spectrum=spectrum,
             return_tau=True
         )
-        co2_tau = icemodels.absorbed_spectrum(
-            ice_column=base_column * co2_ratio,
+        co2_tau_per_molecule = icemodels.absorbed_spectrum(
+            ice_column=1,  # Calculate per molecule
             ice_model_table=co2,
             molecular_weight=44*u.Da,
             xarr=wavelength,
             spectrum=spectrum,
             return_tau=True
         )
-        # Combined optical depth is the sum
-        combined_tau = h2o_tau + co2_tau
+        
+        # Weighted mean opacity (conserves total column density)
+        mean_tau = (h2o_tau_per_molecule * h2o_ratio + 
+                    co2_tau_per_molecule * co2_ratio) / total_ratio
+        
+        # Apply to the total column density
+        combined_tau = mean_tau * total_column
         combined = spectrum * np.exp(-combined_tau)
         plt.plot(wavelength, combined,
                 label=f'H2O:CO2 = {h2o_ratio}:{co2_ratio}')
@@ -164,19 +196,13 @@ Analyzing ice spectra through different filters:
         spectrum=spectrum_base
     )
 
-    # Plot the spectrum
-    plt.figure(figsize=(10, 6))
-    plt.plot(wavelength, spectrum, label='CO2 Ice')
-    plt.xlabel('Wavelength (μm)')
-    plt.ylabel('Normalized Flux')
-    plt.title('CO2 Ice Spectrum with JWST/MIRI Filters')
-    plt.legend()
-
     # Calculate and print filter fluxes
     filter_ids = ['JWST/MIRI.F560W', 'JWST/NIRCam.F444W']
     # Get filter transmission data
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
     filter_fluxes = {}
+    filter_centers = {}
+    
     for filter_id in filter_ids:
         flux = icemodels.fluxes_in_filters(
             xarr=wavelength,
@@ -185,75 +211,27 @@ Analyzing ice spectra through different filters:
             transdata=transdata
         )
         filter_fluxes[filter_id] = flux
+        # Get the effective wavelength (center) of the filter
+        trans = transdata[filter_id]
+        filter_centers[filter_id] = np.average(trans['Wavelength'], weights=trans['Transmission'])
         print(f"Flux through {filter_id}: {flux}")
 
-    plt.show()
-
-CDE Correction Example
-----------------------
-
-The continuous distribution of ellipsoids (CDE) correction accounts for the fact that ice grains in space are not perfect spheres.
-This correction modifies the absorption spectrum to account for the distribution of grain shapes, which can significantly affect
-the optical properties of the ice.
-
-.. plot::
-    :include-source:
-
-    import warnings
-    warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero')
-    warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value')
-
-    import icemodels
-    import astropy.units as u
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from scipy.interpolate import interp1d
-
-    # Create a common wavelength grid
-    wavelength = np.linspace(1, 28, 1000) * u.um
-
-    # Load data
-    co_data = icemodels.load_molecule('co')
-
-    # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
-    f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
-    spectrum = f(wavelength)
-
-    # Calculate absorption spectra with and without CDE correction
-    spectrum_no_cde = icemodels.absorbed_spectrum(
-        ice_column=1e17 * u.cm**-2,
-        ice_model_table=co_data,
-        molecular_weight=28*u.Da,
-        xarr=wavelength,
-        spectrum=spectrum,
-        return_tau=True
-    )
-
-    # Interpolate n and k onto our wavelength grid
-    f_n = interp1d(co_data['Wavelength'], co_data['n'], bounds_error=False, fill_value=1.0)
-    f_k = interp1d(co_data['Wavelength'], co_data['k'], bounds_error=False, fill_value=0.0)
-    n = f_n(wavelength)
-    k = f_k(wavelength)
-    m = n + 1j * k
-
-    # Calculate the CDE-corrected optical depth
-    freq = wavelength.to(u.cm**-1, u.spectral())
-    wl = 1.e4/freq
-    m2 = m**2.0
-    im_part = ((m2/(m2-1.0))*np.log(m2)).imag
-    spectrum_cde = (4.0*np.pi/wl)*im_part
-
-    # Plot original vs CDE-corrected absorption
+    # Plot the spectrum with filter measurements overlaid
     plt.figure(figsize=(10, 6))
-    plt.plot(wavelength, spectrum_no_cde, label='Without CDE')
-    plt.plot(wavelength, spectrum_cde, label='With CDE')
+    plt.plot(wavelength, spectrum, label='CO2 Ice Spectrum', linewidth=2)
+    
+    # Plot filter measurements as points
+    for filter_id in filter_ids:
+        plt.plot(filter_centers[filter_id], filter_fluxes[filter_id], 
+                'o', markersize=10, label=f'{filter_id}')
+    
     plt.xlabel('Wavelength (μm)')
-    plt.ylabel('Optical Depth')
-    plt.title('Effect of CDE Correction on CO Ice')
+    plt.ylabel('Normalized Flux')
+    plt.title('CO2 Ice Spectrum with JWST Filter Measurements')
     plt.legend()
+    plt.grid(True, alpha=0.3)
     plt.show()
+
 
 Stellar Atmosphere Comparison
 -----------------------------
