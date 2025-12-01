@@ -82,7 +82,7 @@ plt.show()
 # Use DREAM data to calculate ice absorption
 
 # Create a simple blackbody spectrum
-wavelength = np.linspace(2, 20, 1000) * u.um
+wavelength = np.linspace(2.5, 5, 1000) * u.um
 temperature = 4000  # K
 
 from astropy.modeling.models import BlackBody
