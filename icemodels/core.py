@@ -543,20 +543,12 @@ def read_ocdb_file(filename):
     return tb
 
 
-def load_molecule_ocdb(molname, temperature=10, use_cached=True):
+def load_molecule_ocdb(molname, temperature=10):
     """
     Load a molecule from the OCDB by performing a query.
 
     This is not the recommended method; ``download_all_ocdb()`` and ``read_ocdb_file()`` should be used instead.
     """
-
-    if use_cached:
-        # Only search for OCDB files (those starting with 'ocdb_')
-        cache_list = glob.glob(os.path.join(optical_constants_cache_dir, 'ocdb_*.txt'))
-        if any([molname in x.lower() for x in cache_list]):
-            for filename in cache_list:
-                if molname in filename.lower():
-                    return read_ocdb_file(filename)
 
     S = requests.Session()
     resp1 = S.get('https://ocdb.smce.nasa.gov/search/ice')
