@@ -91,33 +91,44 @@ Now let's create a more complex example with multiple ice components:
     h2o_column = 5e17 * u.cm**-2
     co_column = 1e17 * u.cm**-2
 
-    # Calculate individual spectra
-    h2o_spectrum = icemodels.absorbed_spectrum(
+    # Calculate optical depths (tau) for each component
+    # When combining ices, we sum their optical depths, not multiply spectra
+    h2o_tau = icemodels.absorbed_spectrum(
         ice_column=h2o_column,
         ice_model_table=h2o_data,
         molecular_weight=18*u.Da,
         xarr=wavelength,
-        spectrum=spectrum_base
+        spectrum=spectrum_base,
+        return_tau=True
     )
 
-    co_spectrum = icemodels.absorbed_spectrum(
+    co_tau = icemodels.absorbed_spectrum(
         ice_column=co_column,
         ice_model_table=co_data,
         molecular_weight=28*u.Da,
         xarr=wavelength,
-        spectrum=spectrum_base
+        spectrum=spectrum_base,
+        return_tau=True
     )
 
-    # Combined spectrum is the product of individual spectra
-    combined_spectrum = h2o_spectrum * co_spectrum
+    # Combined optical depth is the sum of individual optical depths
+    combined_tau = h2o_tau + co_tau
+    
+    # Apply the combined optical depth to get the final spectrum
+    combined_spectrum = spectrum_base * np.exp(-combined_tau)
+
+    # Calculate individual absorbed spectra for comparison
+    h2o_spectrum = spectrum_base * np.exp(-h2o_tau)
+    co_spectrum = spectrum_base * np.exp(-co_tau)
 
     # Plot all components
     plt.figure(figsize=(12, 8))
-    plt.plot(wavelength, h2o_spectrum, label='H2O')
-    plt.plot(wavelength, co_spectrum, label='CO')
-    plt.plot(wavelength, combined_spectrum, label='Combined')
+    plt.plot(wavelength, spectrum_base, label='No ice', linestyle='--', alpha=0.5)
+    plt.plot(wavelength, h2o_spectrum, label='H2O only')
+    plt.plot(wavelength, co_spectrum, label='CO only')
+    plt.plot(wavelength, combined_spectrum, label='H2O + CO (combined)', linewidth=2)
     plt.xlabel('Wavelength (μm)')
-    plt.ylabel('Normalized Flux')
+    plt.ylabel('Flux')
     plt.title('Multi-component Ice Spectrum')
     plt.legend()
     plt.show()
@@ -125,7 +136,7 @@ Now let's create a more complex example with multiple ice components:
 Using Gaussian Components
 -------------------------
 
-Sometimes it's useful to model ice features using Gaussian components:
+Sometimes it's useful to model ice features using Gaussian components.  However, this example shows that the Gaussian modeling approach isn't correct right now:
 
 .. plot::
     :include-source:
@@ -137,7 +148,7 @@ Sometimes it's useful to model ice features using Gaussian components:
     from scipy.interpolate import interp1d
 
     # Create a common wavelength grid
-    wavelength = np.linspace(1, 5, 1000) * u.um
+    wavelength = np.linspace(4, 4.5, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
     default_spectrum = icemodels.core.phx4000['fnu']
@@ -175,7 +186,7 @@ Sometimes it's useful to model ice features using Gaussian components:
 
     # Compare with actual CO2 data
     plt.figure(figsize=(10, 6))
-    plt.plot(wavelength, spectrum, label='Real data')
+    plt.plot(wavelength, spectrum, label='Laboratory data')
     plt.plot(wavelength, gauss_spectrum, label='Gaussian model')
     plt.xlabel('Wavelength (μm)')
     plt.ylabel('Normalized Flux')
@@ -186,7 +197,7 @@ Sometimes it's useful to model ice features using Gaussian components:
 Working with Different Databases
 --------------------------------
 
-IceModels can access data from multiple databases. Here's how to compare data from different sources:
+IceModels can access data from multiple databases. Here's how to compare data from different sources and retrieve important metadata like author and reference information:
 
 .. plot::
     :include-source:
@@ -209,11 +220,24 @@ IceModels can access data from multiple databases. Here's how to compare data fr
 
     # Find and load the OCDB data for CO at 10K
     import glob
-    ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/*CO*10K*.txt')
+    ocdb_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/ocdb_*CO*10K*.txt')
     if ocdb_files:
         co_ocdb = icemodels.read_ocdb_file(ocdb_files[0])
     else:
         raise ValueError("Could not find CO data at 10K in OCDB cache")
+
+    # Extract metadata from the tables
+    # The metadata is stored in the table's .meta dictionary
+    builtin_author = co_builtin.meta.get('author', 'Palumbo')
+    builtin_ref = co_builtin.meta.get('reference', 'Default')
+    
+    ocdb_author = co_ocdb.meta.get('author', 'Unknown')
+    ocdb_ref = co_ocdb.meta.get('reference', 'OCDB')
+    ocdb_temp = co_ocdb.meta.get('temperature', '10K')
+    
+    # Print metadata for user inspection
+    print(f"Built-in data: {builtin_author}, {builtin_ref}")
+    print(f"OCDB data: {ocdb_author}, {ocdb_ref}, Temperature: {ocdb_temp}")
 
     # Create interpolation functions for each dataset
     def interpolate_constants(data):
@@ -242,76 +266,26 @@ IceModels can access data from multiple databases. Here's how to compare data fr
     n_builtin, k_builtin = interpolate_constants(co_builtin)
     n_ocdb, k_ocdb = interpolate_constants(co_ocdb)
 
+    # Create labels with author information from metadata
+    builtin_label = f'{builtin_author}'
+    ocdb_label = f'{ocdb_author} ({ocdb_temp})'
+
     # Plot optical constants from each source
     plt.figure(figsize=(12, 8))
     plt.subplot(211)
-    plt.plot(wavelength, n_builtin, label='Built-in (Palumbo)')
-    plt.plot(wavelength, n_ocdb, label='OCDB (10 K)')
+    plt.plot(wavelength, n_builtin, label=builtin_label)
+    plt.plot(wavelength, n_ocdb, label=ocdb_label)
     plt.ylabel('n')
-    plt.title('CO Ice Optical Constants')
+    plt.title('CO Ice Optical Constants from Different Sources')
     plt.legend()
 
     plt.subplot(212)
-    plt.semilogy(wavelength, k_builtin, label='Built-in (Palumbo)')
-    plt.semilogy(wavelength, k_ocdb, label='OCDB (10 K)')
+    plt.semilogy(wavelength, k_builtin, label=builtin_label)
+    plt.semilogy(wavelength, k_ocdb, label=ocdb_label)
     plt.xlabel('Wavelength (μm)')
     plt.ylabel('k')
     plt.legend()
     plt.show()
 
 
-Using the DREAM Database
--------------------------
-
-The DREAM database provides optical constants for ice mixtures relevant to astrophysical environments.
-
-.. plot::
-    :include-source:
-
-    import icemodels
-    import astropy.units as u
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    # Download DREAM data (if not already cached)
-    icemodels.download_all_dream()
-
-    # Load H2O:CO2 mixture data
-    dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
-
-    print(f"Loaded {len(dream_data)} data points")
-    print(f"Composition: {dream_data.meta['composition']}")
-    print(f"Reference: {dream_data.meta['reference']}")
-
-    # Focus on infrared region
-    wavelength = np.linspace(2, 20, 1000) * u.um
-
-    # Create a simple blackbody spectrum
-    from astropy.modeling.models import BlackBody
-    bb = BlackBody(temperature=4000 * u.K)
-    spectrum = bb(wavelength).to(u.erg / u.s / u.cm**2 / u.Hz,
-                                  equivalencies=u.spectral_density(wavelength))
-
-    # Calculate absorption
-    ice_column = 1e17 / u.cm**2
-    absorbed = icemodels.absorbed_spectrum(
-        ice_column=ice_column,
-        ice_model_table=dream_data,
-        spectrum=spectrum,
-        xarr=wavelength,
-        molecular_weight=dream_data.meta['molwt']
-    )
-
-    # Plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(wavelength, spectrum, label='Original', linewidth=2)
-    plt.plot(wavelength, absorbed, label='With H$_2$O:CO$_2$ ice', linewidth=2, alpha=0.7)
-    plt.xlabel('Wavelength (μm)')
-    plt.ylabel('Flux (erg/s/cm²/Hz)')
-    plt.title(f'Ice Absorption from DREAM Database\nColumn: {ice_column:.1e}')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.show()
-
-
-These examples demonstrate the main functionality of IceModels. For more advanced usage and specific applications, see the :doc:`examples` section.
+These examples demonstrate the main functionality of IceModels. For more advanced usage and specific applications, see the :doc:`examples` section. For database-specific examples including the DREAM database, see the :doc:`databases` section.

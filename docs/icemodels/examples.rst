@@ -96,23 +96,27 @@ Analyzing ice mixtures with different ratios:
 
     plt.figure(figsize=(10, 6))
     for h2o_ratio, co2_ratio in ratios:
-        # Calculate individual spectra
-        h2o_spec = icemodels.absorbed_spectrum(
+        # Calculate optical depths for each component
+        # When combining ices, we sum their optical depths
+        h2o_tau = icemodels.absorbed_spectrum(
             ice_column=base_column * h2o_ratio,
             ice_model_table=h2o,
             molecular_weight=18*u.Da,
             xarr=wavelength,
-            spectrum=spectrum
+            spectrum=spectrum,
+            return_tau=True
         )
-        co2_spec = icemodels.absorbed_spectrum(
+        co2_tau = icemodels.absorbed_spectrum(
             ice_column=base_column * co2_ratio,
             ice_model_table=co2,
             molecular_weight=44*u.Da,
             xarr=wavelength,
-            spectrum=spectrum
+            spectrum=spectrum,
+            return_tau=True
         )
-        # Combined spectrum
-        combined = h2o_spec * co2_spec
+        # Combined optical depth is the sum
+        combined_tau = h2o_tau + co2_tau
+        combined = spectrum * np.exp(-combined_tau)
         plt.plot(wavelength, combined,
                 label=f'H2O:CO2 = {h2o_ratio}:{co2_ratio}')
 
