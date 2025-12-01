@@ -27,7 +27,7 @@ Or install from source:
 
 .. code-block:: bash
 
-    git clone https://github.com/yourusername/icemodels.git
+    git clone https://github.com/keflavich/icemodels.git
     cd icemodels
     pip install -e .
 

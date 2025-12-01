@@ -184,8 +184,63 @@ Primary references:
   "Influence of grain growth on CO₂ ice spectroscopic profiles",
   A&A 666, A153, doi:10.1051/0004-6361/202243929
 
-Example Script
-^^^^^^^^^^^^^^
+Example: Plotting DREAM Database Spectra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here's a complete example showing how to load DREAM data and calculate ice absorption:
+
+.. plot::
+    :include-source:
+
+    import icemodels
+    import astropy.units as u
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Download DREAM data (if not already cached)
+    icemodels.download_all_dream()
+
+    # Load H2O:CO2 mixture data
+    dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
+
+    print(f"Loaded {len(dream_data)} data points")
+    print(f"Composition: {dream_data.meta['composition']}")
+    print(f"Reference: {dream_data.meta['reference']}")
+
+    # Focus on infrared region
+    wavelength = np.linspace(2, 20, 1000) * u.um
+
+    # Create a simple blackbody spectrum
+    from astropy.modeling.models import BlackBody
+    bb = BlackBody(temperature=4000 * u.K)
+    # BlackBody returns surface brightness, convert to flux density
+    spectrum = bb(wavelength).to(u.erg / u.s / u.cm**2 / u.Hz / u.sr,
+                                  equivalencies=u.spectral_density(wavelength)) * u.sr
+
+    # Calculate absorption
+    ice_column = 1e17 / u.cm**2
+    absorbed = icemodels.absorbed_spectrum(
+        ice_column=ice_column,
+        ice_model_table=dream_data,
+        spectrum=spectrum,
+        xarr=wavelength,
+        molecular_weight=dream_data.meta['molwt']
+    )
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(wavelength, spectrum, label='Original', linewidth=2)
+    plt.plot(wavelength, absorbed, label='With H$_2$O:CO$_2$ ice', linewidth=2, alpha=0.7)
+    plt.xlabel('Wavelength (μm)')
+    plt.ylabel('Flux (erg/s/cm²/Hz)')
+    plt.title(f'Ice Absorption from DREAM Database\nColumn: {ice_column:.1e}')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+
+Additional Examples
+^^^^^^^^^^^^^^^^^^^
 
 A complete example demonstrating DREAM database usage is available at:
 ``examples/dream_database_demo.py``

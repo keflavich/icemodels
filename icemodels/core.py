@@ -551,7 +551,8 @@ def load_molecule_ocdb(molname, temperature=10, use_cached=True):
     """
 
     if use_cached:
-        cache_list = glob.glob(os.path.join(optical_constants_cache_dir, '*.txt'))
+        # Only search for OCDB files (those starting with 'ocdb_')
+        cache_list = glob.glob(os.path.join(optical_constants_cache_dir, 'ocdb_*.txt'))
         if any([molname in x.lower() for x in cache_list]):
             for filename in cache_list:
                 if molname in filename.lower():
