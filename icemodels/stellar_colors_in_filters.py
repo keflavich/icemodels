@@ -58,7 +58,7 @@ cmd_x_default = (
 # Define stellar parameter ranges
 # Temperature range from cool M dwarfs to hot O stars
 # temperatures = np.linspace(2000, 50000, 50)  # K
-temperatures = np.geomspace(2000, 40000, 50)
+temperatures = np.geomspace(2000, 10000, 20)
 
 # Wavelength grid for spectral calculations
 # Extended range to cover all JWST filters: F070W (0.699 μm) to F2550W (25.152 μm)
@@ -103,36 +103,32 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
 
     try:
 
-        # Calculate fluxes in filters
-        fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
-                                   filterids=cmd_x, transdata=transdata)
+    # Calculate fluxes in filters
+    fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
+                                filterids=cmd_x, transdata=transdata)
 
-        # Calculate magnitudes
-        mags = {}
-        for filt in cmd_x:
-            if filt in fluxes and filt in filter_data:
-                # Convert flux to magnitude using zero point
-                mag = -2.5 * np.log10(fluxes[filt] / u.Quantity(filter_data[filt], u.Jy))
-                # Store with simplified filter name
-                if 'JWST/' in filt:
-                    mags[filt.replace('JWST/NIRCam.', '').replace('JWST/MIRI.', '')] = mag
-                else:
-                    mags[filt] = mag
+    # Calculate magnitudes
+    mags = {}
+    for filt in cmd_x:
+        if filt in fluxes and filt in filter_data:
+            # Convert flux to magnitude using zero point
+            mag = -2.5 * np.log10(fluxes[filt] / u.Quantity(filter_data[filt], u.Jy))
+            # Store with simplified filter name
+            if 'JWST/' in filt:
+                mags[filt.replace('JWST/NIRCam.', '').replace('JWST/MIRI.', '')] = mag
+            else:
+                mags[filt] = mag
 
-        # Create result row
-        mag_row = {
-            'temperature': temperature,
-            'model_type': 'stellar_atmosphere',
-            'spectral_type': get_spectral_type(temperature),
-        }
-        # Add magnitudes for each filter
-        mag_row.update(mags)
+    # Create result row
+    mag_row = {
+        'temperature': temperature,
+        'model_type': 'stellar_atmosphere',
+        'spectral_type': get_spectral_type(temperature),
+    }
+    # Add magnitudes for each filter
+    mag_row.update(mags)
 
-        return mag_row
-
-    except Exception as ex:
-        print(f"Error processing temperature {temperature}K: {ex}")
-        raise
+    return mag_row
 
 
 def get_spectral_type(temperature):
@@ -172,10 +168,6 @@ if __name__ == '__main__':
     cmd_x = cmd_x_default
     filter_data = {fid: float(jfilts.loc[fid]['ZeroPoint']) for fid in cmd_x}
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
-
-    print(f"Processing {len(temperatures)} stellar models...")
-    print(f"Temperature range: {temperatures.min():.0f}K to {temperatures.max():.0f}K")
-    print(f"Using {len(cmd_x)} JWST filters")
 
     # Create list of all stellar models to process
     all_models = []
@@ -226,4 +218,14 @@ if __name__ == '__main__':
     key_filters = ['F212N', 'F444W', 'F1000W']
     for filt in key_filters:
         if filt in mag_tbl.colnames:
-            raise ValueError(f"Missing magnitudes for filter {filt}")
+            print(f"✓ {filt} magnitudes available")
+        else:
+            print(f"✗ {filt} magnitudes missing")
+
+    colors = [['F182M', 'F210M'], ['F405N', 'F466N'], ['F356W', 'F444W']]
+    for color_pair in colors:
+        color_name = f"{color_pair[0]}-{color_pair[1]}"
+        mag_tbl[color_name] = mag_tbl[color_pair[0]] - mag_tbl[color_pair[1]]
+
+    inds = ['temperature'] + [color_name for color_name in [f"{cp[0]}-{cp[1]}" for cp in colors]]
+    print(mag_tbl[inds])
