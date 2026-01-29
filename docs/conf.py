@@ -63,23 +63,11 @@ sphinx_gallery_conf = {
     'examples_dirs': 'examples',   # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'filename_pattern': '/plot_',  # pattern to match example files
-    'plot_gallery': 'True' if os.environ.get('READTHEDOCS') != 'True' else False,  # skip plots on RTD
+    'plot_gallery': True,  # generate the gallery
     'download_all_examples': True,  # download all examples to build
     'line_numbers': True,  # add line numbers to examples
     'remove_config_comments': True,  # remove config comments from code
 }
-
-# Plot directive configuration - skip execution on ReadTheDocs
-plot_pre_code = """
-import os
-# Set flag to avoid large downloads during documentation build
-os.environ['ICEMODELS_SKIP_DOWNLOADS'] = 'true' if os.environ.get('READTHEDOCS') == 'True' else 'false'
-"""
-
-plot_rcparams = {}
-plot_formats = [('png', 100)]
-plot_html_show_formats = False
-plot_html_show_source_link = False
 
 # Intersphinx configuration
 intersphinx_mapping = {
