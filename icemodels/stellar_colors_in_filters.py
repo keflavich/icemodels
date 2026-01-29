@@ -99,8 +99,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
         # Generate stellar atmosphere model
         stellar_model = atmo_model(temperature, xarr=xarr)
     except IndexError:
-        print(f"Temperature {temperature}K is out of range for the model")
-        return
+        raise ValueError(f"Temperature {temperature}K is out of range for the model")
 
     try:
 
@@ -227,6 +226,4 @@ if __name__ == '__main__':
     key_filters = ['F212N', 'F444W', 'F1000W']
     for filt in key_filters:
         if filt in mag_tbl.colnames:
-            print(f"✓ {filt} magnitudes available")
-        else:
-            print(f"✗ {filt} magnitudes missing")
+            raise ValueError(f"Missing magnitudes for filter {filt}")

@@ -20,6 +20,7 @@ import astropy.io.ascii.core
 from tqdm.auto import tqdm
 from pylatexenc.latex2text import LatexNodes2Text
 from molmass import Formula
+import warnings
 
 cache = {}
 optical_constants_cache_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -201,6 +202,9 @@ def load_molecule(molname):
     """
     Load a molecule based on its name from the dictionary of molecular data files above.
     """
+    warnings.warn("load_molecule is deprecated as it's too simple an interface.  "
+                  "Instead, use read_{database}_file functions directly.",
+                  DeprecationWarning)
     if molname in cache:
         return cache[molname]
     url = molecule_data[molname]['url']

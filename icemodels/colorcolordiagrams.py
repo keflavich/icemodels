@@ -124,7 +124,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
                                 .loc['temperature', float(tem)]['mol_id'])
                       for mc, tem in molcomps]
     else:
-        molcomps = np.unique(dmag_tbl.loc[molids]['composition'])
+        molcomps = np.unique(dmag_tbl.loc['mol_id', molids]['composition'])
 
     assert len(molcomps) == len(molids)
     assert len(molcomps) > 0
@@ -138,9 +138,9 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
     for mol_id, (molcomp, temperature) in (zip(molids, molcomps)):
         if isinstance(mol_id, tuple):
             mol_id, database = mol_id
-            tb = dmag_tbl.loc[mol_id].loc['database', database].loc['composition', molcomp]
+            tb = dmag_tbl.loc['mol_id', mol_id].loc['database', database].loc['composition', molcomp]
         else:
-            tb = dmag_tbl.loc[mol_id].loc['composition', molcomp]
+            tb = dmag_tbl.loc['mol_id', mol_id].loc['composition', molcomp]
         comp = np.unique(tb['composition'])[0]
         temp = np.unique(tb['temperature'])[temperature_id]
         author = np.unique(tb['author'])[0]
