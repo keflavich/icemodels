@@ -14,7 +14,9 @@ from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
 from . import gaussian_model_components
 from . import colorcolordiagrams
 from . import absorbance_in_filters
+from . import plot_seds
 from .colorcolordiagrams import plot_ccd_icemodels
+from .plot_seds import plot_stellar_seds
 
 __all__ = [
     'absorbed_spectrum',
@@ -33,6 +35,8 @@ __all__ = [
     'plot_ccd_icemodels',
     'absorbance_in_filters',
     'get_dream_meta_table',
+    'plot_seds',
+    'plot_stellar_seds',
     'download_all_dream',
     'read_dream_file',
     'load_molecule_dream',

@@ -515,4 +515,4 @@ if __name__ == '__main__':
     dmag_tbl.add_index('database')
     dmag_tbl.add_index('mol_id')
 
-    assert 'F212N' in dmag_tbl.colnames
+    assert 'F212N' in dmag_tbl.colnames, "Something went wrong; no F212N column found"
