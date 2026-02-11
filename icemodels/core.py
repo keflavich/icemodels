@@ -174,6 +174,7 @@ lida_molname_lookup = {
     'H2O 3000 L': 'H2O',
 }
 
+
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
     """
     Use https://github.com/astrofrog/mysg to load Kurucz & Phoenix models and interpolate them
@@ -313,8 +314,8 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
             raise ValueError(f"File {filename} has no source metadata, so meta_row must be provided.")
 
     else:
-        #url = univap_molecule_data[molname]['url']
-        #molid = url.split('/')[-1].split('.')[0]
+        # url = univap_molecule_data[molname]['url']
+        # molid = url.split('/')[-1].split('.')[0]
 
         consts = Table.read(url, format='ascii', data_start=3)
 
@@ -335,7 +336,6 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
         consts.rename_column(col4, 'n')
         consts['Wavelength'] = consts['WaveNum'].quantity.to(
             u.um, u.spectral())
-
 
     consts['Wavelength'].unit = u.um
     consts['WaveNum'].unit = u.cm**-1
@@ -549,7 +549,7 @@ def read_ocdb_file(filename):
     return tb
 
 
-#@deprecated(details="Use download_all_ocdb() and read_ocdb_file() instead.")
+# @deprecated(details="Use download_all_ocdb() and read_ocdb_file() instead.")
 def load_molecule_ocdb(molname, temperature=10):
     """
     Load a molecule from the OCDB by performing a query.
@@ -1064,7 +1064,7 @@ def download_all_lida(
         redo=False,
         baseurl='https://icedb.strw.leidenuniv.nl',
         download_optcon=True,
-        ):
+):
     S = requests.Session()
 
     if redo or not os.path.exists(
@@ -1136,7 +1136,7 @@ def download_all_lida(
         # ML = monolayer?
         # 1 L =10^15 mol/cm^2 = 1 monolayer, from van Broekhuizen 2006 pg 725 table 1
         ice_thickness = soup.find('strong', string='Ice thickness: ').next_sibling.text.strip()
-        #if ice_thickness.endswith('ML'):
+        # if ice_thickness.endswith('ML'):
         #    ice_thickness = float(ice_thickness.replace('ML', '')) * monolayer
 
         ice_column_density = soup.find('strong', string='Ice column density: ').next_sibling.text.strip()
@@ -1226,15 +1226,14 @@ def read_lida_file(filename, ice_thickness=None):
     kay = (tb['absorbance'] * 2.3 / (4 * np.pi * ice_depth * tb['Wavenumber'].quantity)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
 
-
     # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
     # inspired by, but not using at all, https://github.com/leiden-laboratory-for-astrophysics/refractive-index
     # This all turns out to be wrong by ~20 orders of magnitude
-    #alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
-    #imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
-    #tb['k'] = imag
-    #alpha = 1/ice_thickness.to(u.cm**-2).value * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
-    #kay = imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    # alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    # imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    # tb['k'] = imag
+    # alpha = 1/ice_thickness.to(u.cm**-2).value * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    # kay = imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
 
     tb.add_column(kay, name='k', )
     tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * ln(10) / (4 pi wavenumber d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
@@ -1442,7 +1441,7 @@ def download_lida_optcon(
                         raise ValueError(f"Unknown spectrum type for {compound_id} {compound_name} {temperature} {parent_text}")
 
                     outfn = os.path.join(optical_constants_cache_dir,
-                                       f'lida_optcon_{compound_id}_{compound_name}_{temperature}_{spectrum_type}.txt')
+                                         f'lida_optcon_{compound_id}_{compound_name}_{temperature}_{spectrum_type}.txt')
                     outfn = outfn.replace(' ', '_').replace(':', '_')
 
                     os.makedirs(os.path.dirname(outfn), exist_ok=True)
@@ -1510,7 +1509,6 @@ def read_lida_optcon_file_(filename):
         if first_line.startswith('# '):
             meta = json.loads(first_line.lstrip('# '))
 
-
     # Read the data starting from line 1 (after metadata)
     tb = ascii.read(filename, data_start=1)
     tb.meta.update(meta)
@@ -1548,10 +1546,10 @@ def retrieve_kp5():
         url = 'https://content.cld.iop.org/journals/2515-5172/8/3/68/revision2/rnaasad303ff1.tar.gz'
         response = requests.get(url)
         response.raise_for_status()
-        with tempfile.NamedTemporaryFile(delete=True) as tempfile:
-            with open(tempfile.name, 'wb') as fh:
+        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+            with open(temp_file.name, 'wb') as fh:
                 fh.write(response.content)
-            with tarfile.open(tempfile.name) as fh:
+            with tarfile.open(temp_file.name) as fh:
                 kp5 = fh.extractfile('kp5.fits')
                 with open(f'{optical_constants_cache_dir}/kp5.fits', 'wb') as fh:
                     fh.write(kp5.read())
@@ -1935,6 +1933,7 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 #   # Load ice data for a specific molecule
 #   h2o_tables = icemodels.load_wayback_ice_data('H2O')
 
+
 def retrieve_wayback_ice_tables(use_cached=True, redo=False):
     """
     Retrieve ice opacity tables from the old Leiden ice databases via the wayback machine.
@@ -1971,6 +1970,8 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
         'schutte': 'https://web.archive.org/web/20050212070342/http://www.strw.leidenuniv.nl/~schutte/database/'
     }
 
+    data_extensions = ['.dat', '.txt', '.csv']
+
     cache_file = os.path.join(optical_constants_cache_dir, 'wayback_ice_tables.json')
 
     # Check if we have cached metadata
@@ -2002,7 +2003,6 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                 'filename': os.path.basename(urlparse(href).path),
                 'text': link.get_text(strip=True)
             })
-
 
         retrieved_data[db_name] = {
             'base_url': base_url,
@@ -2039,7 +2039,7 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                                         extracted_file = tar.extractfile(member)
                                         if extracted_file:
                                             extracted_filename = os.path.join(optical_constants_cache_dir,
-                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                                                              f'wayback_{db_name}_{os.path.basename(member.name)}')
                                             with open(extracted_filename, 'wb') as fh:
                                                 fh.write(extracted_file.read())
                                             retrieved_data[db_name]['downloaded_files'].append(extracted_filename)
@@ -2050,7 +2050,7 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                                         extracted_file = tar.extractfile(member)
                                         if extracted_file:
                                             extracted_filename = os.path.join(optical_constants_cache_dir,
-                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                                                              f'wayback_{db_name}_{os.path.basename(member.name)}')
                                             with open(extracted_filename, 'wb') as fh:
                                                 fh.write(extracted_file.read())
                                             retrieved_data[db_name]['downloaded_files'].append(extracted_filename)

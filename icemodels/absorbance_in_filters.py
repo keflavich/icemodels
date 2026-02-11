@@ -26,7 +26,6 @@ phx4000 = atmo_model(4000, xarr=xarr)
 cols = np.geomspace(1e17, 1e21, 50)
 
 
-
 cmd_x_default = (
     'JWST/NIRCam.F115W',
     'JWST/NIRCam.F150W',
@@ -183,12 +182,12 @@ def make_mixtable(composition, moltbls, density=1*u.g/u.cm**3, temperature=25*u.
     mults = {key: float(mul) for key, mul in zip(molspl, compspl, )}
 
     opacities = u.Quantity([absorbed_spectrum(xarr=grid,
-                                  ice_column=1,
-                                  ice_model_table=moltbls[mol],
-                                  molecular_weight=u.Quantity(composition_to_molweight(moltbls[mol].meta['composition']), u.Da),
-                                  return_tau=True).to(u.cm**2) * mult
-                for mol, mult in mults.items()],
-                u.cm**2)
+                                              ice_column=1,
+                                              ice_model_table=moltbls[mol],
+                                              molecular_weight=u.Quantity(composition_to_molweight(moltbls[mol].meta['composition']), u.Da),
+                                              return_tau=True).to(u.cm**2) * mult
+                            for mol, mult in mults.items()],
+                           u.cm**2)
     mean_opacity = opacities.sum(axis=0) / np.sum(list(mults.values()))
     molwt = u.Quantity(composition_to_molweight(composition), u.Da)
     mean_kay = tau_to_kay(mean_opacity, grid, 1, density / molwt)
@@ -202,7 +201,7 @@ def make_mixtable(composition, moltbls, density=1*u.g/u.cm**3, temperature=25*u.
 
     tbl = Table({'Wavelength': grid, 'k': mean_kay})
     tbl.meta['composition'] = composition
-    tbl.meta['density'] = density # everything is close to 1 g/cm^3.... so this is just a close-enough guess
+    tbl.meta['density'] = density  # everything is close to 1 g/cm^3.... so this is just a close-enough guess
     tbl.meta['temperature'] = temperature  # really 8-25 K depending on molecule
     tbl.meta['index'] = index
     tbl.meta['molecule'] = ":".join(molspl)
@@ -210,7 +209,6 @@ def make_mixtable(composition, moltbls, density=1*u.g/u.cm**3, temperature=25*u.
     tbl.meta['author'] = authors
 
     return tbl
-
 
 
 def make_mymix_tables():
@@ -226,8 +224,8 @@ def make_mymix_tables():
     assert ethanol['Wavelength'].unit == u.um
 
     # Don't use LIDA: they give absorbances, not k, and we need k.  May have solved this problem, but still favor OCDB.
-    #ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
-    #methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
+    # ethanol = read_lida_file(f'{optical_constants_cache_dir}/87_CH3CH2OH_1_30.0K.txt')
+    # methanol = read_lida_file(f'{optical_constants_cache_dir}/58_CH3OH_1_25.0K.txt')
     # nh3 = read_ocdb_file(f'{optical_constants_cache_dir}/65_NH3_(1)_100K_Gerakines.txt')
 
     # no choice with OCN...
@@ -239,9 +237,9 @@ def make_mymix_tables():
     moltbls = {'CO': co_gerakines, 'H2O': water_mastrapa, 'CO2': co2_gerakines, 'CH3OH': methanol, 'CH3CH2OH': ethanol, 'OCN': ocn}
     authors = {mol: tb.meta['author'] for mol, tb in moltbls.items()}
 
-    #grid = co_gerakines['Wavelength']
-    #grid = np.linspace(2.5*u.um, 5.0*u.um, 20000)
-    #grid = np.linspace(2.0*u.um, 30.0*u.um, 50000)
+    # grid = co_gerakines['Wavelength']
+    # grid = np.linspace(2.5*u.um, 5.0*u.um, 20000)
+    # grid = np.linspace(2.0*u.um, 30.0*u.um, 50000)
     grid = xarr
 
     for ii, (mol, composition) in enumerate([
@@ -314,7 +312,7 @@ def make_kp5_table():
     tb = retrieve_kp5()
 
     tb.meta['molecule'] = 'H2O:CO2:CO 72:25:2.7'
-    #tb.meta['composition'] = 'H2O:CO2:CO 100:20:3'
+    # tb.meta['composition'] = 'H2O:CO2:CO 100:20:3'
     tb.meta['composition'] = 'H2O:CO2:CO 72:25:2.7'
     tb.meta['database'] = 'kp5'
     tb.meta['index'] = 0

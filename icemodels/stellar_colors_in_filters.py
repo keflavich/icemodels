@@ -95,17 +95,12 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
     if filter_data is None:
         filter_data = user_filter_data
 
-    try:
-        # Generate stellar atmosphere model
-        stellar_model = atmo_model(temperature, xarr=xarr)
-    except IndexError:
-        raise ValueError(f"Temperature {temperature}K is out of range for the model")
-
-    try:
+    # Generate stellar atmosphere model
+    stellar_model = atmo_model(temperature, xarr=xarr)
 
     # Calculate fluxes in filters
     fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
-                                filterids=cmd_x, transdata=transdata)
+                               filterids=cmd_x, transdata=transdata)
 
     # Calculate magnitudes
     mags = {}
