@@ -22,6 +22,8 @@ The `icemodels` repository is a Python-based project for modeling and analyzing 
 
 Do not use try/except blocks when writing python code.  If an exception is encountered, it should be exposed to the user and corrected.  There are no circumstances ever in which a bare 'except:' should be used.  There are a very limited set of circumstances in which try/except ExceptionType: can be used, but you must ask permission before using that construct.
 
+Do not use virtual environments.  Use pre-existing conda environments, or if absolutely necessary, create new conda environments.
+
 ### Building the Project
 - Use `pip install .` to install the package locally.
 - Dependencies are managed via `pyproject.toml` and `setup.cfg`.
