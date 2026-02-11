@@ -6,7 +6,6 @@ import matplotlib as mpl
 # from molmass import Formula
 # from icemodels.core import composition_to_molweight
 from dust_extinction.averages import CT06_MWGC  # , G21_MWAvg
-from tqdm.auto import tqdm
 import os
 from icemodels.core import molscomps
 
@@ -31,7 +30,7 @@ def compute_molecular_column(unextincted_1m2, dmag_tbl, icemol='CO', filter1='F4
     mols, comps = molscomps(comp)
     mol_frac = comps[mols.index(icemol)] / sum(comps)
 
-    cols_of_icemol = dmag_tbl['column'] * mol_frac #molwt * mol_massfrac / (mol_wt_tgtmol)
+    cols_of_icemol = dmag_tbl['column'] * mol_frac  # molwt * mol_massfrac / (mol_wt_tgtmol)
 
     dmag_1m2 = np.array(dmags1) - np.array(dmags2)
 
@@ -41,8 +40,8 @@ def compute_molecular_column(unextincted_1m2, dmag_tbl, icemol='CO', filter1='F4
 
     sortorder = np.argsort(dmag_1m2)
     inferred_molecular_column = np.interp(unextincted_1m2,
-                                          xp=dmag_1m2[sortorder][cols_of_icemol<maxcol],
-                                          fp=cols_of_icemol[sortorder][cols_of_icemol<maxcol])
+                                          xp=dmag_1m2[sortorder][cols_of_icemol < maxcol],
+                                          fp=cols_of_icemol[sortorder][cols_of_icemol < maxcol])
 
     return inferred_molecular_column
 
@@ -65,9 +64,9 @@ def compute_dmag_from_column(cols_of_icemol_observed, dmag_tbl, icemol='CO', fil
 
     sortorder = np.argsort(cols_of_icemol_theory)
     dmag_of_icemol = np.interp(cols_of_icemol_observed,
-                               xp=cols_of_icemol_theory[sortorder][cols_of_icemol_theory<maxcol],
-                               fp=dmag_1m2[sortorder][cols_of_icemol_theory<maxcol],
-                              )
+                               xp=cols_of_icemol_theory[sortorder][cols_of_icemol_theory < maxcol],
+                               fp=dmag_1m2[sortorder][cols_of_icemol_theory < maxcol],
+                               )
 
     if verbose:
         print(f"min(dmag1) = {np.nanmin(dmags1)}, max(dmag1) = {np.nanmax(dmags1)}")
@@ -147,7 +146,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
         tb = tb.loc['temperature', float(temp)]
 
         try:
-            #molwt = u.Quantity(composition_to_molweight(comp), u.Da)
+            # molwt = u.Quantity(composition_to_molweight(comp), u.Da)
             from icemodels.core import molscomps
             mols, comps = molscomps(comp)
         except Exception as ex:
@@ -207,7 +206,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
 
 
 # Constants for abundances and percent ice
-carbon_abundance = 10**(8.7-12) # = 1e-3.3 = 5e-4
+carbon_abundance = 10**(8.7-12)  # = 1e-3.3 = 5e-4
 oxygen_abundance = 10**(9.3-12)
 percent_ice = 25  # can be changed per plot if needed
 
@@ -482,5 +481,5 @@ if __name__ == "__main__":
             pl.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
             pl.title(plot_cfg['title'])
             pl.savefig(os.path.join(savefig_path, plot_cfg['filename']),
-                    bbox_inches='tight', dpi=150)
+                       bbox_inches='tight', dpi=150)
             pl.close()

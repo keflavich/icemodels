@@ -1,7 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 # Get package version
-from .version import version as __version__
+from .version import version as __version__  # noqa: F401
 
 from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    fluxes_in_filters, load_molecule, load_molecule_ocdb,
