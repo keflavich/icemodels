@@ -1743,11 +1743,11 @@ def read_dream_file(filename):
 
     Examples
     --------
-    >>> import icemodels
-    >>> icemodels.download_all_dream()
-    >>> data = icemodels.read_dream_file(
+    >>> import icemodels  # doctest: +SKIP
+    >>> icemodels.download_all_dream()  # doctest: +SKIP
+    >>> data = icemodels.read_dream_file(  # doctest: +SKIP
     ...     f'{icemodels.optical_constants_cache_dir}/dream_H2O_CO2_100_14_Dartois_et_al_2022.txt'
-    ... )
+    ... )  # doctest: +SKIP
     """
     meta = {}
 
@@ -1847,11 +1847,11 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 
     Examples
     --------
-    >>> import icemodels
+    >>> import icemodels  # doctest: +SKIP
     >>> # Download all DREAM data first
-    >>> icemodels.download_all_dream()
+    >>> icemodels.download_all_dream()  # doctest: +SKIP
     >>> # Load specific composition
-    >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
+    >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')  # doctest: +SKIP
     """
     if use_cached:
         # Search for matching files

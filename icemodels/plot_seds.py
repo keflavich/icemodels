@@ -103,16 +103,16 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
 
     Plot with ice absorption:
 
-    >>> from icemodels import read_ocdb_file, optical_constants_cache_dir
-    >>> ice_file = f'{optical_constants_cache_dir}/55_CO2_(1)_25K_Gerakines.txt'
-    >>> ice_table = read_ocdb_file(ice_file)
-    >>> fig, axes = plot_stellar_seds(
+    >>> from icemodels import read_ocdb_file, optical_constants_cache_dir  # doctest: +SKIP
+    >>> ice_file = f'{optical_constants_cache_dir}/55_CO2_(1)_25K_Gerakines.txt'  # doctest: +SKIP
+    >>> ice_table = read_ocdb_file(ice_file)  # doctest: +SKIP
+    >>> fig, axes = plot_stellar_seds(  # doctest: +SKIP
     ...     temperatures=4000,
     ...     filters=['JWST/NIRCam.F212N'],
     ...     ice_model_table=ice_table,
     ...     ice_column=1e19*u.cm**-2,
     ...     molecular_weight=44*u.Da
-    ... )
+    ... )  # doctest: +SKIP
     """
     # Ensure temperatures is iterable
     if np.isscalar(temperatures):
