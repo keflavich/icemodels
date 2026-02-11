@@ -54,17 +54,17 @@ def test_download_all_lida():
         </html>
         """
         mock_detail.raise_for_status = MagicMock()
-
+        
         # Mock data file response
         mock_datafile = MagicMock()
         mock_datafile.text = "# wavelength\tabs\n1.0\t0.5\n2.0\t0.3\n"
-
+        
         mock_session.return_value.get.side_effect = [
             mock_resp,  # page listing
             mock_detail,  # detail page
             mock_datafile,  # data file
         ]
-
+        
         download_all_lida(n_lida=1, redo=True)
 
 

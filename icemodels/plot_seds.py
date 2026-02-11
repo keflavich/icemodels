@@ -6,11 +6,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from astroquery.svo_fps import SvoFps
-try:
-    from dust_extinction.averages import CT06_MWGC
-    HAS_DUST_EXTINCTION = True
-except ImportError:
-    HAS_DUST_EXTINCTION = False
+from dust_extinction.averages import CT06_MWGC
 
 from icemodels import atmo_model, absorbed_spectrum
 from icemodels.core import composition_to_molweight
@@ -128,11 +124,6 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
     
     # Set up extinction if requested
     if extinction_Av is not None:
-        if not HAS_DUST_EXTINCTION:
-            raise ImportError(
-                "dust_extinction package is required for extinction modeling. "
-                "Install with: pip install dust_extinction"
-            )
         if extinction_curve is None:
             # Default to CT06_MWGC (Chiar & Tielens 2006)
             extinction_curve = CT06_MWGC()
