@@ -39,4 +39,3 @@ After installation, you may want to configure the data directory where IceModels
 .. code-block:: python
 
     import icemodels
-    icemodels.set_data_dir('path/to/data')
