@@ -444,6 +444,10 @@ def download_all_ocdb(n_ocdb=298, redo=False):
             continue
         resp = S.get(
             f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
+        # Initialize variables to avoid UnboundLocalError
+        molname = 'unknown'
+        temperature = 'unknown'
+        reference = 'unknown'
         for row in resp.text.split("\n"):
             if row.startswith('Composition:'):
                 molname = shlex.split(row)[1]
@@ -451,6 +455,8 @@ def download_all_ocdb(n_ocdb=298, redo=False):
                 temperature = shlex.split(row)[1]
             if row.startswith('Reference:'):
                 reference = shlex.split(row)[1].split()[0]
+        if molname == 'unknown' or temperature == 'unknown' or reference == 'unknown':
+            raise ValueError(f"Could not parse metadata from OCDB response for dataset {ii}. Parsed values: molname={molname}, temperature={temperature}, reference={reference}")
 
         filename = os.path.join(optical_constants_cache_dir, f'ocdb_{ii}_{molname}_{temperature}_{reference}.txt')
         filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
