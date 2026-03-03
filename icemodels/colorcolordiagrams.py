@@ -16,6 +16,7 @@ propcycle = pl.cycler(
 ) * pl.cycler(linestyle=['-', '--', ':', '-.'])
 
 x = np.linspace(1.24*u.um, 5*u.um, 1000)
+# this allows extrapolation from CT06, which empirically looks OK - but should be used with caution!
 pp_ct06 = np.polyfit(x, CT06_MWGC()(x), 7)
 
 

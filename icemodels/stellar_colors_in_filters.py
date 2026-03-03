@@ -161,6 +161,7 @@ if __name__ == '__main__':
 
     # Define the filter set globally for reuse
     cmd_x = cmd_x_default
+    # zero points for Vega magnitude system
     filter_data = {fid: float(jfilts.loc[fid]['ZeroPoint']) for fid in cmd_x}
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
 
