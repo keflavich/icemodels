@@ -175,17 +175,17 @@ lida_molname_lookup = {
 }
 
 
-def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
+def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0):
     """
     Use https://github.com/astrofrog/mysg to load Kurucz & Phoenix models and interpolate them
-    to a specified temperature.
+    to a specified temperature and surface gravity.
 
     Then, interpolate those onto a finely-sampled(ish) wavelength grid that covers the JWST filters.
 
     (the default spectral grid has essentially no sampling from 10-25 microns)
     """
     import mysg
-    mod = Table(mysg.atmosphere.interp_atmos(temperature))
+    mod = Table(mysg.atmosphere.interp_atmos(temperature, logg=logg))
     mod['nu'].unit = u.Hz
     mod['fnu'].unit = u.erg / u.s / u.cm**2 / u.Hz
     inds = np.argsort(mod['nu'])
@@ -194,7 +194,7 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
         'fnu': np.interp(xarrhz, mod['nu'].quantity[inds],
                          mod['fnu'].quantity[inds], left=0, right=0),
         'nu': xarrhz
-    }, meta={'temperature': temperature})
+    }, meta={'temperature': temperature, 'logg': logg})
 
     return mod
 
