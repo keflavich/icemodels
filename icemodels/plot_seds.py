@@ -17,7 +17,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
                       figsize=None, color_cycle=None, show_ice_absorbed=True,
                       renormalize_insets=False, extinction_Av=None,
                       extinction_curve=None, fig=None, axes=None, label=None,
-                      label_filters=False):
+                      label_filters=False, show_legend=True):
     """
     Plot stellar SEDs at multiple temperatures with filter transmission profiles.
 
@@ -469,7 +469,8 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
                              color='gray', alpha=0.7)
 
     # Update legend (always, to include new lines)
-    ax_main.legend(loc='best', fontsize=9)
+    if show_legend:
+        ax_main.legend(loc='best', fontsize=9)
 
     if axes_are_new:
         plt.tight_layout()
