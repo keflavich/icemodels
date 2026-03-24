@@ -14,7 +14,7 @@
 import os
 import sys
 import datetime
-from importlib import import_module
+from importlib.metadata import version as metadata_version
 
 # Add the project root directory to the Python path
 sys.path.insert(0, os.path.abspath('..'))
@@ -25,8 +25,7 @@ copyright = '2024, Adam Ginsburg'
 author = 'Adam Ginsburg'
 
 # The full version, including alpha/beta/rc tags
-import icemodels
-release = icemodels.__version__
+release = metadata_version('icemodels')
 version = release.split('-', 1)[0]
 
 # -- General configuration ---------------------------------------------------
