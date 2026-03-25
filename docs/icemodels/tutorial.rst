@@ -21,8 +21,9 @@ Example creating a Phooenix 4000 K stellar spectrum with CO2 absorption:
     wavelength = np.linspace(1, 5, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum = f(wavelength)
 
@@ -78,8 +79,9 @@ Now let's create a more complex example with multiple ice components:
     wavelength = np.linspace(2.5, 5, 2000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum_base = f(wavelength)
 
@@ -151,8 +153,9 @@ Sometimes it's useful to model ice features using Gaussian components.  However,
     wavelength = np.linspace(4, 4.5, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum_base = f(wavelength)
 
@@ -228,9 +231,7 @@ IceModels can access data from multiple databases. Here's how to compare data fr
         raise ValueError("Could not find CO data at 10K in OCDB cache")
 
     # Load LIDA data for CO at 15K
-    lida_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/*CO*15K*.txt')
-    # Filter for LIDA files (they don't start with 'ocdb_' or 'dream_')
-    lida_files = [f for f in lida_files if not any(x in f for x in ['ocdb_', 'dream_'])]
+    lida_files = glob.glob(f'{icemodels.optical_constants_cache_dir}/lida_*CO*15K*.txt')
     if lida_files:
         co_lida = icemodels.read_lida_file(lida_files[0])
     else:
