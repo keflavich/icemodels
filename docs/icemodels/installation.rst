@@ -1,23 +1,25 @@
 Installation
 ============
 
-This guide will help you install IceModels and its dependencies.
+This guide will help you install icemodels and its dependencies.
 
 Requirements
 ------------
 
-IceModels requires the following Python packages:
+icemodels requires the following Python packages:
 
 * numpy
 * astropy
 * scipy
 * matplotlib
 * requests (for downloading data)
+* synphot
+* stsynphot
 
-Installing IceModels
+Installing icemodels
 --------------------
 
-You can install IceModels using pip:
+You can install icemodels using pip:
 
 .. code-block:: bash
 
@@ -34,8 +36,18 @@ Or install from source:
 Configuration
 -------------
 
-After installation, you may want to configure the data directory where IceModels will store downloaded data:
+After installation, you may want to configure the data directory where ``icemodels`` will store downloaded data:
 
 .. code-block:: python
 
     import icemodels
+
+Synphot data on documentation builders
+--------------------------------------
+
+The stellar SED routines use ``synphot``/``stsynphot`` when a valid
+``PYSYN_CDBS`` grid is available. For lightweight environments (e.g.,
+ReadTheDocs), a small subset of data are downloaded.
+
+This keeps documentation plotting functional without downloading the full
+multi-GB CDBS archive.

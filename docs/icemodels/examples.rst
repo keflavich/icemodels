@@ -35,8 +35,8 @@ Analyzing how ice spectra change with temperature:
     # Load CO data at different temperatures
     import glob
     
-    # Download all OCDB data (if not already cached)
-    icemodels.download_all_ocdb()
+    # Download only a small OCDB subset needed for this example
+    icemodels.download_ocdb_subset([85])
     temperatures = [10, 12, 12.5, 25, 30]
     
     spectra = []

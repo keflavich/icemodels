@@ -36,7 +36,7 @@ Example usage:
     data = icemodels.load_molecule_ocdb('co', temperature=10)
 
 
-However, the recommended approach is to first download all OCDB data files using `download_all_ocdb()`, and then read specific files with `read_ocdb_file()`.
+However, the recommended approach is to download only the OCDB datasets you need using `download_ocdb_subset()` and then read specific files with `read_ocdb_file()`.
 The metadata provided by `load_molecule_ocdb` is wacky and overloaded; it may produce surprising results.
 
 Data Format
