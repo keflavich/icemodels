@@ -70,12 +70,14 @@ def test_download_all_lida():
 
 # Test for atmo_model
 def test_atmo_model():
-    with patch('mysg.atmosphere.interp_atmos') as mock_interp_atmos:
-        mock_interp_atmos.return_value = {'nu': [1, 2, 3], 'fnu': [0.1, 0.2, 0.3]}
-        result = atmo_model(4000)
-        assert 'fnu' in result.colnames
-        assert 'nu' in result.colnames
-        assert result.meta['temperature'] == 4000
+    result = atmo_model(4000)
+    assert 'fnu' in result.colnames
+    assert 'nu' in result.colnames
+    assert result.meta['temperature'] == 4000
+    assert result.meta['model_grid'] in ('phoenix', 'k93models')
+    # Check that result has units
+    assert result['fnu'].unit == u.erg / u.s / u.cm**2 / u.Hz
+    assert result['nu'].unit == u.Hz
 
 
 # Test for load_molecule

@@ -175,26 +175,62 @@ lida_molname_lookup = {
 }
 
 
-def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0):
+def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
+               metallicity=0.0, model_grid=None,
+               pysyn_cdbs='/orange/adamginsburg/synphot/grp/hst/cdbs'):
     """
-    Use https://github.com/astrofrog/mysg to load Kurucz & Phoenix models and interpolate them
-    to a specified temperature and surface gravity.
+    Load a stellar atmosphere model with stsynphot catalogs and interpolate it
+    onto the requested wavelength grid.
 
-    Then, interpolate those onto a finely-sampled(ish) wavelength grid that covers the JWST filters.
+    Parameters
+    ----------
+    temperature : float
+        Stellar effective temperature in Kelvin.
+    xarr : `astropy.units.Quantity`
+        Wavelength grid on which to evaluate the model.
+    logg : float
+        Surface gravity (log g) for the atmosphere grid query.
+    metallicity : float
+        Metallicity value passed to stsynphot catalog lookup.
+    model_grid : str or None
+        stsynphot catalog name (e.g., 'phoenix', 'k93models').
+        If None, uses 'phoenix' for T < 4000 K and 'k93models' otherwise.
+    pysyn_cdbs : str
+        Root directory for synphot reference files (PYSYN_CDBS).
 
-    (the default spectral grid has essentially no sampling from 10-25 microns)
+    Returns
+    -------
+    mod : `astropy.table.Table`
+        Table with columns ``nu`` and ``fnu`` in cgs units, evaluated on ``xarr``.
     """
-    import mysg
-    mod = Table(mysg.atmosphere.interp_atmos(temperature, logg=logg))
-    mod['nu'].unit = u.Hz
-    mod['fnu'].unit = u.erg / u.s / u.cm**2 / u.Hz
-    inds = np.argsort(mod['nu'])
-    xarrhz = xarr.to(u.Hz, u.spectral())
+    if 'PYSYN_CDBS' not in os.environ and os.path.exists(pysyn_cdbs):
+        os.environ['PYSYN_CDBS'] = pysyn_cdbs
+
+    if model_grid is None:
+        model_grid = 'phoenix' if temperature < 4000 else 'k93models'
+
+    import stsynphot.catalog as stsyn_catalog
+    from synphot import units as syn_units
+
+    source_spectrum = stsyn_catalog.grid_to_spec(model_grid, temperature, metallicity, logg)
+    wavelength_angstrom = xarr.to(u.AA)
+    flux_photlam = source_spectrum(wavelength_angstrom)
+    flux_fnu = syn_units.convert_flux(
+        wavelength_angstrom,
+        flux_photlam,
+        u.erg / u.s / u.cm**2 / u.Hz
+    )
+
     mod = Table({
-        'fnu': np.interp(xarrhz, mod['nu'].quantity[inds],
-                         mod['fnu'].quantity[inds], left=0, right=0),
-        'nu': xarrhz
-    }, meta={'temperature': temperature, 'logg': logg})
+        'fnu': flux_fnu,
+        'nu': xarr.to(u.Hz, u.spectral())
+    }, meta={
+        'temperature': temperature,
+        'logg': logg,
+        'metallicity': metallicity,
+        'model_grid': model_grid,
+        'pysyn_cdbs': os.environ.get('PYSYN_CDBS', '')
+    })
 
     return mod
 
