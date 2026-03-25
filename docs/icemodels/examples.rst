@@ -195,11 +195,11 @@ Analyzing ice spectra through different filters:
             filterids=[filter_id],
             transdata=transdata
         )
-        filter_fluxes[filter_id] = flux
+        filter_fluxes[filter_id] = flux[filter_id]
         # Get the effective wavelength (center) of the filter
         trans = transdata[filter_id]
         filter_centers[filter_id] = np.average(trans['Wavelength'], weights=trans['Transmission'])
-        print(f"Flux through {filter_id}: {flux}")
+        print(f"Flux through {filter_id}: {filter_fluxes[filter_id]}")
 
     # Plot the spectrum with filter measurements overlaid
     plt.figure(figsize=(10, 6))

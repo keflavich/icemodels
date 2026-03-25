@@ -87,6 +87,18 @@ nitpicky = True
 
 # Treat warnings as errors
 nitpick_ignore = []
+nitpick_ignore_regex = [
+    (r'py:class', r'optional'),
+    (r'py:class', r'iterable'),
+    (r'py:class', r'array-like'),
+    (r'py:class', r'array'),
+    (r'py:class', r'Tables'),
+    (r'py:class', r'Quantity'),
+    (r'py:class', r'float/Quantity'),
+    (r'py:class', r'dust_extinction model instance'),
+    (r'py:class', r'matplotlib\.figure\.Figure'),
+    (r'py:class', r'matplotlib\.axes\.Axes'),
+]
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
