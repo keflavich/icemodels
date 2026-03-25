@@ -566,6 +566,8 @@ def read_ocdb_file(filename):
         )[0]
         tb = icemodels.read_ocdb_file(filename)
     """
+    filename = os.fspath(filename)
+
     for ii in range(5, 15):
         try:
             # new header data appear to be added from time to time
