@@ -8,7 +8,7 @@ from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    atmo_model, molecule_data, download_all_ocdb, download_ocdb_subset, read_ocdb_file,
                    optical_constants_cache_dir, get_dream_meta_table,
                    download_all_dream, read_dream_file, load_molecule_dream,
-                   download_all_lida)
+                   download_all_lida, read_lida_file)
 from . import gaussian_model_components
 from . import colorcolordiagrams
 from . import absorbance_in_filters
@@ -40,4 +40,5 @@ __all__ = [
     'read_dream_file',
     'load_molecule_dream',
     'download_all_lida',
+    'read_lida_file',
 ]
