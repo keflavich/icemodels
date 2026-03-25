@@ -21,7 +21,14 @@ from astroquery.svo_fps import SvoFps
 mymix_tables = {}
 
 xarr = np.linspace(1.0*u.um, 30.0*u.um, 50000)
-phx4000 = atmo_model(4000, xarr=xarr)
+phx4000 = None
+
+
+def get_phx4000():
+    global phx4000
+    if phx4000 is None:
+        phx4000 = atmo_model(4000, xarr=xarr)
+    return phx4000
 # 2025-07-25: increased minimum to 1e17 to enable finer sampling at high-N
 cols = np.geomspace(1e17, 1e21, 50)
 
@@ -484,6 +491,7 @@ if __name__ == '__main__':
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
 
     # Create list of all tables to process
+    phx4000 = get_phx4000()
     all_tables = []
     for key, consts in mymix_tables.items():
         all_tables.append((key[0], key, consts, xarr, phx4000, cols, filter_data, transdata, basepath))

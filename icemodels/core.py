@@ -862,9 +862,6 @@ def _default_stellar_reference_model():
     return atmo_model(4000)
 
 
-phx4000 = _default_stellar_reference_model()
-
-
 def absorbed_spectrum(
     ice_column,
     ice_model_table,
