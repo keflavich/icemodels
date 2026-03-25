@@ -30,8 +30,8 @@ Example creating a Phooenix 4000 K stellar spectrum with CO2 absorption:
     temperatures = [10, 20, 30, 40]
     spectra = []
 
-    # First, download all OCDB data (if not already downloaded)
-    icemodels.download_all_ocdb()
+    # Download only a small OCDB subset needed for this tutorial block
+    icemodels.download_ocdb_subset([85])
 
     # Calculate spectra for each temperature
     import glob
@@ -213,8 +213,8 @@ IceModels can access data from multiple databases. Here's how to compare data fr
     # For CO, this should be 4.5-5 microns
     wavelength = np.linspace(4.5, 5, 1000) * u.um
 
-    # Download data from different databases (if not already cached)
-    icemodels.download_all_ocdb()
+    # Download only the OCDB dataset needed here (CO at 10 K)
+    icemodels.download_ocdb_subset([85])
     icemodels.download_all_lida()
 
     # Get CO data from different sources
