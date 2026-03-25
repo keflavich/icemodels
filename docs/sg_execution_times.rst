@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:01.189** total execution time for 5 files **from all galleries**:
+**00:03.315** total execution time for 5 files **from all galleries**:
 
 .. container::
 
@@ -33,7 +33,7 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_examples_plot_filter_analysis.py` (``examples/plot_filter_analysis.py``)
-     - 00:01.189
+     - 00:03.315
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_cde_correction.py` (``examples/plot_cde_correction.py``)
      - 00:00.000
