@@ -1,0 +1,10 @@
+Reference:	"Yamada and Person (1964)"
+DOI:	"doi:https://doi.org/10.1063/1.1725114"
+Sample Type:	"Ice"
+Composition:	"CS2 (1)"
+Temperature:	"77K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/293"
+n₁ Error Units:	± 0.05
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+1.1	1.82	0.05	

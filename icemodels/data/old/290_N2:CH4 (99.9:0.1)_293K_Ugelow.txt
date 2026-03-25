@@ -1,0 +1,12 @@
+Reference:	"Ugelow et al. (2017)"
+DOI:	"doi:http://dx.doi.org/10.1016/j.icarus.2017.04.028 "
+Sample Type:	"Gas Tholin"
+Composition:	"N2:CH4 (99.9:0.1)"
+Temperature:	"293K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/290"
+n₁ Error Units:	Standard Deviation
+k₁ Error Units:	Standard Deviation
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	"k₁"	"Dk₁  (+/-)"	
+0.532	1.56	0.02	0.003	0.001	
+0.405	1.66	0.03	0.008	0.002	

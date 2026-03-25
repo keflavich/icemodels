@@ -1,0 +1,11 @@
+Reference:	"Hasenkopf et al. (2010)"
+DOI:	"doi:doi:10.1016/j.icarus.2009.12.015"
+Sample Type:	"Gas Tholin"
+Composition:	"N2:CH4 (99.9:0.1)"
+Temperature:	"297K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/72"
+n₁ Error Units:	± 0.01
+k₁ Error Units:	± 0.007
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	"k₁"	"Dk₁  (+/-)"	
+0.532	1.35	0.01	0.023	0.007	

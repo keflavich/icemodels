@@ -1,0 +1,78 @@
+"""
+Visual Layout of plot_stellar_seds Output
+==========================================
+
+Example with 3 filters and 2 temperatures (3000K and 5000K):
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Stellar SEDs with Filter Coverage                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                                                                   │   │
+│  │    ╱╲                                                             │   │
+│  │   ╱  ╲     ← 5000K (blue, hotter, peaks at shorter λ)           │   │
+│  │  ╱    ╲╲                                                          │   │
+│  │ ╱      ╲╲                                                         │   │
+│  │╱        ╲╲╲   ╱╲                                                  │   │
+│  │          ╲╲╲╲╱  ╲  ← 3000K (orange, cooler, peaks at longer λ)  │   │
+│  │░░░░░░░░░░░╲╲░░░░╲░░░░                                           │   │
+│  │░Filter 1░░░░╲░░░░░╲░░░░░░░                                       │   │
+│  │░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                      │   │
+│  │                 ░░░░░░░░░░░░                                      │   │
+│  │                 ░Filter 2░░░                                      │   │
+│  │                 ░░░░░░░░░░░░        ░░░░░░░░░░░                  │   │
+│  │                                     ░Filter 3░░                   │   │
+│  │                                     ░░░░░░░░░░░                   │   │
+│  │                                                                   │   │
+│  │   0.5    1.0    2.0    4.0    8.0    16.0   28.0 μm             │   │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  Legend: ─── 3000K    ─── 5000K    - - - 3000K (ice)  - - - 5000K (ice)│
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┬──────────────────┬──────────────────┐
+│    F212N         │     F444W        │    F1000W        │
+│  (Zoom to 2.1μm) │  (Zoom to 4.4μm) │ (Zoom to 10μm)   │
+│ ┌──────────────┐ │ ┌──────────────┐ │ ┌──────────────┐ │
+│ │  ╱╲          │ │ │    ╱╲        │ │ │      ╱╲      │ │
+│ │ ╱  ╲         │ │ │   ╱  ╲       │ │ │     ╱  ╲     │ │
+│ │╱░░░░╲        │ │ │  ╱░░░░╲      │ │ │    ╱░░░░╲    │ │
+│ │░░░░░░╲       │ │ │ ╱░░░░░░╲     │ │ │   ╱░░░░░░╲   │ │
+│ │░Trans░░╲     │ │ │░░Trans░░░╲   │ │ │  ░░Trans░░░╲ │ │
+│ │░░░░░░░░░╲    │ │ │░░░░░░░░░░░╲  │ │ │ ░░░░░░░░░░░░╲│ │
+│ │          ╲   │ │ │            ╲ │ │ │             ╲│ │
+│ └──────────────┘ │ └──────────────┘ │ └──────────────┘ │
+│  1.8 2.0 2.2 2.4 │  3.8 4.0 4.4 4.8 │  8  9  10 11  12 │
+└──────────────────┴──────────────────┴──────────────────┘
+
+Key Features:
+============
+
+TOP PANEL (Main Plot):
+- Shows full wavelength range (0.6 - 28 μm by default)
+- All stellar temperatures overlaid with different colors
+- Solid lines = bare stellar SEDs
+- Dashed lines = ice-absorbed SEDs (if ice parameters provided)
+- Gray shaded regions = filter coverage areas (50% transmission range)
+- Legend shows all temperatures and ice states
+- Grid for easy reading
+
+BOTTOM PANELS (Zoom Plots):
+- One subplot per filter
+- Zoomed to ±10% of filter's 50% transmission range
+- Gray filled area = filter transmission profile (right y-axis)
+- All stellar SEDs shown at filter wavelength (left y-axis)
+- Filter name as subplot title
+- Aligned wavelength scales for easy comparison
+
+INTERPRETATION:
+- Compare how different stellar temperatures appear in each filter
+- See where ice absorption features affect the SED
+- Understand filter bandpass in context of stellar spectrum
+- Plan observations by seeing which filters capture different stellar types
+
+CUSTOMIZATION:
+- figsize: Adjust overall figure dimensions
+- color_cycle: Custom colors for each temperature
+- xarr: Custom wavelength sampling
+- show_ice_absorbed: Toggle ice absorption display
+"""

@@ -1,0 +1,9 @@
+Reference:	"Kruger and Ambs (1959)"
+Sample Type:	"Ice"
+Composition:	"H2O (1)"
+Temperature:	"77K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/226"
+n₁ Error Units:	± 0.01
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.5461	1.25	0.01	

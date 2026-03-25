@@ -1,0 +1,10 @@
+Reference:	"Marcoux (1969)"
+DOI:	"doi:https://doi.org/10.1364/JOSA.59.000998"
+Sample Type:	"Ice"
+Composition:	"N2O (1)"
+Temperature:	"183K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/234"
+n₁ Error Units:	± 0.005
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.589	1.38	0.005	

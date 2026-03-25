@@ -1,0 +1,17 @@
+Reference:	"Tran et al. (2003)"
+DOI:	"doi:doi:10.1016/S0019-1035(03)00209-4"
+Sample Type:	"Gas Tholin"
+Composition:	"N2:CH4:C2H2:C2H4:H2:HC3N (0.98:0.018:0.00035:0.0003:0.002:1.7e-05)"
+Temperature:	"297K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/281"
+n₁ Error Units:	Not Applicable
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.75	1.72		
+0.7	1.68		
+0.65	1.68		
+0.6	1.69		
+0.55	1.69		
+0.5	1.7		
+0.45	1.7		
+0.4	1.72		

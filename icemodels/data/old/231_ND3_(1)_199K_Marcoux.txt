@@ -1,0 +1,10 @@
+Reference:	"Marcoux (1969)"
+DOI:	"doi:https://doi.org/10.1364/JOSA.59.000998"
+Sample Type:	"Ice"
+Composition:	"ND3 (1)"
+Temperature:	"199K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/231"
+n₁ Error Units:	± 0.005
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.589	1.415	0.005	

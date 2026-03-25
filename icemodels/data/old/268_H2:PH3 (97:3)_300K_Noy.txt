@@ -1,0 +1,15 @@
+Reference:	"Noy et al. (1981)"
+DOI:	"doi:https://doi.org/10.1029/JC086iC12p11985"
+Sample Type:	"Gas Tholin"
+Composition:	"H2:PH3 (97:3)"
+Temperature:	"300K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/268"
+n₁ Error Units:	Not Applicable
+k₁ Error Units:	Not Applicable
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	"k₁"	"Dk₁  (+/-)"	
+0.5893	2.11		0.099		
+					0.179		
+					0.242		
+					0.372		
+					0.451		

@@ -1,0 +1,18 @@
+Reference:	"Khare et al. (1987)"
+Sample Type:	"Gas Tholin"
+Composition:	"H2:CH4 (99.5:0.5)"
+Temperature:	"300K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/194"
+k₁ Error Units:	Not Applicable
+
+"Wavelength (µm)"	"k₁"	"Dk₁  (+/-)"	
+0.8	0.00036		
+0.7	0.00052		
+0.65	0.00065		
+0.6	0.00097		
+0.55	0.0013		
+0.5	0.0018		
+0.45	0.0025		
+0.4	0.0036		
+0.35	0.00518		
+0.3	0.0129		

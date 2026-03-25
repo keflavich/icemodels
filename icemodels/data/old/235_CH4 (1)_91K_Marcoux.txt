@@ -1,0 +1,10 @@
+Reference:	"Marcoux (1969)"
+DOI:	"doi:https://doi.org/10.1364/JOSA.59.000998"
+Sample Type:	"Ice"
+Composition:	"CH4 (1)"
+Temperature:	"91K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/235"
+n₁ Error Units:	± 0.01
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.589	1.33	0.01	

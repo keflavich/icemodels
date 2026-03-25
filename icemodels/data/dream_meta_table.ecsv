@@ -1,0 +1,13 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: composition, datatype: string}
+# - {name: ratio, datatype: string}
+# - {name: data_type, datatype: string}
+# - {name: reference, datatype: string}
+# - {name: url, datatype: string}
+# schema: astropy-2.0
+composition ratio data_type reference url
+"H2O : CO2" "100 : 14" "Optical Constants" "Dartois et al. 2022" https://hebergement.universite-paris-saclay.fr/edartois/base_de_donnees/Constantes_optiques_H2O_CO2_100_14_Dartois_et_al_2022.txt
+"H2O : CO2" "100 : 50" "Optical Constants" "Dartois et al. 2022" https://hebergement.universite-paris-saclay.fr/edartois/base_de_donnees/Constantes_optiques_H2O_CO2_100_50_Dartois_et_al_2022.txt
+"H2O : CO2: CO : NH3" "100 : 16 : 8 : 8" "Optical Constants" "Dartois et al. 2022" https://hebergement.universite-paris-saclay.fr/edartois/base_de_donnees/Constantes_optiques_H2O_CO2_CO_NH3_100_16_8_8_Dartois_et_al_2022.txt

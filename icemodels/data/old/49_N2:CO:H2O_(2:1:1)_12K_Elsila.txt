@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>OCdb</title>
+  <link rel="icon" type="image/ico" href="https://ocdb.smce.nasa.gov/favicon.ico" sizes="16x16">
+  <link rel="shortcut icon" href="https://ocdb.smce.nasa.gov/favicon.ico">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs5/dt-1.12.1/fh-3.2.4/sc-2.0.7/datatables.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta3/css/bootstrap-select.min.css" integrity="sha512-g2SduJKxa4Lbn3GW+Q7rNz+pKP9AWMR++Ta8fgwsZRCUsawjPvF/BxSMkGS61VsR9yinGoEgrHPGPn2mrj8+4w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link type="text/css" rel="stylesheet" href="https://ocdb.smce.nasa.gov/assets/css/app.css">
+<link type="text/css" rel="stylesheet" href="https://ocdb.smce.nasa.gov/assets/css/ocdb-noui.css">
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-light  h-100   " id="page-top" data-page="search">
+  <a href="#main-content" class="visually-hidden-focusable">Skip to main content</a>
+  <header id="main-top-header">
+    <div class="header-bg-overlay"></div>
+<nav class="navbar  navbar-expand-md navbar-dark ocdb-header " aria-label="ODBC Main Navigation">
+    <div class="d-flex flex-column flex-md-row   justify-content-between w-100">
+        <div class="d-flex d-flex justify-content-between w-100 align-items-center">
+            <a class="d-flex flex-column flex-sm-row align-items-center ps-3 pb-3 pb-sm-0" href="https://ocdb.smce.nasa.gov">
+                <img src="https://ocdb.smce.nasa.gov/assets/images/logo/v1/src/Logo_OCdb_png/Logo%20OCdb_V5_logo_white.80px.png" style="height:80px;margin-left:-110px;" />
+                <img src="https://ocdb.smce.nasa.gov/assets/images/logo/v1/src/Logo_OCdb_png/Logo%20OCdb_V5_title_white.30px.png" style="height:30px;" />
+            </a>
+            <button class="navbar-toggler mx-4 h-50 align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#odbc-top-nav" aria-controls="odbc-top-nav" aria-expanded="false" aria-label="Toggle navigation">
+                <div class="d-flex">
+                    <span class="navbar-toggler-icon"></span>
+                    <span class="pt-1 mx-2">Menu</span>
+                </div>
+            </button>
+        </div>
+        <div class="collapse navbar-collapse " id="odbc-top-nav">
+            <ul class="navbar-nav ms-auto ms-xl-75 mb-sm-0  h-100">
+                <li class="nav-item position-relative d-flex-column d-md-flex justify-content-start align-items-center ">
+                    <a class="nav-link dropdown-toggle rounded mx-1 px-2" href="#" id="dropdownMenu2" data-bs-toggle="dropdown" aria-expanded="false">
+
+                        <span>About</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 rounded-3 rounded-bottom-3 shadow ocdb-about-menu" aria-labelledby="dropdownMenu2">
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/info">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>About OCdb</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/team">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>Team</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/contributors">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>Contributors</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/publications">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>Publications</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/links">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>Additional Resources</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded " href="https://ocdb.smce.nasa.gov/page/toc">
+                                <span><i class="fa-solid fa-circle fa-2xs me-2"></i></span>
+                                <span>Terms of Use</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item position-relative d-flex align-items-center">
+                    <a class="nav-link rounded mx-1 px-2" href="https://ocdb.smce.nasa.gov/page/contact">
+                        <span class="text-nowrap">Contact Us</span>
+                    </a>
+                </li>
+                <li class="nav-item position-relative d-flex align-items-center">
+                    <a class="nav-link rounded mx-1 px-2" href="https://ocdb.smce.nasa.gov/page/howto">
+                        <span>Use</span>
+                    </a>
+                </li>
+                <li class="nav-item position-relative d-flex align-items-center">
+                    <a class="nav-link rounded mx-1 px-2" href="https://ocdb.smce.nasa.gov/page/contribute">
+                        <span>Contribute</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>  </header>
+  <div class="d-flex-column d-md-flex  ocdb-main-section flex-fill">
+    <div class="bg-white sidebar-column">
+    <div class="d-flex flex-column px-3 py-3 ">
+        <div>
+
+            <div class="nav flex-column nav-pills" id="sidebar-menu">
+                <span class="py-2 text-nowrap pe-2">
+                    Search OCdb <i class="fa-solid fa-search ms-3"></i>                </span>
+                <div class=" ">
+                                            <a href="https://ocdb.smce.nasa.gov/search/ice" class="nav-link border-0 list-group-item-action py-2 ps-3 pe-5 text-nowrap ice " aria-current="false">
+
+                            <span><i class="fa-solid fa-circle fa-2xs me-2 "></i></span>
+                             Ices                        </a>
+                                            <a href="https://ocdb.smce.nasa.gov/search/ice-tholin" class="nav-link border-0 list-group-item-action py-2 ps-3 pe-5 text-nowrap ice-tholin " aria-current="false">
+
+                            <span><i class="fa-solid fa-circle fa-2xs me-2 "></i></span>
+                             Ice Tholins / Ice Residues                        </a>
+                                            <a href="https://ocdb.smce.nasa.gov/search/gas-tholin" class="nav-link border-0 list-group-item-action py-2 ps-3 pe-5 text-nowrap gas-tholin " aria-current="false">
+
+                            <span><i class="fa-solid fa-circle fa-2xs me-2 "></i></span>
+                             Gas Tholins                        </a>
+                                    </div>
+            </div>
+        </div>
+    </div>
+</div>    <div style="min-width:0;width:100%;">
+      <main class="d-flex flex-column flex-fill" id="main-content">
+        <div class="d-flex flex-column flex-fill">
+          <style>
+    .padded-image {
+        height: 160px;
+        width: 160px;
+    }
+</style>
+
+
+<div class="container">
+
+    <h1 class="text-center mt-5 mb-5">
+        <span style="color:#163149">The Optical Constants </span><span style="color:#DC6B1B">Database </span>
+    </h1>
+
+    <div>
+        <div class="row my-5 justify-content-md-center">
+            <div class="col col-sm-12 col-md-10">
+
+
+
+                <div class="d-flex w-100 mb-5 align-items-center">
+                    <h5 class=" flex-fill pe-5 text-justify">
+                        The Optical Constants database (OCdb) is a data repository developed
+                        to provide published, peer-reviewed, optical constants<br> of organic refractory
+                        materials and ices relevant to planetary and astrophysical environments to
+                        the scientific community for the analysis and interpretation of observational data.
+                    </h5>
+                    <img class="padded-image" src="https://ocdb.smce.nasa.gov/assets/images/gaskets/gasket2.png" />
+                </div>
+
+
+                <p class="text-muted">
+                    Optical constants are the real and imaginary parts of the complex refractive
+                    index, n + ik, of a material, which describe how a material interacts with
+                    incident light (transmission, reflection, refraction, absorption, scattering).
+                </p>
+
+                <p class="text-muted">
+                    They are fundamental input parameters for models (e.g. radiative transfer,
+                    atmospheric, and reflectance spectral models) that are used to interpret
+                    observational data. As such, they support strategic research activities
+                    recommended by the "Origins, Worlds and Life" Planetary Science and
+                    Astrobiology Decadal Survey 2023-2032 such as "measuring the composition
+                    of hazes and aerosols in the atmosphere and on the surface [of planetary bodies]",
+                    "determining the distribution, nature and abundance of clouds and the composition [...]
+                    of the droplets comprising them and cloud condensation nuclei around which they form",
+                    "[constraining] the compositions of planetary surfaces from remote sensing data" and
+                    "[improving] the characterization of diverse ices, and the mineral and organic products
+                    of water-rock interaction that are fingerprints of habitability"."
+                </p>
+
+                <p class="text-muted">
+                    The goal of the Optical Constants database is to centralize published optical
+                    constants data to facilitate their access by the community. We therefore
+                    encourage laboratories generating optical constants to contribute their data
+                    in order to increase their visibility and availability.
+                </p>
+
+            </div>
+        </div>
+
+        <div class="pt-5 text-center">
+            <a href="https://ocdb.smce.nasa.gov/page/howto" type="button" class="btn btn-orange btn-lg shadow py-3 mx-3 px-5">How to Use OCdb</a>
+
+            <a href="https://ocdb.smce.nasa.gov/page/contribute" type="button" class="btn btn-blue btn-lg shadow py-3 mx-3 px-5">How to Contribute</a>
+        </div>
+
+        <p>&nbsp;</p>
+        <p></p>
+    </div>
+</div>        </div>
+      </main>
+    </div>
+  </div>
+  <footer class="footer-site ocdb-footer py-4  ">
+    <div class="container-fluid d-flex flex-column justify-content-center align-items-center">
+                <div class="d-flex flex-column flex-md-row justify-content-center align-items-center ">
+            <span class="text-light d-none d-md-block">NASA Official: Ella Sciamma-O'Brien</span>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <span class="text-light d-none d-md-block">Editor: OCdb Team</span>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <a href="https://ocdb.smce.nasa.gov/page/toc" class="dark-bg-link py-2">OCdb Terms of Use</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+
+            <a href="https://ocdb.smce.nasa.gov/page/contact" class="contact-button dark-bg-link py-2">Contact Us</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <span class=" py-2">Last Updated: 02/08/2024</span>
+        </div>
+
+        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center ">
+            <a href="https://www.nasa.gov/about/" class="dark-bg-link py-2">About NASA</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <a href="https://www.nasa.gov/about/highlights/HP_Privacy.html" class="dark-bg-link py-2">Privacy Policy</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <a href="https://www.nasa.gov/accessibility/" class="dark-bg-link py-2">Accessibility</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+
+            <a href="https://www.nasa.gov/foia/" class="contact-button dark-bg-link py-2">FOIA</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <a href="https://www.nasa.gov/odeo/no-fear-act/" class="contact-button dark-bg-link py-2">No FEAR Act</a>
+            <span class="px-4 text-light d-none d-md-block">|</span>
+            <a href="https://www.nasa.gov/vulnerability-disclosure-policy/" class="contact-button dark-bg-link py-2">Vulnerability Disclosure Policy</a>
+
+        </div>
+
+
+
+    </div>
+</footer>  <script type="text/javascript">
+            var site_url = "https://ocdb.smce.nasa.gov";
+            var ajax_home = "https://ocdb.smce.nasa.gov/ajax/";
+        </script>  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs5/dt-1.12.1/fh-3.2.4/sc-2.0.7/datatables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/1.2.1/chartjs-plugin-zoom.min.js" integrity="sha512-klQv6lz2YR+MecyFYMFRuU2eAl8IPRo6zHnsc9n142TJuJHS8CG0ix4Oq9na9ceeg1u5EkBfZsFcV3U7J51iew==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta3/js/bootstrap-select.min.js" integrity="sha512-yrOmjPdp8qH8hgLfWpSFhC/+R9Cj9USL8uJxYIveJZGAiedxyIxwNw4RsLDlcjNlIRR4kkHaDHSmNHAkxFTmgg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script language="javascript" id="_fed_an_ua_tag" src="https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=NASA&yt=true&dclink=true"></script>
+<script type="text/javascript" src="https://ocdb.smce.nasa.gov/assets/js/app.js"></script>
+<script type="text/javascript" src="https://ocdb.smce.nasa.gov/assets/js/ocdb-search-form.js"></script>
+<script type="text/javascript" src="https://ocdb.smce.nasa.gov/assets/js/ocdb-charts-class.v1.js"></script>
+</body>
+
+</html>

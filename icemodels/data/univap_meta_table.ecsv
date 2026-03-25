@@ -1,0 +1,111 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: datalabel, datatype: string}
+# - {name: temperature, datatype: string}
+# - {name: sample, datatype: string}
+# - {name: reference, datatype: string}
+# - {name: url, datatype: string}
+# - {name: projectile, datatype: string}
+# - {name: flucence, datatype: string}
+# schema: astropy-2.0
+datalabel temperature sample reference url projectile flucence
+G1 10 CO "Rocha & Pilling 
+    (2014), Ehrenfreund et al. 1999" http://www1.univap.br/gaa/nkabs-database/G1.txt "" ""
+G2 13 CO2 "Rocha & Pilling 
+    (2014), Pilling et al. 2010b" http://www1.univap.br/gaa/nkabs-database/G2.txt "" ""
+G3 14 NH3 "Rocha & Pilling 
+    (2014), Pilling et al. 2012" http://www1.univap.br/gaa/nkabs-database/G3.txt "" ""
+G4 12 SO2 "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/G4.txt "" ""
+S1 300 alpha-glycine "Rocha & Pilling 
+    (2014), Pilling et al. 2011" http://www1.univap.br/gaa/nkabs-database/S1.txt "" ""
+S2 14 alpha-gycine "Rocha & Pilling 
+    (2014), Portugal et al. 2013" http://www1.univap.br/gaa/nkabs-database/S2.txt "" ""
+S3 300 beta-glycine "Rocha & Pilling 
+    (2014), Pilling et al. 2013" http://www1.univap.br/gaa/nkabs-database/S3.txt "" ""
+S4 300 DL-proline "Rocha & Pilling 
+    (2014), Pilling et al. 2011" http://www1.univap.br/gaa/nkabs-database/S4.txt "" ""
+S5 300 DL-valine "Rocha & Pilling 
+    (2014), Pilling et al. 2011" http://www1.univap.br/gaa/nkabs-database/S5.txt "" ""
+S6 300 adenine "Rocha & Pilling 
+    (2014), Pilling et al. 2011" http://www1.univap.br/gaa/nkabs-database/S6.txt "" ""
+S7 300 uracil "Rocha & Pilling 
+    (2014), Pilling et al. 2011" http://www1.univap.br/gaa/nkabs-database/S7.txt "" ""
+L1 12 "H2O (amorphous)" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L1.txt "" ""
+L2 165 "H2O (crystalline)" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L2.txt "" ""
+L3 12 acetone "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L3.txt "" ""
+L4 12 acetonirtile "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L4.txt "" ""
+L5 12 "acetic acid" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L5.txt "" ""
+L6 12 "formic acid" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L6.txt "" ""
+L7 12 ethanol "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L7.txt "" ""
+L8 12 methanol "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/L8.txt "" ""
+L9 13 cycle-hexane "Rocha & Pilling 
+    (2014), Pilling et al. 2012" http://www1.univap.br/gaa/nkabs-database/L9.txt "" ""
+M1 12 "Titan aerosol - N2CH4 (19:1)" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/M1.txt "" ""
+M2 13 "H2O:CO2 
+    (9:1)" "Rocha & Pilling 
+    (2014), Pilling et al. 2010b" http://www1.univap.br/gaa/nkabs-database/M2.txt "" ""
+M3 13 "H2O:CO2 
+    (1:1)" "Rocha & Pilling 
+    (2014), Pilling et al. 2010b" http://www1.univap.br/gaa/nkabs-database/M3.txt "" ""
+M4 13 "H2O:HCOOH (1:1)" "Rocha & Pilling 
+    (2014), Bergantini et al 2013" http://www1.univap.br/gaa/nkabs-database/M4.txt "" ""
+M5 13 "H2O:NH3:CO (1:0.5:0.4)" "Rocha & Pilling 
+    (2014), Pilling et al. 2010a" http://www1.univap.br/gaa/nkabs-database/M5.txt "" ""
+M6 14 "H2O:NH3:c-C6H12 (1:0.3:0.7)" "Rocha & Pilling 
+    (2014), Pilling et al. 2012" http://www1.univap.br/gaa/nkabs-database/M6.txt "" ""
+M7 80 "Enceladus - H2O:CO2:NH3:CH4 (9:1:1:1)" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/M7.txt "" ""
+M8 90 "Europa -H2O:CO2:NH3:SO2 (10:1:1:1)" "Rocha & Pilling 
+    (2014)" http://www1.univap.br/gaa/nkabs-database/M8.txt "" ""
+"" "" "" "" "" "" ""
+D1a 13 "H2O:CO2 (1:1)" "Rocha et al. 
+    (2016); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D1a.txt "52 MeV 58Ni13+" 0
+D1b 13 "H2O:CO2 (1:1)" "Rocha et al. (2016); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D1b.txt "52 MeV 58Ni13+" 100
+D1c 13 "H2O:CO2 (1:1)" "Rocha et al. (2016); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D1c.txt "52 MeV 58Ni13+" 1000
+D2a 13 "H2O:CO2 (10:1)" "Rocha et al. (2016); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D2a.txt "52 MeV 58Ni13+" 0
+D2b 13 "H2O:CO2 (10:1)" "Rocha et al. (2015); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D2b.txt "52 MeV 58Ni13+" 100
+D2c 13 "H2O:CO2 (10:1)" "Rocha et al. (2016); Pilling et al. (2010b)" http://www1.univap.br/gaa/nkabs-database/D2c.txt "52 MeV 58Ni13+" 500
+D3a 16 "H2O:CH4 (1:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D3a.txt "40 MeV 58Ni11+" 0
+D3b 16 "H2O:CH4 (1:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D3b.txt "40 MeV 58Ni11+" 100
+D3c 16 "H2O:CH4 (1:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D3c.txt "40 MeV 58Ni11+" 1000
+D4a 16 "H2O:CH4 (10:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D4a.txt "40 MeV 58Ni11+" 0
+D4b 16 "H2O:CH4 (10:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D4b.txt "40 MeV 58Ni11+" 100
+D4c 16 "H2O:CH4 (10:0.6)" "Rocha et al. (2016); de Barros et al. (in prep)" http://www1.univap.br/gaa/nkabs-database/D4c.txt "40 MeV 58Ni11+" 1000
+D5a 13 "H2O:NH3 (1:0.5)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D5a.txt "46 MeV 58Ni13+" 0
+D5b 13 "H2O:NH3 (1:0.5)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D5b.txt "46 MeV 58Ni13+" 100
+D5c 13 "H2O:NH3 (1:0.5)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D5c.txt "46 MeV 58Ni13+" 1600
+D6a 15 "H2O:HCOOH (1:1)" "Rocha et al. (2016); Bergantini et al. (2014)" http://www1.univap.br/gaa/nkabs-database/D6a.txt "46 MeV 58Ni11+" 0
+D6b 15 "H2O:HCOOH (1:1)" "Rocha et al. (2016); Bergantini et al. (2014)" http://www1.univap.br/gaa/nkabs-database/D6b.txt "46 MeV 58Ni11+" 100
+D6c 15 "H2O:HCOOH (1:1)" "Rocha et al. (2016); Bergantini et al. (2014)" http://www1.univap.br/gaa/nkabs-database/D6c.txt "46 MeV 58Ni11+" 1000
+D7a 15 "H2O:CH3OH (1:1)" "Rocha et al. (2016); de Barros et al. (2014b)" http://www1.univap.br/gaa/nkabs-database/D7a.txt "40 MeV 58Ni11+" 0
+D7b 15 "H2O:CH3OH (1:1)" "Rocha et al. (2016); de Barros et al. (2014b)" http://www1.univap.br/gaa/nkabs-database/D7b.txt "40 MeV 58Ni11+" 100
+D7c 15 "H2O:CH3OH (1:1)" "Rocha et al. (2016); de Barros et al. (2014b)" http://www1.univap.br/gaa/nkabs-database/D7c.txt "40 MeV 58Ni11+" 1000
+D8a 13 "H2O:NH3:CO (1:0.6:0.4)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D8a.txt "46 MeV 58Ni13+" 0
+D8b 13 "H2O:NH3:CO (1:0.6:0.4)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D8b.txt "46 MeV 58Ni13+" 100
+D8c 13 "H2O:NH3:CO (1:0.6:0.4)" "Rocha et al. (2016); Pilling et al. (2010a)" http://www1.univap.br/gaa/nkabs-database/D8c.txt "46 MeV 58Ni13+" 2000
+D9a 13 "H2O:NH3:c-C6H6 (1:0.3:0.7)" "Rocha et al. (2016); Pilling et al. (2012)" http://www1.univap.br/gaa/nkabs-database/D9a.txt "632 MeV 58Ni24+" 0
+D9b 13 "H2O:NH3:c-C6H6 (1:0.3:0.7)" "Rocha et al. (2016); Pilling et al. (2012)" http://www1.univap.br/gaa/nkabs-database/D9b.txt "632 MeV 58Ni24+" 200
+D9c 13 "H2O:NH3:c-C6H6 (1:0.3:0.7)" "Rocha et al. (2016); Pilling et al. (2012)" http://www1.univap.br/gaa/nkabs-database/D9c.txt "632 MeV 58Ni24+" 3000
+D10a 72 "H2O:CO2:CH4 (10:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D10a.txt "15.7 MeV 16O5+" 0
+D10b 72 "H2O:CO2:CH4 (10:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D10b.txt "15.7 MeV 16O5+" 10
+D10c 72 "H2O:CO2:CH4 (10:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D10c.txt "15.7 MeV 16O5+" 100
+D11a 15 "H2O:H2CO:CH3OH (100:0.2:0.8)" "Rocha et al. (2016); de Barros et al. (2014a)" http://www1.univap.br/gaa/nkabs-database/D11a.txt "220 MeV 16O7+" 0
+D11b 15 "H2O:H2CO:CH3OH (100:0.2:0.8)" "Rocha et al. (2016); de Barros et al. (2014a)" http://www1.univap.br/gaa/nkabs-database/D11b.txt "220 MeV 16O7+" 1700
+D11c 15 "H2O:H2CO:CH3OH (100:0.2:0.8)" "Rocha et al. (2016); de Barros et al. (2014a)" http://www1.univap.br/gaa/nkabs-database/D11c.txt "220 MeV 16O7+" 9600
+D12a 35 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D12a.txt "15.7 MeV 16O5+" 0
+D12b 35 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D12b.txt "15.7 MeV 16O5+" 10
+D12c 35 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D12c.txt "15.7 MeV 16O5+" 100
+D13a 72 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D13a.txt "15.7 MeV 16O5+" 0
+D13b 72 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D13b.txt "15.7 MeV 16O5+" 10
+D13c 72 "H2O:NH3:CO2:CH4 (10:1:1:1)" "Rocha et al. (2016); Pilling et al. (in prep.)" http://www1.univap.br/gaa/nkabs-database/D13c.txt "15.7 MeV 16O5+" 100

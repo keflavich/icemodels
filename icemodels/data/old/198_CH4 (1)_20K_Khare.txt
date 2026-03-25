@@ -1,0 +1,14 @@
+Reference:	"Khare et al. (1990)"
+Sample Type:	"Ice"
+Composition:	"CH4 (1)"
+Temperature:	"20K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/198"
+n₁ Error Units:	Not Applicable
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+2	1.296		
+1.2	1.298		
+1	1.298		
+0.8	1.299		
+0.6	1.301		
+0.4	1.304		

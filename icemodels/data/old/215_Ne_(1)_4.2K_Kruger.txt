@@ -1,0 +1,9 @@
+Reference:	"Kruger and Ambs (1959)"
+Sample Type:	"Ice"
+Composition:	"Ne (1)"
+Temperature:	"4.2K"
+OCdb page:	"https://ocdb.smce.nasa.gov/dataset/215"
+n₁ Error Units:	± 0.01
+
+"Wavelength (µm)"	"n₁"	"Dn₁  (+/-)"	
+0.5461	1.23	0.01	

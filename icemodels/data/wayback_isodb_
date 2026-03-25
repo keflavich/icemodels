@@ -1,0 +1,385 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=FC38Hc5A" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=txqj7nKC" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("http://www.strw.leidenuniv.nl:80/~lab/isodb/","20010503051921","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "988867161");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=p7PEIJWi" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+<title>A laboratory database of solid CO and CO2 for ISO</title>
+</head>
+
+<body>
+<h1>A laboratory database of solid CO and CO<sub>2</sub> for ISO</h1>
+
+<em>
+P. Ehrenfreund <a href="inst1.html">1</a>,
+A.C.A. Boogert <a href="inst2.html">2</a>,
+P.A. Gerakines <a href="inst1.html">1</a>,<a href="inst3.html">3</a>,
+D.J. Jansen <a href="inst1.html">1</a>,
+W.A. Schutte <a href="inst1.html">1</a>,
+A.G.G.M. Tielens <a href="inst4.html">4</a>,
+and
+E.F. van Dishoeck <a href="inst1.html">1</a>
+</em>
+
+<hr>
+<h2>Introduction</h2>
+
+CO and, according to recent ISO observations, also CO<sub>2</sub> are
+important ices
+in dense clouds. Peak position and band width of the strong bands of CO and
+CO<sub>2</sub> indicate not only the polar and apolar character of the ice,
+but can
+also give an indication on temperature and radiation history of grains. The
+study of CO and CO<sub>2</sub> bands provides a powerful tool to determine the
+icy
+grain mantle composition, in particular the presence of solid O<sub>2</sub> and
+N<sub>2</sub>, and the grain evolution in the cycle of interstellar clouds. We
+present laboratory measured infrared spectra of mixtures containing CO and
+CO<sub>2</sub> at temperatures between 10 and 80 K. Comparison of these
+laboratory
+data to astronomical spectra, taken by the ISO satellite and ground based
+facilities, is an essential tool to determine the composition and evolution of
+interstellar grain mantles.
+<p>
+
+This database contains 75 experiments on apolar ices and standard polar
+mixtures. The datafiles also contain the optical constants n and k. The
+changes in the profiles are simulated for different particle shapes such as
+spheres, ellipsoids and core/mantle particles. Using this database, observers
+can fit their observed profiles themselves, and assess the influence of any
+particle shape using the optical constants. Please refer to the present paper
+in the A &amp; A special issue, when using datafiles from the database. We wish
+you fun and success!
+You can <a href="iso_paper.ps">retrieve a ps file by clicking here</a>.
+A complete
+paper with the physical interpretation "Infrared spectroscopy of apolar ice
+analogs" is submitted to A &amp; A Main Journal and will be accessible here
+after the referee process. (Ehrenfreund et al. 1997).
+<p>
+
+<hr>
+<h2>Experimental</h2>
+
+Ices were condensed as pure gas or gas mixture in a high vacuum chamber on the
+surface of a CsI window, cooled by a closed cycle He refrigerator to 10 K.
+Infrared transmission spectra were obtained with a BioRad FTS 40A spectrometer
+at a resolution of 1 cm<sup>-1</sup>.
+Gases and gas mixtures have been prepared in a
+glass vacuum manifold. The purity of the used gases CO, CO<sub>2</sub>,
+N<sub>2</sub> and O<sub>2</sub> was 99.9997 % (Messer Griesheim).
+The deposition rate and sample
+thickness growth rate were about
+10<sup>15</sup> molec cm<sup>-2</sup> s<sup>-1</sup> and
+1 um hr<sup>-1</sup>, respectively.
+Sample thickness of 0.05 to approximately 0.5
+um have been estimated. A detailed description of the experimental setup
+has been given by Gerakines et al. 1995, A &amp; A 296, 810.
+<p>
+
+Particle size and shape effects can affect the strong absorption features of
+solid CO and CO<sub>2</sub>. Interactions of an electromagnetic radiation field
+with the molecules in small grains can change the absorption profile and peak
+position.  It induces an electric charge near the surface of the grain, and
+therefore the oscillators in the grain are subjected to applied and induced
+electric field components.  The strength of the induced component depends on
+the polarizability of the grain, which in turn depends on the grainshape and
+the dielectric or optical constants of the ice.
+<p>
+
+The optical constants of all our spectra were calculated using the standard
+Kramers-Kronig analysis (e.g. Hudgins et al. 1993, ApJS 86, 713). For our
+optical constants we find that particle shape effects influence the profile of
+the CO<sub>2</sub> stretch mode when the ice contains at least 10%
+CO<sub>2</sub>.
+For CO this limit is 30% (Tielens et al. 1991, ApJ 381, 181). However, we
+stress that at present the optical constants obtained by different laboratory
+groups do not agree.  Thus, the calculated cross sections for the different
+particle shapes are somewhat uncertain.  We refer to the detailed discussion
+given in Ehrenfreund et al. 1997.
+<p>
+
+The grain shape calculations were done in the Rayleigh limit, which is an
+approximation of Mie theory for particles small compared to the wavelength.
+For the grain core we used the optical constants of astronomical silicate
+(Laor &amp; Draine 1993, ApJ 402, 441).  We have performed calculations for
+different particle shapes such as
+<ul>
+  <li>ice spheres 
+  <li>an ensemble of ice particles where each ellipsoidal shape
+      is equally probable (CDE: `Continuous Distribution of Ellipsoids')
+  <li>core/mantle particles: silicate grain core and the ice mantle have 
+      equal volume
+  <li>core/mantle particles: silicate grain core size distribution (MRN)
+      (Mathis, Rumple &amp; Nordsieck 1977, ApJ 217, 425), with an ice mantle
+      thickness of 0.01 um irrespective of the core size.
+</ul>
+The <a href="#table">table below</a> lists all available datafiles
+
+<hr>
+
+Datafiles are ordered as such: Two files are available for each mixture:
+<ol>
+  <li>Code <strong>E1.NK</strong>  - <strong>E75.NK</strong>
+      contains the laboratory data and the optical constants.<br>
+      E1.NK - E75.NK files have 5 columns:
+      <ul>
+	<li>wavenumber 
+	<li>micron 
+	<li>absorbance 
+	<li>optical constant n 
+	<li>optical constant k
+      </ul>
+      The spectra are given between approximately
+      5000 and 500 cm<sup>-1</sup>, according
+      to the mixture and the presence of important overtone bands.
+      All spectra are baseline corrected.
+      Spikes between 1000 - 500 cm<sup>-1</sup> are intrinsic to the
+      spectrometer-setup. Particularly strong spikes are present between
+      690--720 cm<sup>-1</sup>, close to the CO<sub>2</sub> bending mode,
+      and we removed these
+      by linear interpolation.  The remaining spikes have no influence on the
+      optical constant or particle shape calculations of the CO and
+      CO<sub>2</sub> profiles.
+
+  <li>Code <strong>E1.PSC</strong> - <strong>E75.PSC</strong> contains the
+      wavelength dependend
+      absorption cross sections, normalized to grain (core+mantle) 
+      volume (`C<sub>abs</sub>/V').
+      <br>
+      E1.PSC - E75.PSC files have 5 columns:
+      <ul>
+	<li>micron 
+	<li>spheres 
+	<li>CDE 
+	<li>core mantle particles: volume 1:1 
+	<li>core mantle particles: MRN grain core size distribution
+	    mantle thickness  0.01 um
+      </ul>
+</ol>
+<p>
+<hr>
+
+We want to state that this database is a dynamical system. Currently there are
+strong controversies concerning the measurements of optical constants of ices
+between various leading groups in the field. New laboratory measurements can
+always improve the accuracy to derive optical constants, therefore experiments
+might be added to this database or new measurements affecting optical
+constants and particle shape calculations may be implemented. We ask you
+therefore to check the "update" date.
+<p>
+
+
+P. Ehrenfreund  <br>
+A. Boogert  <br>
+P. Gerakines  <br>
+D. Jansen <br>
+
+
+
+<hr><hr><hr>
+
+<a name="table"><h2>The database</h2></a>
+
+<table border="1">
+<tr><td></td><td></td><th>APOLAR ICES </th></tr>
+<tr><td><a href="E1.NK">E1.NK</a></td><td><a href="E1.PSC">E1.PSC</a></td>
+    <td>CO pure</td>                     <td>10K</td></tr>
+<tr><td><a href="E2.NK">E2.NK</a></td><td><a href="E2.PSC">E2.PSC</a></td>
+    <td>CO pure</td>                     <td>30K</td></tr>
+<tr><td><a href="E3.NK">E3.NK</a></td><td><a href="E3.PSC">E3.PSC</a></td>
+    <td>H2O:CO    = 1:100</td>           <td>10K</td></tr>
+<tr><td><a href="E4.NK">E4.NK</a></td><td><a href="E4.PSC">E4.PSC</a></td>
+    <td>H2O:CO    = 1:100</td>           <td>30K</td></tr>
+<tr><td><a href="E5.NK">E5.NK</a></td><td><a href="E5.PSC">E5.PSC</a></td>
+    <td>H2O:CO:O2 = 1:80:20              <td>10K</td></tr>
+<tr><td><a href="E6.NK">E6.NK</a></td><td><a href="E6.PSC">E6.PSC</a></td>
+    <td>H2O:CO:O2 = 1:80:20              <td>30K</td></tr>
+<tr><td><a href="E7.NK">E7.NK</a></td><td><a href="E7.PSC">E7.PSC</a></td>
+    <td>CO:O2     = 100:50</td>          <td>10K</td></tr>
+<tr><td><a href="E8.NK">E8.NK</a></td><td><a href="E8.PSC">E8.PSC</a></td>
+    <td>CO:O2     = 100:50</td>          <td>35K</td></tr>
+<tr><td><a href="E9.NK">E9.NK</a></td><td><a href="E9.PSC">E9.PSC</a></td>
+    <td>CO:O2     = 100:70</td>          <td>10K</td></tr>
+<tr><td><a href="E10.NK">E10.NK</a></td><td><a href="E10.PSC">E10.PSC</a></td>
+    <td>H2O:CO:O2 = 1:50:50</td>         <td>10K</td></tr>
+<tr><td><a href="E11.NK">E11.NK</a></td><td><a href="E11.PSC">E11.PSC</a></td>
+    <td>H2O:CO:O2 = 1:50:50</td>         <td>30K</td></tr>
+<tr><td><a href="E12.NK">E12.NK</a></td><td><a href="E12.PSC">E12.PSC</a></td>
+    <td>H2O:CO:O2 = 1:20:60</td>         <td>10K</td></tr>
+<tr><td><a href="E13.NK">E13.NK</a></td><td><a href="E13.PSC">E13.PSC</a></td>
+    <td>H2O:CO:O2 = 1:20:60</td>         <td>30K</td></tr>
+<tr><td><a href="E14.NK">E14.NK</a></td><td><a href="E14.PSC">E14.PSC</a></td>
+    <td>CO2 pure</td>                    <td>10K</td></tr>
+<tr><td><a href="E15.NK">E15.NK</a></td><td><a href="E15.PSC">E15.PSC</a></td>
+    <td>CO2 pure</td>                    <td>50K</td></tr>
+<tr><td><a href="E16.NK">E16.NK</a></td><td><a href="E16.PSC">E16.PSC</a></td>
+    <td>CO2 pure</td>                    <td>80K</td></tr>
+<tr><td><a href="E17.NK">E17.NK</a></td><td><a href="E17.PSC">E17.PSC</a></td>
+    <td>H2O:CO2 = 1:100</td>             <td>10K</td></tr>
+<tr><td><a href="E18.NK">E18.NK</a></td><td><a href="E18.PSC">E18.PSC</a></td>
+    <td>H2O:CO2 = 1:100</td>             <td>30K</td></tr>
+<tr><td><a href="E19.NK">E19.NK</a></td><td><a href="E19.PSC">E19.PSC</a></td>
+    <td>H2O:CO2 = 1:10</td>              <td>10K</td></tr>
+<tr><td><a href="E20.NK">E20.NK</a></td><td><a href="E20.PSC">E20.PSC</a></td>
+    <td>H2O:CO2 = 1:10</td>              <td>80K</td></tr>
+<tr><td><a href="E21.NK">E21.NK</a></td><td><a href="E21.PSC">E21.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>10K</td></tr>
+<tr><td><a href="E22.NK">E22.NK</a></td><td><a href="E22.PSC">E22.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>42K</td></tr>
+<tr><td><a href="E23.NK">E23.NK</a></td><td><a href="E23.PSC">E23.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>45K</td></tr>
+<tr><td><a href="E24.NK">E24.NK</a></td><td><a href="E24.PSC">E24.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>50K</td></tr>
+<tr><td><a href="E25.NK">E25.NK</a></td><td><a href="E25.PSC">E25.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>55K</td></tr>
+<tr><td><a href="E26.NK">E26.NK</a></td><td><a href="E26.PSC">E26.PSC</a></td>
+    <td>H2O:CO2 = 1:6</td>               <td>75K</td></tr>
+<tr><td><a href="E27_SR.NK">E27.NK</a></td><td><a href="E27.PSC">E27.PSC</a></td>
+    <td>CO:CO2 = 100:4</td>              <td>10K</td></tr>
+<tr><td><a href="E28.NK">E28.NK</a></td><td><a href="E28.PSC">E28.PSC</a></td>
+    <td>CO:CO2 = 100:4</td>              <td>30K</td></tr>
+<tr><td><a href="E29_SR.NK">E29.NK</a></td><td><a href="E29.PSC">E29.PSC</a></td>
+    <td>CO:CO2 = 100:8</td>              <td>10K</td></tr>
+<tr><td><a href="E30_SR.NK">E30.NK</a></td><td><a href="E30.PSC">E30.PSC</a></td>
+    <td>CO:CO2 = 100:8</td>              <td>30K</td></tr>
+<tr><td><a href="E31.NK">E31.NK</a></td><td><a href="E31.PSC">E31.PSC</a></td>
+    <td>CO:CO2 = 100:16</td>             <td>10K</td></tr>
+<tr><td><a href="E32.NK">E32.NK</a></td><td><a href="E32.PSC">E32.PSC</a></td>
+    <td>CO:CO2 = 100:16</td>             <td>30K</td></tr>
+<tr><td><a href="E33.NK">E33.NK</a></td><td><a href="E33.PSC">E33.PSC</a></td>
+    <td>CO:CO2 = 100:21</td>             <td>10K</td></tr>
+<tr><td><a href="E34_SR.NK">E34.NK</a></td><td><a href="E34.PSC">E34.PSC</a></td>
+    <td>CO:CO2 = 100:21</td>             <td>30K</td></tr>
+<tr><td><a href="E35_SR.NK">E35.NK</a></td><td><a href="E35.PSC">E35.PSC</a></td>
+    <td>CO:CO2 = 100:23</td>             <td>10K</td></tr>
+<tr><td><a href="E36_SR.NK">E36.NK</a></td><td><a href="E36.PSC">E36.PSC</a></td>
+    <td>CO:CO2 = 100:23</td>             <td>30K</td></tr>
+<tr><td><a href="E37.NK">E37.NK</a></td><td><a href="E37.PSC">E37.PSC</a></td>
+    <td>CO:CO2 = 100:26</td>             <td>10K</td></tr>
+<tr><td><a href="E38.NK">E38.NK</a></td><td><a href="E38.PSC">E38.PSC</a></td>
+    <td>CO:CO2 = 100:26</td>             <td>30K</td></tr>
+<tr><td><a href="E39.NK">E39.NK</a></td><td><a href="E39.PSC">E39.PSC</a></td>
+    <td>CO:CO2 = 100:70</td>             <td>10K</td></tr>
+<tr><td><a href="E40.NK">E40.NK</a></td><td><a href="E40.PSC">E40.PSC</a></td>
+    <td>H2O:CO:CO2 = 1:50:56</td>        <td>10K</td></tr>
+<tr><td><a href="E41.NK">E41.NK</a></td><td><a href="E41.PSC">E41.PSC</a></td>
+    <td>H2O:CO:CO2 = 1:50:56</td>        <td>45K</td></tr>
+<tr><td><a href="E42.NK">E42.NK</a></td><td><a href="E42.PSC">E42.PSC</a></td>
+    <td>CO2:O2 = 1:1</td>                <td>10K</td></tr>
+<tr><td><a href="E43.NK">E43.NK</a></td><td><a href="E43.PSC">E43.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:4</td>        <td>10K</td></tr>
+<tr><td><a href="E44.NK">E44.NK</a></td><td><a href="E44.PSC">E44.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:4</td>        <td>30K</td></tr>
+<tr><td><a href="E45.NK">E45.NK</a></td><td><a href="E45.PSC">E45.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:8</td>        <td>10K</td></tr>
+<tr><td><a href="E46.NK">E46.NK</a></td><td><a href="E46.PSC">E46.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:16</td>       <td>10K</td></tr>
+<tr><td><a href="E47_SR.NK">E47.NK</a></td><td><a href="E47.PSC">E47.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:16</td>       <td>30K</td></tr>
+<tr><td><a href="E48_SR.NK">E48.NK</a></td><td><a href="E48.PSC">E48.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:21</td>       <td>10K</td></tr>
+<tr><td><a href="E49_SR.NK">E49.NK</a></td><td><a href="E49.PSC">E49.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:21</td>       <td>30K</td></tr>
+<tr><td><a href="E50.NK">E50.NK</a></td><td><a href="E50.PSC">E50.PSC</a></td>
+    <td>CO:O2:CO2 = 100:50:32</td>       <td>10K</td></tr>
+<tr><td><a href="E51_SR.NK">E51.NK</a></td><td><a href="E51.PSC">E51.PSC</a></td>
+    <td>CO:O2:CO2 = 100:54:10</td>       <td>10K</td></tr>
+<tr><td><a href="E52_SR.NK">E52.NK</a></td><td><a href="E52.PSC">E52.PSC</a></td>
+    <td>CO:O2:CO2 = 100:54:10</td>       <td>30K</td></tr>
+<tr><td><a href="E53.NK">E53.NK</a></td><td><a href="E53.PSC">E53.PSC</a></td>
+    <td>CO:O2:CO2 = 100:20:11</td>       <td>10K</td></tr>
+<tr><td><a href="E54.NK">E54.NK</a></td><td><a href="E54.PSC">E54.PSC</a></td>
+    <td>CO:O2:CO2 = 100:20:11</td>       <td>30K</td></tr>
+<tr><td><a href="E55.NK">E55.NK</a></td><td><a href="E55.PSC">E55.PSC</a></td>
+    <td>CO:O2:CO2 = 100:11:20</td>       <td>10K</td></tr>
+<tr><td><a href="E56.NK">E56.NK</a></td><td><a href="E56.PSC">E56.PSC</a></td>
+    <td>CO:O2:CO2 = 100:11:20</td>       <td>30K</td></tr>
+<tr><td><a href="E57.NK">E57.NK</a></td><td><a href="E57.PSC">E57.PSC</a></td>
+    <td>CO:O2:CO2 = 100:10:23</td>       <td>10K</td></tr>
+<tr><td><a href="E58.NK">E58.NK</a></td><td><a href="E58.PSC">E58.PSC</a></td>
+    <td>CO:O2:CO2 = 100:10:23</td>       <td>30K</td></tr>
+<tr><td><a href="E59.NK">E59.NK</a></td><td><a href="E59.PSC">E59.PSC</a></td>
+    <td>H2O:CO:N2 = 1:50:50</td>         <td>10K</td></tr>
+<tr><td><a href="E60.NK">E60.NK</a></td><td><a href="E60.PSC">E60.PSC</a></td>
+    <td>H2O:CO:N2 = 1:50:50</td>         <td>30K</td></tr>
+<tr><td><a href="E61.NK">E61.NK</a></td><td><a href="E61.PSC">E61.PSC</a></td>
+    <td>CO:O2:N2 = 100:50:25</td>        <td>10K</td></tr>
+<tr><td><a href="E62.NK">E62.NK</a></td><td><a href="E62.PSC">E62.PSC</a></td>
+    <td>H2O:CO:O2:N2 = 1:40:40:15</td>   <td>10K</td></tr>
+<tr><td><a href="E63.NK">E63.NK</a></td><td><a href="E63.PSC">E63.PSC</a></td>
+    <td>H2O:CO:O2:N2 = 1:40:40:15</td>   <td>30K</td></tr>
+<tr><td><a href="E64.NK">E64.NK</a></td><td><a href="E64.PSC">E64.PSC</a></td>
+    <td>CO:N2:CO2 = 100:50:20</td>       <td>10K</td></tr>
+<tr><td><a href="E65_SR.NK">E65.NK</a></td><td><a href="E65.PSC">E65.PSC</a></td>
+    <td>CO:N2:CO2 = 100:50:20</td>       <td>30K</td></tr>
+<tr><td><a href="E66_SR.NK">E66.NK</a></td><td><a href="E66.PSC">E66.PSC</a></td>
+    <td>CO:O2:N2:CO2 = 100:50:25:32</td> <td>10K</td></tr>
+<tr><td><a href="E67_SR.NK">E67.NK</a></td><td><a href="E67.PSC">E67.PSC</a></td>
+    <td>CO:O2:N2:CO2 = 100:50:25:32</td> <td>30K</td></tr>
+<tr><td><a href="E68.NK">E68.NK</a></td><td><a href="E68.PSC">E68.PSC</a></td>
+    <td>H2O:CO:O2:N2:CO2=1:50:35:15:3</td>  <td>10K  thick sample</td></tr>
+<tr><td><a href="E69_SR.NK">E69.NK</a></td><td><a href="E69.PSC">E69.PSC</a></td>
+    <td>H2O:CO:O2:N2:CO2=1:50:35:15:3</td>  <td>10K  thin  sample</td></tr>
+<tr><td><a href="E70.NK">E70.NK</a></td><td><a href="E70.PSC">E70.PSC</a></td>
+    <td>H2O:CO:O2:N2:CO2=1:25:25:10:13</td> <td>10K</td></tr>
+
+<tr><td></td><td></td><th>POLAR ICES </th></tr>
+<tr><td><a href="E71.NK">E71.NK</a></td><td>&nbsp;</td>
+      <td>H2O:CO = 100:6</td>              <td>10K</td></tr>
+<tr><td><a href="E72.NK">E72.NK</a></td><td>&nbsp;</td>
+      <td>H2O:CO = 100:10</td>             <td>10K</td></tr>
+<tr><td><a href="E73.NK">E73.NK</a></td><td>&nbsp;</td>
+      <td>H2O:CO = 100:20</td>             <td>10K</td></tr>
+<tr><td><a href="E74.NK">E74.NK</a></td><td><a href="E74.PSC">E74.PSC</a></td>
+      <td>H20:CO2 = 100:14</td>            <td>10K</td></tr>
+<tr><td><a href="E75_SR.NK">E75.NK</a></td><td><a href="E75.PSC">E75.PSC</a></td>
+      <td>H20:CO2:CO = 100:20:3</td>       <td>20K</td></tr>
+</table>
+<p>
+
+<hr><hr><hr>
+
+In case of questions please contact:
+<br>
+<address>
+Pascale Ehrenfreund
+(<a href="https://web.archive.org/web/20010503051921/mailto:pascale@strw.leidenuniv.nl">pascale@strw.leidenuniv.nl</a>)
+[for the scientific content]
+<br>
+David Jansen
+(<a href="https://web.archive.org/web/20010503051921/mailto:jansen@strw.leidenuniv.nl">jansen@strw.leidenuniv.nl</a>)
+[for the WWW version and software questions]
+</address>
+<hr>
+<!-- hhmts start -->
+Last modified: Fri Jun 20 12:02:54 MET DST 1997
+<!-- hhmts end -->
+</body> </html>
+<!--
+     FILE ARCHIVED ON 05:19:21 May 03, 2001 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 09:01:07 Oct 14, 2025.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.898
+  exclusion.robots: 0.057
+  exclusion.robots.policy: 0.042
+  esindex: 0.013
+  cdx.remote: 140.193
+  LoadShardBlock: 1243.725 (3)
+  PetaboxLoader3.datanode: 578.077 (4)
+  PetaboxLoader3.resolve: 190.515 (2)
+  load_resource: 211.079
+-->
