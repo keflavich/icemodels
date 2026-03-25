@@ -3,6 +3,7 @@ import pytest
 from astropy import units as u
 from astropy.table import Table
 import matplotlib.pyplot as plt
+from stsynphot.exceptions import ParameterOutOfBounds
 from icemodels import plot_stellar_seds
 from icemodels.core import retrieve_gerakines_co
 
@@ -287,7 +288,7 @@ def test_plot_stellar_seds_invalid_temperature():
         plt.close(fig)
     except Exception as e:
         # If it raises an error, that's also acceptable behavior
-        assert isinstance(e, (ValueError, RuntimeError, KeyError))
+        assert isinstance(e, (ValueError, RuntimeError, KeyError, ParameterOutOfBounds))
 
 
 def test_plot_stellar_seds_empty_filters():
