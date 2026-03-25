@@ -51,3 +51,15 @@ ReadTheDocs), a small subset of data are downloaded.
 
 This keeps documentation plotting functional without downloading the full
 multi-GB CDBS archive.
+
+Testing docs like ReadTheDocs
+-----------------------------
+
+You can run a local ReadTheDocs-style documentation build with tox:
+
+.. code-block:: bash
+
+    tox -e build_docs_rtd
+
+This runs the same strict Sphinx flags used in RTD-style builds
+(``-T -W --keep-going``) and writes output under ``docs/_build/html``.
