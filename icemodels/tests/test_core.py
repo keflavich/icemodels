@@ -149,6 +149,38 @@ def test_read_ocdb_file():
         assert result['Wavelength'].unit == u.um
 
 
+def test_read_ocdb_file_with_path_input(tmp_path):
+    ocdb_text = """Reference: Test Author et al.
+DOI: 10.1000/testdoi
+Composition: CO
+Temperature: 10 K
+OCdb page: https://ocdb.smce.nasa.gov/dataset/107
+Wavelength (m)\tk₁
+4.60\t0.010
+4.70\t0.020
+"""
+    filename = tmp_path / 'ocdb_107_test.txt'
+    filename.write_text(ocdb_text)
+
+    result = read_ocdb_file(filename)
+
+    assert len(result) == 2
+    assert 'Wavelength' in result.colnames
+    assert 'k' in result.colnames
+    assert result.meta['database'] == 'ocdb'
+    assert result.meta['index'] == 107
+    assert result['Wavelength'].unit == u.um
+
+
+def test_top_level_exports_for_docs_and_examples():
+    import icemodels
+
+    assert hasattr(icemodels, 'read_ocdb_file')
+    assert hasattr(icemodels, 'read_lida_file')
+    assert callable(icemodels.read_ocdb_file)
+    assert callable(icemodels.read_lida_file)
+
+
 # Test for composition_to_molweight
 def test_composition_to_molweight():
     # Test simple molecule (uses nominal mass, not exact mass)
