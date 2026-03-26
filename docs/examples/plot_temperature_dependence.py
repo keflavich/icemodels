@@ -13,6 +13,11 @@ import numpy as np
 from scipy.interpolate import interp1d
 from pathlib import Path
 
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
+
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
 
@@ -33,7 +38,9 @@ co_datasets = [
     ('30 K', 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt'),
 ]
 spectra = []
-data_dir = Path(icemodels.__file__).resolve().parent / 'data'
+# Use importlib.resources for robust data file access across installation methods
+data_package = files('icemodels').joinpath('data')
+data_dir = Path(str(data_package))
 
 # Calculate spectra for each temperature
 for _, filename in co_datasets:
