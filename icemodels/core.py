@@ -945,12 +945,12 @@ def isscalar(x):
 
 
 def absorbed_spectrum_Gaussians(
-    ice_column,
-    center,
-    width,
-    ice_bandstrength,
-    spectrum=None,
-    xarr=None):
+                                ice_column,
+                                center,
+                                width,
+                                ice_bandstrength,
+                                spectrum=None,
+                                xarr=None):
     """
     Calculate the absorbed spectrum using Gaussian absorption bands.
 

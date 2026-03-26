@@ -29,9 +29,10 @@ def get_phx4000():
     if phx4000 is None:
         phx4000 = atmo_model(4000, xarr=xarr)
     return phx4000
+
+
 # 2025-07-25: increased minimum to 1e17 to enable finer sampling at high-N
 cols = np.geomspace(1e17, 1e21, 50)
-
 
 cmd_x_default = (
     'JWST/NIRCam.F115W',
