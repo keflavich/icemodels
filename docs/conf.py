@@ -174,7 +174,9 @@ nitpick_ignore_regex = [
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+_docs_dir = os.path.dirname(__file__)
+_static_dir = os.path.join(_docs_dir, '_static')
+html_static_path = ['_static'] if os.path.isdir(_static_dir) else []
 
 # Sphinx-Gallery configuration
 sphinx_gallery_conf = {
