@@ -211,6 +211,7 @@ IceModels can access data from multiple databases. Here's how to compare data fr
     import numpy as np
     from scipy.interpolate import interp1d
     import glob
+    import os
 
     # Create a common wavelength grid
     # For CO, this should be 4.5-5 microns
@@ -218,7 +219,10 @@ IceModels can access data from multiple databases. Here's how to compare data fr
 
     # Download only the OCDB dataset needed here (CO at 10 K)
     icemodels.download_ocdb_subset([85])
-    icemodels.download_all_lida()
+    if not (os.environ.get('READTHEDOCS') or os.environ.get('GITHUB_ACTIONS')):
+        icemodels.download_all_lida()
+    else:
+        print("Skipping download_all_lida() in CI docs build")
 
     # Get CO data from different sources
     co_builtin = icemodels.load_molecule('co')  # Built-in data from Palumbo
