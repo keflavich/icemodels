@@ -17,8 +17,9 @@ from pathlib import Path
 wavelength = np.linspace(1, 5, 1000) * u.um
 
 # Get the default spectrum and interpolate it to our wavelength grid
-default_spectrum = icemodels.core.phx4000['fnu']
-default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+reference_model = icemodels.atmo_model(4000)
+default_spectrum = reference_model['fnu']
+default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
 f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
 spectrum = f(wavelength)
 
