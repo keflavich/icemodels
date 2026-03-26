@@ -112,9 +112,13 @@ def _setup_ocdb_files_for_docs():
             response.raise_for_status()
             payload = response.text
             if not _is_valid_ocdb_payload(payload):
-                raise ValueError(
-                    f"Downloaded non-OCDB payload for dataset {dataset_id} from {url}."
+                if os.path.exists(destination):
+                    os.remove(destination)
+                print(
+                    f"[icemodels docs] Skipping dataset {dataset_id}: downloaded payload from {url} "
+                    "did not match expected OCDB file format."
                 )
+                continue
             with open(destination, 'w') as fh:
                 fh.write(payload)
 
