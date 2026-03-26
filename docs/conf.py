@@ -61,7 +61,38 @@ def _setup_minimal_synphot_for_docs():
         os.environ['PYSYN_CDBS'] = cdbs_root
 
 
+def _setup_ocdb_files_for_docs():
+    """Ensure required OCDB files used by examples exist for docs builds."""
+    should_prepare = (
+        os.environ.get('READTHEDOCS', '').lower() == 'true'
+        or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
+        or os.environ.get('ICEMODELS_DOCS_PREPARE_OCDB', '') == '1'
+    )
+    if not should_prepare:
+        return
+
+    package_data_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', 'icemodels', 'data')
+    )
+    os.makedirs(package_data_dir, exist_ok=True)
+
+    base = 'https://raw.githubusercontent.com/keflavich/icemodels/main/icemodels/data'
+    required_files = [
+        'ocdb_85_CO_(1)_10K_Hudgins.txt',
+        'ocdb_1_CO_(1)_12.5K_Baratta.txt',
+        'ocdb_267_CO_(1)_15K_Palumbo.txt',
+        'ocdb_63_CO_(1)_25K_Gerakines.txt',
+        'ocdb_35_CO_(1)_30K_Ehrenfreund.txt',
+    ]
+
+    for filename in required_files:
+        destination = os.path.join(package_data_dir, filename)
+        if not os.path.exists(destination):
+            urllib.request.urlretrieve(f'{base}/{filename}', destination)
+
+
 _setup_minimal_synphot_for_docs()
+_setup_ocdb_files_for_docs()
 
 # -- Project information -----------------------------------------------------
 project = 'icemodels'
