@@ -11,10 +11,12 @@ from icemodels import plot_stellar_seds, optical_constants_cache_dir, read_ocdb_
 print("Example 1: Basic stellar SEDs at multiple temperatures")
 temperatures = [3000, 4000, 5000, 6000]
 filters = ['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W', 'JWST/MIRI.F1000W']
+xarr = np.linspace(1.5*u.um, 5.0*u.um, 25000)
 
 fig1, axes1 = plot_stellar_seds(
     temperatures=temperatures,
-    filters=filters
+    filters=filters,
+    xarr=xarr
 )
 plt.savefig('example_stellar_seds_basic.png', dpi=150, bbox_inches='tight')
 print("Saved: example_stellar_seds_basic.png")
@@ -44,6 +46,7 @@ try:
         fig2, axes2 = plot_stellar_seds(
             temperatures=4000,
             filters=['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W'],
+            xarr=xarr,
             ice_model_table=ice_table,
             ice_column=1e19 * u.cm**-2,  # ice column density
             molecular_weight=44*u.Da
@@ -66,6 +69,7 @@ try:
     fig3, axes3 = plot_stellar_seds(
         temperatures=[3000, 4000, 5000],
         filters=['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W', 'JWST/MIRI.F1000W'],
+        xarr=xarr,
         extinction_Av=17.0,  # 17 magnitudes of visual extinction
         extinction_curve=CT06_MWGC()  # Chiar & Tielens 2006
     )
@@ -88,6 +92,7 @@ many_filters = [
 fig4, axes4 = plot_stellar_seds(
     temperatures=[3000, 5000],
     filters=many_filters,
+    xarr=xarr,
     figsize=(18, 8)
 )
 plt.savefig('example_stellar_seds_many_filters.png', dpi=150, bbox_inches='tight')
@@ -106,6 +111,7 @@ try:
         fig5, axes5 = plot_stellar_seds(
             temperatures=4000,
             filters=['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W'],
+            xarr=xarr,
             ice_model_table=ice_table,
             ice_column=1e19 * u.cm**-2,
             molecular_weight=44*u.Da,
