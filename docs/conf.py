@@ -76,19 +76,19 @@ def _setup_ocdb_files_for_docs():
     )
     os.makedirs(package_data_dir, exist_ok=True)
 
-    base = 'https://raw.githubusercontent.com/keflavich/icemodels/main/icemodels/data'
-    required_files = [
-        'ocdb_85_CO_(1)_10K_Hudgins.txt',
-        'ocdb_1_CO_(1)_12.5K_Baratta.txt',
-        'ocdb_267_CO_(1)_15K_Palumbo.txt',
-        'ocdb_63_CO_(1)_25K_Gerakines.txt',
-        'ocdb_35_CO_(1)_30K_Ehrenfreund.txt',
-    ]
+    required_datasets = {
+        85: 'ocdb_85_CO_(1)_10K_Hudgins.txt',
+        1: 'ocdb_1_CO_(1)_12.5K_Baratta.txt',
+        267: 'ocdb_267_CO_(1)_15K_Palumbo.txt',
+        63: 'ocdb_63_CO_(1)_25K_Gerakines.txt',
+        35: 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt',
+    }
 
-    for filename in required_files:
+    for dataset_id, filename in required_datasets.items():
         destination = os.path.join(package_data_dir, filename)
         if not os.path.exists(destination):
-            urllib.request.urlretrieve(f'{base}/{filename}', destination)
+            url = f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all'
+            urllib.request.urlretrieve(url, destination)
 
 
 _setup_minimal_synphot_for_docs()
