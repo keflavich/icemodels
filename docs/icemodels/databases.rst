@@ -205,7 +205,8 @@ Here's a complete example showing how to load DREAM data and calculate ice absor
     import numpy as np
 
     # Download DREAM data (if not already cached)
-    icemodels.download_all_dream()
+    # (commented out to avoid running during documentation builds; uncomment to download)
+    # icemodels.download_all_dream()
 
     # Load H2O:CO2 mixture data
     dream_data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
