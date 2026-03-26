@@ -15,6 +15,7 @@ import os
 import sys
 import datetime
 import urllib.request
+import requests
 from importlib.metadata import version as metadata_version
 
 # Add the project root directory to the Python path
@@ -76,6 +77,14 @@ def _setup_ocdb_files_for_docs():
     )
     os.makedirs(package_data_dir, exist_ok=True)
 
+    def _is_valid_ocdb_payload(text):
+        return (
+            ('Composition:' in text)
+            and ('Reference:' in text)
+            and (('Wavenumber' in text) or ('Wavelength' in text))
+            and ('<meta http-equiv="x-ua-compatible"' not in text.lower())
+        )
+
     required_datasets = {
         85: 'ocdb_85_CO_(1)_10K_Hudgins.txt',
         1: 'ocdb_1_CO_(1)_12.5K_Baratta.txt',
@@ -84,11 +93,30 @@ def _setup_ocdb_files_for_docs():
         35: 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt',
     }
 
+    session = requests.Session()
+    session.get('https://ocdb.smce.nasa.gov/search/ice')
+
     for dataset_id, filename in required_datasets.items():
         destination = os.path.join(package_data_dir, filename)
-        if not os.path.exists(destination):
+        should_download = True
+
+        if os.path.exists(destination):
+            with open(destination, 'r') as fh:
+                existing_payload = fh.read(4096)
+            if _is_valid_ocdb_payload(existing_payload):
+                should_download = False
+
+        if should_download:
             url = f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all'
-            urllib.request.urlretrieve(url, destination)
+            response = session.get(url)
+            response.raise_for_status()
+            payload = response.text
+            if not _is_valid_ocdb_payload(payload):
+                raise ValueError(
+                    f"Downloaded non-OCDB payload for dataset {dataset_id} from {url}."
+                )
+            with open(destination, 'w') as fh:
+                fh.write(payload)
 
 
 _setup_minimal_synphot_for_docs()
