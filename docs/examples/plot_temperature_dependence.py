@@ -32,6 +32,7 @@ spectrum = f(wavelength)
 # Using local files keeps docs builds deterministic and avoids network dependence.
 co_datasets = [
     ('10 K', 'ocdb_85_CO_(1)_10K_Hudgins.txt'),
+    ('12.5 K', 'ocdb_1_CO_(1)_12.5K_Baratta.txt'),
     ('15 K', 'ocdb_267_CO_(1)_15K_Palumbo.txt'),
     ('25 K', 'ocdb_63_CO_(1)_25K_Gerakines.txt'),
     ('30 K', 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt'),
