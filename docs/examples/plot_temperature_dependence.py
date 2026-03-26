@@ -13,12 +13,18 @@ import numpy as np
 from scipy.interpolate import interp1d
 from pathlib import Path
 
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
+
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
 
 # Get the default spectrum and interpolate it to our wavelength grid
-default_spectrum = icemodels.core.phx4000['fnu']
-default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+reference_model = icemodels.atmo_model(4000)
+default_spectrum = reference_model['fnu']
+default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
 f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
 spectrum = f(wavelength)
 
@@ -32,7 +38,9 @@ co_datasets = [
     ('30 K', 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt'),
 ]
 spectra = []
-data_dir = Path(icemodels.__file__).resolve().parent / 'data'
+# Use importlib.resources for robust data file access across installation methods
+data_package = files('icemodels').joinpath('data')
+data_dir = Path(str(data_package))
 
 # Calculate spectra for each temperature
 for _, filename in co_datasets:

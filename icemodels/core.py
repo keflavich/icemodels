@@ -175,26 +175,74 @@ lida_molname_lookup = {
 }
 
 
-def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0):
+def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
+               metallicity=0.0, model_grid=None,
+               pysyn_cdbs='/orange/adamginsburg/synphot/grp/hst/cdbs'):
     """
-    Use https://github.com/astrofrog/mysg to load Kurucz & Phoenix models and interpolate them
-    to a specified temperature and surface gravity.
+    Load a stellar atmosphere model with stsynphot catalogs and interpolate it
+    onto the requested wavelength grid.
 
-    Then, interpolate those onto a finely-sampled(ish) wavelength grid that covers the JWST filters.
+    Parameters
+    ----------
+    temperature : float
+        Stellar effective temperature in Kelvin.
+    xarr : `astropy.units.Quantity`
+        Wavelength grid on which to evaluate the model.
+    logg : float
+        Surface gravity (log g) for the atmosphere grid query.
+    metallicity : float
+        Metallicity value passed to stsynphot catalog lookup.
+    model_grid : str or None
+        stsynphot catalog name (e.g., 'phoenix', 'k93models').
+        If None, uses 'phoenix' for T < 4000 K and 'k93models' otherwise.
+    pysyn_cdbs : str
+        Root directory for synphot reference files (PYSYN_CDBS).
 
-    (the default spectral grid has essentially no sampling from 10-25 microns)
+    Returns
+    -------
+    mod : `astropy.table.Table`
+        Table with columns ``nu`` and ``fnu`` in cgs units, evaluated on ``xarr``.
     """
-    import mysg
-    mod = Table(mysg.atmosphere.interp_atmos(temperature, logg=logg))
-    mod['nu'].unit = u.Hz
-    mod['fnu'].unit = u.erg / u.s / u.cm**2 / u.Hz
-    inds = np.argsort(mod['nu'])
-    xarrhz = xarr.to(u.Hz, u.spectral())
+    if model_grid is None:
+        model_grid = 'phoenix' if temperature < 4000 else 'k93models'
+
+    pysyn_root_env = os.environ.get('PYSYN_CDBS', '')
+    env_catalog = os.path.join(pysyn_root_env, 'grid', model_grid, 'catalog.fits')
+    default_catalog = os.path.join(pysyn_cdbs, 'grid', model_grid, 'catalog.fits')
+
+    if pysyn_root_env and os.path.exists(env_catalog):
+        pysyn_root = pysyn_root_env
+    elif os.path.exists(default_catalog):
+        pysyn_root = pysyn_cdbs
+        os.environ['PYSYN_CDBS'] = pysyn_cdbs
+    else:
+        raise FileNotFoundError(
+            f"Required stsynphot atmosphere catalog not found. Checked {env_catalog} and {default_catalog}. "
+            "Set PYSYN_CDBS to a valid CDBS root with grid catalogs installed."
+        )
+
+    import stsynphot.catalog as stsyn_catalog
+    from synphot import units as syn_units
+
+    source_spectrum = stsyn_catalog.grid_to_spec(model_grid, temperature, metallicity, logg)
+    wavelength_angstrom = xarr.to(u.AA)
+    flux_photlam = source_spectrum(wavelength_angstrom)
+    flux_fnu = syn_units.convert_flux(
+        wavelength_angstrom,
+        flux_photlam,
+        u.erg / u.s / u.cm**2 / u.Hz
+    )
+
     mod = Table({
-        'fnu': np.interp(xarrhz, mod['nu'].quantity[inds],
-                         mod['fnu'].quantity[inds], left=0, right=0),
-        'nu': xarrhz
-    }, meta={'temperature': temperature, 'logg': logg})
+        'fnu': flux_fnu,
+        'nu': xarr.to(u.Hz, u.spectral())
+    }, meta={
+        'temperature': temperature,
+        'logg': logg,
+        'metallicity': metallicity,
+        'model_grid': model_grid,
+        'pysyn_cdbs': os.environ.get('PYSYN_CDBS', '')
+    })
 
     return mod
 
@@ -436,34 +484,70 @@ def download_all_ocdb(n_ocdb=298, redo=False):
     S.get('https://ocdb.smce.nasa.gov/search/ice')
 
     for ii in tqdm(range(1, n_ocdb + 1)):
-        if not redo and len(
-            glob.glob(
-                os.path.join(optical_constants_cache_dir, f'ocdb_{ii}*'))) > 0:
-            # note that this can miss important parameters when there are many
-            # temperatures
-            continue
-        resp = S.get(
-            f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
-        # Initialize variables to avoid UnboundLocalError
-        molname = 'unknown'
-        temperature = 'unknown'
-        reference = 'unknown'
-        for row in resp.text.split("\n"):
-            if row.startswith('Composition:'):
-                molname = shlex.split(row)[1]
-            if row.startswith('Temperature:'):
-                temperature = shlex.split(row)[1]
-            if row.startswith('Reference:'):
-                reference = shlex.split(row)[1].split()[0]
-        if molname == 'unknown' or temperature == 'unknown' or reference == 'unknown':
-            raise ValueError(f"Could not parse metadata from OCDB response for dataset {ii}. Parsed values: molname={molname}, temperature={temperature}, reference={reference}")
+        _download_ocdb_dataset(ii, session=S, redo=redo)
 
-        filename = os.path.join(optical_constants_cache_dir, f'ocdb_{ii}_{molname}_{temperature}_{reference}.txt')
-        filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
-        filename = filename.replace('"', '')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as fh:
-            fh.write(resp.text)
+
+def download_ocdb_subset(dataset_ids, redo=False):
+    """Download and cache only selected OCDB dataset IDs.
+
+    Parameters
+    ----------
+    dataset_ids : iterable of int
+        Dataset indices from OCDB (e.g., ``[85, 86, 107]``).
+    redo : bool
+        If ``True``, overwrite cached local files.
+
+    Returns
+    -------
+    list of str
+        Local file paths for downloaded (or cached) datasets.
+    """
+    S = requests.Session()
+    S.get('https://ocdb.smce.nasa.gov/search/ice')
+
+    filenames = []
+    for dataset_id in dataset_ids:
+        filename = _download_ocdb_dataset(int(dataset_id), session=S, redo=redo)
+        filenames.append(filename)
+
+    return filenames
+
+
+def _download_ocdb_dataset(dataset_id, session, redo=False):
+    """Download a single OCDB dataset and return the local filename."""
+    cached_files = glob.glob(os.path.join(optical_constants_cache_dir, f'ocdb_{dataset_id}*'))
+    if not redo and cached_files:
+        return cached_files[0]
+
+    resp = session.get(f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all')
+    molname = 'unknown'
+    temperature = 'unknown'
+    reference = 'unknown'
+    for row in resp.text.split("\n"):
+        if row.startswith('Composition:'):
+            molname = shlex.split(row)[1]
+        if row.startswith('Temperature:'):
+            temperature = shlex.split(row)[1]
+        if row.startswith('Reference:'):
+            reference = shlex.split(row)[1].split()[0]
+
+    if molname == 'unknown' or temperature == 'unknown' or reference == 'unknown':
+        raise ValueError(
+            f"Could not parse metadata from OCDB response for dataset {dataset_id}. "
+            f"Parsed values: molname={molname}, temperature={temperature}, reference={reference}"
+        )
+
+    filename = os.path.join(
+        optical_constants_cache_dir,
+        f'ocdb_{dataset_id}_{molname}_{temperature}_{reference}.txt'
+    )
+    filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
+    filename = filename.replace('"', '')
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, 'w') as fh:
+        fh.write(resp.text)
+
+    return filename
 
 
 def read_ocdb_file(filename):
@@ -475,11 +559,15 @@ def read_ocdb_file(filename):
     .. code-block:: python
 
         import icemodels
-        icemodels.download_all_ocdb()
-        tb = icemodels.read_ocdb_file(
-            f'{icemodels.optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt'
-        )
+        import glob
+        icemodels.download_ocdb_subset([107])
+        filename = glob.glob(
+            f'{icemodels.optical_constants_cache_dir}/ocdb_107*'
+        )[0]
+        tb = icemodels.read_ocdb_file(filename)
     """
+    filename = os.fspath(filename)
+
     for ii in range(5, 15):
         try:
             # new header data appear to be added from time to time
@@ -769,14 +857,16 @@ def cde_correct(freq, m):
     return cabs, cabs_vol, cscat_vol, ctot
 
 
-phx4000 = atmo_model(4000)
+def _default_stellar_reference_model():
+    """Return a 4000 K reference atmosphere model lazily."""
+    return atmo_model(4000)
 
 
 def absorbed_spectrum(
     ice_column,
     ice_model_table,
-    spectrum=phx4000['fnu'],
-    xarr=u.Quantity(phx4000['nu'], u.Hz).to(u.um, u.spectral()),
+    spectrum=None,
+    xarr=None,
     molecular_weight=44 * u.Da,
     minimum_tau=0,
     return_tau=False
@@ -801,6 +891,13 @@ def absorbed_spectrum(
     return_tau : bool
         If True, return the tau rather than the absorbed spectrum
     """
+    if spectrum is None or xarr is None:
+        reference_model = _default_stellar_reference_model()
+        if spectrum is None:
+            spectrum = reference_model['fnu']
+        if xarr is None:
+            xarr = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
+
     xarr_icm = xarr.to(u.cm**-1, u.spectral())
     # not used dx_icm = np.abs(xarr_icm[1]-xarr_icm[0])
     inds = np.argsort(ice_model_table['Wavelength'].quantity)
@@ -847,17 +944,12 @@ def isscalar(x):
     return np.isscalar(x) or (hasattr(x, 'isscalar') and x.isscalar)
 
 
-def absorbed_spectrum_Gaussians(
-    ice_column,
-    center,
-    width,
-    ice_bandstrength,
-    spectrum=phx4000['fnu'],
-    xarr=u.Quantity(
-        phx4000['nu'],
-        u.Hz).to(
-            u.um,
-        u.spectral())):
+def absorbed_spectrum_Gaussians(ice_column,
+                                center,
+                                width,
+                                ice_bandstrength,
+                                spectrum=None,
+                                xarr=None):
     """
     Calculate the absorbed spectrum using Gaussian absorption bands.
 
@@ -881,6 +973,13 @@ def absorbed_spectrum_Gaussians(
     absorbed_spectrum : `numpy.ndarray`
         The absorbed spectrum
     """
+    if spectrum is None or xarr is None:
+        reference_model = _default_stellar_reference_model()
+        if spectrum is None:
+            spectrum = reference_model['fnu']
+        if xarr is None:
+            xarr = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
+
     tau = np.zeros(xarr.size)
 
     cens, wids, strengths = center, width, ice_bandstrength

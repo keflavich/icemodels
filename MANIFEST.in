@@ -4,7 +4,7 @@ include setup.cfg
 include LICENSE.rst
 include pyproject.toml
 
-recursive-include icemodels *.pyx *.c *.pxd
+recursive-include icemodels *.pyx *.c *.pxd *.txt
 recursive-include docs *
 recursive-include licenses *
 recursive-include scripts *

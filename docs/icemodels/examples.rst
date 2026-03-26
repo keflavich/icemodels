@@ -27,16 +27,17 @@ Analyzing how ice spectra change with temperature:
     wavelength = np.linspace(4.5, 4.8, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum = f(wavelength)
 
     # Load CO data at different temperatures
     import glob
     
-    # Download all OCDB data (if not already cached)
-    icemodels.download_all_ocdb()
+    # Download only a small OCDB subset needed for this example
+    icemodels.download_ocdb_subset([85])
     temperatures = [10, 12, 12.5, 25, 30]
     
     spectra = []
@@ -89,8 +90,9 @@ Analyzing ice mixtures with different ratios:
     wavelength = np.linspace(2.5, 4.5, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum = f(wavelength)
 
@@ -166,8 +168,9 @@ Analyzing ice spectra through different filters:
     wavelength = np.linspace(1, 28, 1000) * u.um
 
     # Get the default spectrum and interpolate it to our wavelength grid
-    default_spectrum = icemodels.core.phx4000['fnu']
-    default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+    reference_model = icemodels.atmo_model(4000)
+    default_spectrum = reference_model['fnu']
+    default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
     f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
     spectrum_base = f(wavelength)
 
@@ -195,11 +198,11 @@ Analyzing ice spectra through different filters:
             filterids=[filter_id],
             transdata=transdata
         )
-        filter_fluxes[filter_id] = flux
+        filter_fluxes[filter_id] = flux[filter_id]
         # Get the effective wavelength (center) of the filter
         trans = transdata[filter_id]
         filter_centers[filter_id] = np.average(trans['Wavelength'], weights=trans['Transmission'])
-        print(f"Flux through {filter_id}: {flux}")
+        print(f"Flux through {filter_id}: {filter_fluxes[filter_id]}")
 
     # Plot the spectrum with filter measurements overlaid
     plt.figure(figsize=(10, 6))

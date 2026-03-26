@@ -70,12 +70,14 @@ def test_download_all_lida():
 
 # Test for atmo_model
 def test_atmo_model():
-    with patch('mysg.atmosphere.interp_atmos') as mock_interp_atmos:
-        mock_interp_atmos.return_value = {'nu': [1, 2, 3], 'fnu': [0.1, 0.2, 0.3]}
-        result = atmo_model(4000)
-        assert 'fnu' in result.colnames
-        assert 'nu' in result.colnames
-        assert result.meta['temperature'] == 4000
+    result = atmo_model(4000)
+    assert 'fnu' in result.colnames
+    assert 'nu' in result.colnames
+    assert result.meta['temperature'] == 4000
+    assert result.meta['model_grid'] in ('phoenix', 'k93models')
+    # Check that result has units
+    assert result['fnu'].unit == u.erg / u.s / u.cm**2 / u.Hz
+    assert result['nu'].unit == u.Hz
 
 
 # Test for load_molecule
@@ -145,6 +147,38 @@ def test_read_ocdb_file():
         assert 'Wavelength' in result.colnames
         assert 'k' in result.colnames
         assert result['Wavelength'].unit == u.um
+
+
+def test_read_ocdb_file_with_path_input(tmp_path):
+    ocdb_text = """Reference: Test Author et al.
+DOI: 10.1000/testdoi
+Composition: CO
+Temperature: 10 K
+OCdb page: https://ocdb.smce.nasa.gov/dataset/107
+Wavelength (m)\tk₁
+4.60\t0.010
+4.70\t0.020
+"""
+    filename = tmp_path / 'ocdb_107_test.txt'
+    filename.write_text(ocdb_text)
+
+    result = read_ocdb_file(filename)
+
+    assert len(result) == 2
+    assert 'Wavelength' in result.colnames
+    assert 'k' in result.colnames
+    assert result.meta['database'] == 'ocdb'
+    assert result.meta['index'] == 107
+    assert result['Wavelength'].unit == u.um
+
+
+def test_top_level_exports_for_docs_and_examples():
+    import icemodels
+
+    assert hasattr(icemodels, 'read_ocdb_file')
+    assert hasattr(icemodels, 'read_lida_file')
+    assert callable(icemodels.read_ocdb_file)
+    assert callable(icemodels.read_lida_file)
 
 
 # Test for composition_to_molweight
