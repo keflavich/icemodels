@@ -25,6 +25,7 @@ def _setup_minimal_synphot_for_docs():
     """Download a minimal, correct synphot atmosphere subset for docs builds."""
     should_prepare = (
         os.environ.get('READTHEDOCS', '').lower() == 'true'
+        or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
         or os.environ.get('ICEMODELS_DOCS_PREPARE_SYNPHOT', '') == '1'
     )
     if not should_prepare:

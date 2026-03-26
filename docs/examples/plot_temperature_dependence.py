@@ -10,13 +10,18 @@ import icemodels
 import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.interpolate import interp1d
 from pathlib import Path
 
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
 
-# Use a simple local continuum to keep docs builds independent of external CDBS data
-spectrum = np.ones_like(wavelength.value) * u.Jy
+# Get the default spectrum and interpolate it to our wavelength grid
+reference_model = icemodels.atmo_model(4000)
+default_spectrum = reference_model['fnu']
+default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
+f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
+spectrum = f(wavelength)
 
 # Load packaged CO data at different temperatures.
 # Using local files keeps docs builds deterministic and avoids network dependence.
