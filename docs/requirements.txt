@@ -12,3 +12,4 @@ myst_parser>=0.19.0
 synphot
 stsynphot
 pylatexenc
+pytest
