@@ -22,35 +22,43 @@ sys.path.insert(0, os.path.abspath('..'))
 
 
 def _setup_minimal_synphot_for_docs():
-    """Download a minimal, correct synphot atmosphere subset for docs builds."""
+    """Download a minimal, correct synphot atmosphere subset for docs builds.
+
+    This ensures PYSYN_CDBS is properly configured before Sphinx-Gallery runs,
+    so gallery scripts can access synphot atmosphere catalogs.
+    """
     should_prepare = (
         os.environ.get('READTHEDOCS', '').lower() == 'true'
         or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
         or os.environ.get('ICEMODELS_DOCS_PREPARE_SYNPHOT', '') == '1'
     )
-    if not should_prepare:
-        return
 
     cdbs_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '_synphot_cdbs'))
-    os.makedirs(cdbs_root, exist_ok=True)
 
-    base = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs'
-    required_files = [
-        ('grid/phoenix/catalog.fits', f'{base}/grid/phoenix/catalog.fits'),
-        ('grid/phoenix/phoenixm00/phoenixm00_2000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_2000.fits'),
-        ('grid/phoenix/phoenixm00/phoenixm00_3000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_3000.fits'),
-        ('grid/k93models/catalog.fits', f'{base}/grid/k93models/catalog.fits'),
-        ('grid/k93models/kp00/kp00_4000.fits', f'{base}/grid/k93models/kp00/kp00_4000.fits'),
-        ('grid/k93models/kp00/kp00_5000.fits', f'{base}/grid/k93models/kp00/kp00_5000.fits'),
-    ]
+    if should_prepare:
+        # Download CDBS files if not already cached
+        os.makedirs(cdbs_root, exist_ok=True)
 
-    for relpath, url in required_files:
-        destination = os.path.join(cdbs_root, relpath)
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
-        if not os.path.exists(destination):
-            urllib.request.urlretrieve(url, destination)
+        base = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs'
+        required_files = [
+            ('grid/phoenix/catalog.fits', f'{base}/grid/phoenix/catalog.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_2000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_2000.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_3000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_3000.fits'),
+            ('grid/k93models/catalog.fits', f'{base}/grid/k93models/catalog.fits'),
+            ('grid/k93models/kp00/kp00_4000.fits', f'{base}/grid/k93models/kp00/kp00_4000.fits'),
+            ('grid/k93models/kp00/kp00_5000.fits', f'{base}/grid/k93models/kp00/kp00_5000.fits'),
+        ]
 
-    os.environ['PYSYN_CDBS'] = cdbs_root
+        for relpath, url in required_files:
+            destination = os.path.join(cdbs_root, relpath)
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            if not os.path.exists(destination):
+                urllib.request.urlretrieve(url, destination)
+
+    # Always set PYSYN_CDBS to the docs cache location if it exists
+    # This ensures gallery scripts can find synphot data regardless of environment
+    if os.path.exists(os.path.join(cdbs_root, 'grid')):
+        os.environ['PYSYN_CDBS'] = cdbs_root
 
 
 _setup_minimal_synphot_for_docs()
