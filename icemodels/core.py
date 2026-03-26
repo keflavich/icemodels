@@ -944,8 +944,7 @@ def isscalar(x):
     return np.isscalar(x) or (hasattr(x, 'isscalar') and x.isscalar)
 
 
-def absorbed_spectrum_Gaussians(
-                                ice_column,
+def absorbed_spectrum_Gaussians(ice_column,
                                 center,
                                 width,
                                 ice_bandstrength,
