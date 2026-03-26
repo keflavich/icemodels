@@ -11,17 +11,12 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.table import Table
-from scipy.interpolate import interp1d
 
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
 
-# Get the default spectrum and interpolate it to our wavelength grid
-reference_model = icemodels.atmo_model(4000)
-default_spectrum = reference_model['fnu']
-default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
-f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
-spectrum = f(wavelength)
+# Use a simple local continuum to keep docs builds independent of external CDBS data
+spectrum = np.ones_like(wavelength.value) * u.Jy
 
 # Load components
 h2o = icemodels.load_molecule('h2o')
