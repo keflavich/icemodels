@@ -154,6 +154,9 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# Use docs/icemodels/index.rst as the documentation landing page.
+root_doc = 'icemodels/index'
+
 # Ignore specific warnings
 nitpicky = True
 
