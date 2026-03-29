@@ -175,6 +175,99 @@ lida_molname_lookup = {
 }
 
 
+PHOENIX_BASE_URL = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs/grid/phoenix'
+PHOENIX_CATALOG_URL = f'{PHOENIX_BASE_URL}/catalog.fits'
+PHOENIX_METALLICITY_DIRS = {
+    0.0: 'phoenixm00',
+    0.3: 'phoenixp03',
+}
+
+
+def _phoenix_metallicity_dir(metallicity):
+    metallicity = float(metallicity)
+    for mh, dirname in PHOENIX_METALLICITY_DIRS.items():
+        if np.isclose(metallicity, mh, atol=1e-6):
+            return dirname
+    return None
+
+
+def _download_file(url, filename):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.exists(filename) and os.path.getsize(filename) > 0:
+        return filename
+
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(filename, 'wb') as fout:
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                fout.write(chunk)
+    return filename
+
+
+def _list_remote_phoenix_temperatures(metallicity_dir):
+    response = requests.get(f'{PHOENIX_BASE_URL}/{metallicity_dir}/')
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    temps = []
+    pattern = re.compile(rf'{metallicity_dir}_(\d+)\.fits$')
+    for anchor in soup.find_all('a'):
+        href = anchor.get('href', '')
+        basename = os.path.basename(href.rstrip('/'))
+        match = pattern.match(basename)
+        if match:
+            temps.append(int(match.group(1)))
+    return sorted(set(temps))
+
+
+def _select_bracketing_temperatures(temperature, available_temperatures):
+    if not available_temperatures:
+        return []
+
+    target = int(round(float(temperature)))
+    arr = np.array(available_temperatures, dtype=int)
+    if target in arr:
+        return [target]
+
+    lower = arr[arr < target]
+    upper = arr[arr > target]
+
+    selected = []
+    if lower.size > 0:
+        selected.append(int(lower.max()))
+    if upper.size > 0:
+        selected.append(int(upper.min()))
+
+    if not selected:
+        selected = [int(arr[np.argmin(np.abs(arr - target))])]
+
+    return selected
+
+
+def _ensure_phoenix_reference_data(pysyn_root, temperature, metallicity):
+    phoenix_root = os.path.join(pysyn_root, 'grid', 'phoenix')
+    os.makedirs(phoenix_root, exist_ok=True)
+
+    _download_file(PHOENIX_CATALOG_URL, os.path.join(phoenix_root, 'catalog.fits'))
+
+    metallicity_dir = _phoenix_metallicity_dir(metallicity)
+    if metallicity_dir is None:
+        return
+
+    local_metallicity_root = os.path.join(phoenix_root, metallicity_dir)
+    os.makedirs(local_metallicity_root, exist_ok=True)
+
+    available_temperatures = _list_remote_phoenix_temperatures(metallicity_dir)
+    needed_temperatures = _select_bracketing_temperatures(temperature, available_temperatures)
+
+    for temp in needed_temperatures:
+        filename = f'{metallicity_dir}_{temp}.fits'
+        url = f'{PHOENIX_BASE_URL}/{metallicity_dir}/{filename}'
+        destination = os.path.join(local_metallicity_root, filename)
+        _download_file(url, destination)
+
+
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
                metallicity=0.0, model_grid=None,
                pysyn_cdbs='/orange/adamginsburg/synphot/grp/hst/cdbs'):
@@ -191,10 +284,10 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
     logg : float
         Surface gravity (log g) for the atmosphere grid query.
     metallicity : float
-        Metallicity value passed to stsynphot catalog lookup.
+        Metallicity [M/H] passed to stsynphot catalog lookup. Default is 0.0 (solar).
     model_grid : str or None
         stsynphot catalog name (e.g., 'phoenix', 'k93models').
-        If None, uses 'phoenix' for T < 4000 K and 'k93models' otherwise.
+        If None, uses 'phoenix' for all temperatures.
     pysyn_cdbs : str
         Root directory for synphot reference files (PYSYN_CDBS).
 
@@ -204,20 +297,18 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
         Table with columns ``nu`` and ``fnu`` in cgs units, evaluated on ``xarr``.
     """
     if model_grid is None:
-        model_grid = 'phoenix' if temperature < 4000 else 'k93models'
+        model_grid = 'phoenix'
 
-    pysyn_root_env = os.environ.get('PYSYN_CDBS', '')
-    env_catalog = os.path.join(pysyn_root_env, 'grid', model_grid, 'catalog.fits')
-    default_catalog = os.path.join(pysyn_cdbs, 'grid', model_grid, 'catalog.fits')
+    pysyn_root = pysyn_cdbs or os.environ.get('PYSYN_CDBS', '').strip()
+    os.environ['PYSYN_CDBS'] = pysyn_root
 
-    if pysyn_root_env and os.path.exists(env_catalog):
-        pysyn_root = pysyn_root_env
-    elif os.path.exists(default_catalog):
-        pysyn_root = pysyn_cdbs
-        os.environ['PYSYN_CDBS'] = pysyn_cdbs
-    else:
+    if model_grid == 'phoenix':
+        _ensure_phoenix_reference_data(pysyn_root, temperature=temperature, metallicity=metallicity)
+
+    catalog_path = os.path.join(pysyn_root, 'grid', model_grid, 'catalog.fits')
+    if not os.path.exists(catalog_path):
         raise FileNotFoundError(
-            f"Required stsynphot atmosphere catalog not found. Checked {env_catalog} and {default_catalog}. "
+            f"Required stsynphot atmosphere catalog not found at {catalog_path}. "
             "Set PYSYN_CDBS to a valid CDBS root with grid catalogs installed."
         )
 
