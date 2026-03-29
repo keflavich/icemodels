@@ -58,7 +58,8 @@ cmd_x_default = (
 # Define stellar parameter ranges
 # Temperature range from cool M dwarfs to hot O stars
 # temperatures = np.linspace(2000, 50000, 50)  # K
-temperatures = np.geomspace(2000, 10000, 20)
+temperatures = np.geomspace(2000, 8000, 20)
+logg_values = (1, 2, 3, 4)
 
 # Wavelength grid for spectral calculations
 # Extended range to cover all JWST filters: F070W (0.699 μm) to F2550W (25.152 μm)
@@ -85,7 +86,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
     mag_row : dict
         Dictionary with computed magnitudes for each filter and stellar parameters.
     """
-    temperature, xarr, user_cmd_x, user_transdata, user_filter_data, basepath = args
+    temperature, logg, xarr, user_cmd_x, user_transdata, user_filter_data, basepath = args
 
     # Use provided parameters or defaults
     if cmd_x is None:
@@ -96,7 +97,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
         filter_data = user_filter_data
 
     # Generate stellar atmosphere model
-    stellar_model = atmo_model(temperature, xarr=xarr)
+    stellar_model = atmo_model(temperature, xarr=xarr, logg=logg, model_grid='phoenix')
 
     # Calculate fluxes in filters
     fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
@@ -117,6 +118,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
     # Create result row
     mag_row = {
         'temperature': temperature,
+        'logg': logg,
         'model_type': 'stellar_atmosphere',
         'spectral_type': get_spectral_type(temperature),
     }
@@ -168,7 +170,8 @@ if __name__ == '__main__':
     # Create list of all stellar models to process
     all_models = []
     for temp in temperatures:
-        all_models.append((temp, xarr, cmd_x, transdata, filter_data, basepath))
+        for logg in logg_values:
+            all_models.append((temp, logg, xarr, cmd_x, transdata, filter_data, basepath))
 
     # Process all models in parallel
     results = process_map(partial(process_stellar_model, cmd_x=cmd_x, transdata=transdata, filter_data=filter_data),
@@ -200,6 +203,7 @@ if __name__ == '__main__':
 
     # Add some useful indices
     mag_tbl.add_index('temperature')
+    mag_tbl.add_index('logg')
     mag_tbl.add_index('spectral_type')
 
     # Print summary statistics
@@ -209,6 +213,13 @@ if __name__ == '__main__':
         temp_range = f"{mag_tbl[mask]['temperature'].min():.0f}-{mag_tbl[mask]['temperature'].max():.0f}K"
         count = np.sum(mask)
         print(f"  {spec_type}: {count} models ({temp_range})")
+
+    print("\nSummary by logg:")
+    for logg in np.unique(mag_tbl['logg']):
+        mask = mag_tbl['logg'] == logg
+        temp_range = f"{mag_tbl[mask]['temperature'].min():.0f}-{mag_tbl[mask]['temperature'].max():.0f}K"
+        count = np.sum(mask)
+        print(f"  logg={logg}: {count} models ({temp_range})")
 
     # Verify we have magnitudes for key filters
     key_filters = ['F212N', 'F444W', 'F1000W']
