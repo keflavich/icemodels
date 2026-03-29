@@ -69,15 +69,52 @@ def test_download_all_lida():
 
 
 # Test for atmo_model
-def test_atmo_model():
-    result = atmo_model(4000)
+def test_atmo_model(tmp_path):
+    cdbs_root = tmp_path / 'cdbs'
+    phoenix_root = cdbs_root / 'grid' / 'phoenix'
+    phoenix_root.mkdir(parents=True)
+    (phoenix_root / 'catalog.fits').write_bytes(b'catalog')
+
+    xarr = np.linspace(1, 3, 7) * u.um
+    mock_source = MagicMock()
+    mock_source.return_value = np.ones(len(xarr)) * (u.photon / u.s / u.cm**2 / u.AA)
+
+    with patch('icemodels.core._ensure_phoenix_reference_data') as mock_ensure, \
+            patch('stsynphot.catalog.grid_to_spec', return_value=mock_source) as mock_grid_to_spec, \
+            patch('synphot.units.convert_flux', return_value=np.ones(len(xarr)) * (u.erg / u.s / u.cm**2 / u.Hz)):
+        result = atmo_model(4000, xarr=xarr, logg=4.0, pysyn_cdbs=str(cdbs_root))
+
+    mock_ensure.assert_called_once_with(str(cdbs_root), temperature=4000, metallicity=0.0)
+    mock_grid_to_spec.assert_called_once_with('phoenix', 4000, 0.0, 4.0)
+
     assert 'fnu' in result.colnames
     assert 'nu' in result.colnames
     assert result.meta['temperature'] == 4000
-    assert result.meta['model_grid'] in ('phoenix', 'k93models')
+    assert result.meta['model_grid'] == 'phoenix'
+    assert result.meta['metallicity'] == 0.0
     # Check that result has units
     assert result['fnu'].unit == u.erg / u.s / u.cm**2 / u.Hz
     assert result['nu'].unit == u.Hz
+
+
+def test_atmo_model_metallicity_p03(tmp_path):
+    cdbs_root = tmp_path / 'cdbs'
+    phoenix_root = cdbs_root / 'grid' / 'phoenix'
+    phoenix_root.mkdir(parents=True)
+    (phoenix_root / 'catalog.fits').write_bytes(b'catalog')
+
+    xarr = np.linspace(1, 3, 5) * u.um
+    mock_source = MagicMock()
+    mock_source.return_value = np.ones(len(xarr)) * (u.photon / u.s / u.cm**2 / u.AA)
+
+    with patch('icemodels.core._ensure_phoenix_reference_data') as mock_ensure, \
+            patch('stsynphot.catalog.grid_to_spec', return_value=mock_source) as mock_grid_to_spec, \
+            patch('synphot.units.convert_flux', return_value=np.ones(len(xarr)) * (u.erg / u.s / u.cm**2 / u.Hz)):
+        result = atmo_model(4500, xarr=xarr, logg=3.5, metallicity=0.3, pysyn_cdbs=str(cdbs_root))
+
+    mock_ensure.assert_called_once_with(str(cdbs_root), temperature=4500, metallicity=0.3)
+    mock_grid_to_spec.assert_called_once_with('phoenix', 4500, 0.3, 3.5)
+    assert result.meta['metallicity'] == 0.3
 
 
 # Test for load_molecule
