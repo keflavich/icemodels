@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 from astroquery.svo_fps import SvoFps
-import os
+import requests
 
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
@@ -45,9 +45,7 @@ plt.legend()
 filter_ids = ['JWST/MIRI.F1000W', 'JWST/MIRI.F1280W']  # Full SVO FPS IDs
 filter_fluxes = {}
 
-if os.environ.get('READTHEDOCS') or os.environ.get('GITHUB_ACTIONS'):
-    print("Skipping SVO FPS filter transmission data retrieval in CI environment")
-else:
+try:
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
 
     for filter_id in filter_ids:
@@ -60,4 +58,7 @@ else:
         filter_fluxes[filter_id] = flux
         print(f"Flux through {filter_id}: {flux}")
 
-plt.show()
+    plt.show()
+
+except requests.exceptions.ConnectTimeout as ex:
+    print("Could not retrieve filter data from SVO FPS because of a timeout error.  This is treated as an acceptable failure because it frequently happens on the continuous integration testing servers.  Try again!")
