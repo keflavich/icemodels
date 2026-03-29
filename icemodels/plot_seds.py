@@ -12,7 +12,7 @@ from icemodels import atmo_model, absorbed_spectrum
 from icemodels.core import composition_to_molweight
 
 
-def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
+def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_table=None,
                       ice_column=None, molecular_weight=None, ice_labels=None,
                       figsize=None, color_cycle=None, show_ice_absorbed=True,
                       renormalize_insets=False, extinction_Av=None,
@@ -36,6 +36,9 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
     xarr : astropy.units.Quantity, optional
         Wavelength array for computing the stellar SED. If None, uses a default
         range from 0.6 to 28 microns with 25000 points.
+    logg : float, optional
+        Stellar surface gravity (log g) passed to `atmo_model` when generating
+        the atmosphere SED. Default is 4.0.
     ice_model_table : astropy.table.Table or list of Tables, optional
         Ice optical constants table(s) with 'Wavelength' and 'k' columns and
         'density' in metadata. Can be a single table or list of tables for
@@ -255,7 +258,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, ice_model_table=None,
         color = color_cycle[i % len(color_cycle)]
 
         # Generate stellar atmosphere model
-        stellar_model = atmo_model(temp, xarr=xarr)
+        stellar_model = atmo_model(temp, xarr=xarr, logg=logg)
         wavelengths = xarr.to(u.um)
         fluxes = stellar_model['fnu'].quantity
 
