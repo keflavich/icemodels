@@ -270,7 +270,7 @@ def _ensure_phoenix_reference_data(pysyn_root, temperature, metallicity):
 
 def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
                metallicity=0.0, model_grid=None,
-               pysyn_cdbs='/orange/adamginsburg/synphot/grp/hst/cdbs'):
+               pysyn_cdbs=os.getenv('PYSYN_CDBS', '').strip()):
     """
     Load a stellar atmosphere model with stsynphot catalogs and interpolate it
     onto the requested wavelength grid.
@@ -290,6 +290,8 @@ def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
         If None, uses 'phoenix' for all temperatures.
     pysyn_cdbs : str
         Root directory for synphot reference files (PYSYN_CDBS).
+        If None, uses ``$PYSYN_CDBS`` when set, otherwise a writable cache
+        directory in ``~/.astropy/cache/icemodels/synphot_cdbs``.
 
     Returns
     -------
@@ -1774,11 +1776,21 @@ def get_dream_meta_table(
     astropy.table.Table
         Metadata table with columns for composition, ratio, data type, reference, and URL
     """
+    docs_offline_mode = os.environ.get('ICEMODELS_DOCS_OFFLINE', '') == '1'
+
     if 'dream_meta_table' in cache:
         return cache['dream_meta_table']
     elif use_cached and os.path.exists(
             os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv')):
-        return Table.read(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'))
+        meta_table = Table.read(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'))
+        cache['dream_meta_table'] = meta_table
+        return meta_table
+
+    if docs_offline_mode:
+        raise FileNotFoundError(
+            f"DREAM metadata cache missing at {os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv')} "
+            "while ICEMODELS_DOCS_OFFLINE=1."
+        )
 
     # Fetch the webpage
     resp = requests.get(dream_url)
@@ -2049,6 +2061,8 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
     >>> # Load specific composition
     >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')  # doctest: +SKIP
     """
+    docs_offline_mode = os.environ.get('ICEMODELS_DOCS_OFFLINE', '') == '1'
+
     if use_cached:
         # Search for matching files
         pattern = composition.replace(':', '_').replace(' ', '_')
@@ -2063,6 +2077,14 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 
             if files:
                 return read_dream_file(files[0])
+
+    if docs_offline_mode:
+        pattern = composition.replace(':', '_').replace(' ', '_')
+        raise FileNotFoundError(
+            f"No cached DREAM data found for composition={composition!r}, ratio={ratio!r}. "
+            f"Expected files matching {os.path.join(optical_constants_cache_dir, f'dream_{pattern}*')} "
+            "while ICEMODELS_DOCS_OFFLINE=1."
+        )
 
     # If not cached, download from the database
     meta_table = get_dream_meta_table()
