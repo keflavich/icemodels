@@ -126,6 +126,9 @@ def _setup_ocdb_files_for_docs():
 _setup_minimal_synphot_for_docs()
 _setup_ocdb_files_for_docs()
 
+# Ensure docs/gallery builds do not attempt live DREAM database downloads.
+os.environ.setdefault('ICEMODELS_DOCS_OFFLINE', '1')
+
 # -- Project information -----------------------------------------------------
 project = 'icemodels'
 copyright = '2024, Adam Ginsburg'
