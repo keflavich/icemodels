@@ -455,6 +455,7 @@ if __name__ == "__main__":
             savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
         else:
             savefig_path = os.path.join(basepath, 'icemodels', 'figures') 
+            os.makedirs(savefig_path, exist_ok=True)
 
         dmag_tbl = dmag_all = Table.read(os.path.join(basepath, 'icemodels', 'data', 'combined_ice_absorption_tables.ecsv'))
         dmag_all.add_index('mol_id')
