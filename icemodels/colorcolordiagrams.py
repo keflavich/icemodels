@@ -448,9 +448,13 @@ if __name__ == "__main__":
     """
 
     with mpl.rc_context({'axes.prop_cycle': propcycle}):
-        savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
 
         basepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        import socket
+        if 'ufhpc' in socket.gethostname():
+            savefig_path = '/orange/adamginsburg/jwst/brick/figures/'
+        else:
+            savefig_path = os.path.join(basepath, 'icemodels', 'figures') 
 
         dmag_tbl = dmag_all = Table.read(os.path.join(basepath, 'icemodels', 'data', 'combined_ice_absorption_tables.ecsv'))
         dmag_all.add_index('mol_id')
