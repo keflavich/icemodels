@@ -14,10 +14,78 @@ permissions:
   id-token: write
 
 jobs:
-  build-docs:
+  notebook-health:
     runs-on: ubuntu-latest
     env:
       ICEMODELS_DOCS_PREPARE_SYNPHOT: "1"
+      ICEMODELS_DOCS_PREPARE_OCDB: "1"
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install notebook execution dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[docs,all]"
+        pip install nbclient nbformat ipykernel
+
+    - name: Execute notebooks and flag slow cells
+      run: |
+        python docs/check_notebook_execution_times.py \
+          --notebook-dir notebooks \
+          --threshold-seconds 30 \
+          --timeout-seconds 1800 \
+          --report-file docs/notebook_timing_report.json
+
+    - name: Append notebook timing report to job summary
+      run: |
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        report = json.loads(Path('docs/notebook_timing_report.json').read_text())
+        lines = []
+        lines.append('## Notebook Execution Timing')
+        lines.append('')
+        lines.append(f"Threshold: {report['threshold_seconds']} seconds")
+        lines.append(f"Notebooks executed: {len(report['results'])}")
+        lines.append(f"Slow cells: {len(report['slow_cells'])}")
+        lines.append('')
+
+        if report['slow_cells']:
+            lines.append('### Slow Cells')
+            lines.append('')
+            for cell in report['slow_cells']:
+                preview = cell['source_preview'][0] if cell['source_preview'] else ''
+                lines.append(
+                    f"- {cell['flag'].upper()}: {cell['notebook']} cell {cell['cell_number']} "
+                    f"({cell['duration_seconds']:.2f}s) `{preview}`"
+                )
+        else:
+            lines.append('No slow cells were detected.')
+
+        summary = Path(__import__('os').environ['GITHUB_STEP_SUMMARY'])
+        summary.write_text('\n'.join(lines), encoding='utf-8')
+        PY
+
+    - name: Upload notebook timing report
+      uses: actions/upload-artifact@v4
+      with:
+        name: notebook-timing-report
+        path: docs/notebook_timing_report.json
+
+  build-docs:
+    needs: notebook-health
+    runs-on: ubuntu-latest
+    env:
+      ICEMODELS_DOCS_PREPARE_SYNPHOT: "1"
+      ICEMODELS_DOCS_PREPARE_OCDB: "1"
     steps:
     - uses: actions/checkout@v3
       with:
