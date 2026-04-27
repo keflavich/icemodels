@@ -9,7 +9,7 @@ from astroquery.svo_fps import SvoFps
 from dust_extinction.averages import CT06_MWGC
 
 from icemodels import atmo_model, absorbed_spectrum
-from icemodels.core import composition_to_molweight
+from icemodels.core import composition_to_molweight, convsum
 
 
 def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_table=None,
@@ -17,7 +17,8 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                       figsize=None, color_cycle=None, show_ice_absorbed=True,
                       renormalize_insets=False, extinction_Av=None,
                       extinction_curve=None, fig=None, axes=None, label=None,
-                      label_filters=False, show_legend=True):
+                      label_filters=False, show_legend=True,
+                      show_filter_fluxes=True):
     """
     Plot stellar SEDs at multiple temperatures with filter transmission profiles.
 
@@ -199,6 +200,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
     # Get filter transmission data
     transdata = {}
     filter_ranges = {}
+    filter_marker_wl = {}
     for filt in filters:
         trans = SvoFps.get_transmission_data(filt)
         transdata[filt] = trans
@@ -218,6 +220,17 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
         else:
             # Fallback if no points above 50%
             filter_ranges[filt] = (trans_wl.min(), trans_wl.max())
+
+        # Transmission-weighted mean wavelength used to place flux markers
+        tvals = np.asarray(trans['Transmission'])
+        tsum = tvals.sum()
+        if tsum > 0:
+            filter_marker_wl[filt] = float(
+                (trans_wl.value * tvals).sum() / tsum)
+        else:
+            filter_marker_wl[filt] = float(
+                0.5 * (filter_ranges[filt][0].value
+                       + filter_ranges[filt][1].value))
 
     # Set up figure layout
     n_filters = len(filters)
@@ -296,6 +309,17 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
             ax_main.plot(wavelengths, flux_norm, color=color, label=temp_label,
                          alpha=0.8, linewidth=1.5)
 
+            if show_filter_fluxes:
+                fnorm_max = fluxes.max()
+                for filt in filters:
+                    fweighted = convsum(xarr, fluxes, transdata[filt])
+                    pt = (fweighted / fnorm_max).to(u.dimensionless_unscaled).value \
+                        if hasattr(fweighted, 'unit') else fweighted / fnorm_max.value
+                    ax_main.scatter([filter_marker_wl[filt]], [pt],
+                                    marker='s', s=40, facecolor=color,
+                                    edgecolor=color, linestyle='-',
+                                    linewidth=1.2, zorder=10)
+
         # If ice absorption requested
         if ice_column is not None and show_ice_absorbed:
             # Plot each ice species
@@ -318,6 +342,17 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                              linestyle=linestyle, alpha=0.6, linewidth=1.5,
                              label=f"{ice_label}")
 
+                if show_filter_fluxes:
+                    fnorm_max = fluxes.max()
+                    for filt in filters:
+                        fweighted = convsum(xarr, absorbed_flux, transdata[filt])
+                        pt = (fweighted / fnorm_max).to(u.dimensionless_unscaled).value \
+                            if hasattr(fweighted, 'unit') else fweighted / fnorm_max.value
+                        ax_main.scatter([filter_marker_wl[filt]], [pt],
+                                        marker='s', s=40, facecolor=color,
+                                        edgecolor=color, linestyle=linestyle,
+                                        linewidth=1.2, zorder=10)
+
                 # Store ice-absorbed flux for inset plots
                 if f'ice_{ice_idx}' not in temp_flux_data[temp]:
                     temp_flux_data[temp][f'ice_{ice_idx}'] = []
@@ -339,14 +374,29 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
             ax_zoom.plot(wavelengths, flux_norm, color=color, alpha=0.8,
                          linewidth=1.5)
 
+            # Always compute in_range so it can be reused below; needed for
+            # ylim tracking and only costs a comparison.
+            in_range = (wavelengths.value >= wl_min_val) & (wavelengths.value <= wl_max_val)
+
             # Track data range for potential y-limit adjustment
             if renormalize_insets:
-                in_range = (wavelengths.value >= wl_min_val) & (wavelengths.value <= wl_max_val)
                 if np.any(in_range):
                     # Store data for later y-limit calculation
                     if not hasattr(ax_zoom, '_ylim_data'):
                         ax_zoom._ylim_data = []
                     ax_zoom._ylim_data.append(flux_norm[in_range])
+
+            # Filter-weighted flux marker on zoom — baseline curve is always
+            # drawn on the zoom axes (even when ice is requested), so always
+            # mark the baseline filter flux here.
+            if show_filter_fluxes:
+                fweighted = convsum(xarr, fluxes, transdata[filt])
+                pt = (fweighted / fluxes.max()).to(u.dimensionless_unscaled).value \
+                    if hasattr(fweighted, 'unit') else fweighted / fluxes.max().value
+                ax_zoom.scatter([filter_marker_wl[filt]], [pt],
+                                marker='s', s=40, facecolor=color,
+                                edgecolor=color, linestyle='-',
+                                linewidth=1.2, zorder=10)
 
             if ice_column is not None and show_ice_absorbed:
                 linestyles = ['--', '-.', ':']
@@ -369,6 +419,15 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                     if renormalize_insets:
                         if np.any(in_range):
                             ax_zoom._ylim_data.append(absorbed_norm[in_range])
+
+                    if show_filter_fluxes:
+                        fweighted = convsum(xarr, absorbed_flux, transdata[filt])
+                        pt = (fweighted / fluxes.max()).to(u.dimensionless_unscaled).value \
+                            if hasattr(fweighted, 'unit') else fweighted / fluxes.max().value
+                        ax_zoom.scatter([filter_marker_wl[filt]], [pt],
+                                        marker='s', s=40, facecolor=color,
+                                        edgecolor=color, linestyle=linestyle,
+                                        linewidth=1.2, zorder=10)
     # Add filter transmission curves to zoom plots (only if creating new axes)
     # Check if axes are new by seeing if they have lines already
     axes_are_new = axes is None
