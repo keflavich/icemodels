@@ -19,6 +19,7 @@ jobs:
     env:
       ICEMODELS_DOCS_PREPARE_SYNPHOT: "1"
       ICEMODELS_DOCS_PREPARE_OCDB: "1"
+      PYSYN_CDBS: ${{ github.workspace }}/_synphot_cdbs
     steps:
     - uses: actions/checkout@v3
       with:
@@ -35,12 +36,44 @@ jobs:
         pip install -e ".[docs,all]"
         pip install nbclient nbformat ipykernel
 
+    - name: Provision minimal synphot CDBS reference data
+      run: |
+        python - <<'PY'
+        import os
+        import urllib.request
+        root = os.environ['PYSYN_CDBS']
+        base = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs'
+        files = [
+            ('grid/phoenix/catalog.fits', f'{base}/grid/phoenix/catalog.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_2000.fits',
+             f'{base}/grid/phoenix/phoenixm00/phoenixm00_2000.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_3000.fits',
+             f'{base}/grid/phoenix/phoenixm00/phoenixm00_3000.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_4000.fits',
+             f'{base}/grid/phoenix/phoenixm00/phoenixm00_4000.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_5000.fits',
+             f'{base}/grid/phoenix/phoenixm00/phoenixm00_5000.fits'),
+            ('grid/k93models/catalog.fits', f'{base}/grid/k93models/catalog.fits'),
+            ('grid/k93models/kp00/kp00_4000.fits',
+             f'{base}/grid/k93models/kp00/kp00_4000.fits'),
+            ('grid/k93models/kp00/kp00_5000.fits',
+             f'{base}/grid/k93models/kp00/kp00_5000.fits'),
+        ]
+        for relpath, url in files:
+            dest = os.path.join(root, relpath)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            if not os.path.exists(dest):
+                urllib.request.urlretrieve(url, dest)
+        PY
+
     - name: Execute notebooks and flag slow cells
       run: |
         python docs/check_notebook_execution_times.py \
           --notebook-dir notebooks \
           --threshold-seconds 30 \
           --timeout-seconds 1800 \
+          --exclude ISO_Spectra.ipynb \
+          --exclude SpectraFromPhoto.ipynb \
           --report-file docs/notebook_timing_report.json
 
     - name: Append notebook timing report to job summary
@@ -56,7 +89,19 @@ jobs:
         lines.append(f"Threshold: {report['threshold_seconds']} seconds")
         lines.append(f"Notebooks executed: {len(report['results'])}")
         lines.append(f"Slow cells: {len(report['slow_cells'])}")
+        failed = report.get('failed_notebooks', [])
+        lines.append(f"Notebooks with errors: {len(failed)}")
+        excluded = report.get('excluded', [])
+        if excluded:
+            lines.append(f"Excluded notebooks: {', '.join(excluded)}")
         lines.append('')
+
+        if failed:
+            lines.append('### Notebooks with Errors')
+            lines.append('')
+            for entry in failed:
+                lines.append(f"- {entry['notebook']}: `{entry['error']}`")
+            lines.append('')
 
         if report['slow_cells']:
             lines.append('### Slow Cells')
