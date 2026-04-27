@@ -280,11 +280,11 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
 
         # Plot on main axes
         if label is not None:
-            temp_label = f"{label}: {temp:.0f} K"
+            temp_label = label
         elif extinction_Av is not None:
-            temp_label = f"{temp:.0f} K (Av={extinction_Av:.1f})"
+            temp_label = f"$T^*$={temp:.0f} K (Av={extinction_Av:.1f})"
         else:
-            temp_label = f"{temp:.0f} K"
+            temp_label = f"$T^*$={temp:.0f} K"
 
         # If ice absorption is requested, we'll plot the ice-absorbed spectrum instead
         # of the base (or extinguished-only) spectrum as the main curve
@@ -316,7 +316,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                 linestyle = linestyles[ice_idx % len(linestyles)]
                 ax_main.plot(wavelengths, absorbed_norm, color=color,
                              linestyle=linestyle, alpha=0.6, linewidth=1.5,
-                             label=f"{temp:.0f} K ({ice_label})")
+                             label=f"{ice_label}")
 
                 # Store ice-absorbed flux for inset plots
                 if f'ice_{ice_idx}' not in temp_flux_data[temp]:
