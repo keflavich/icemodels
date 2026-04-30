@@ -135,6 +135,10 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
         max_column = max_h2_column * abundance_wrt_h2
 
     dcol = 2
+    def format_icemol_label(mol):
+        import re
+        return re.sub(r'(\D)(\d+)', lambda m: f"{m.group(1)}$_{{{m.group(2)}}}$", mol)
+
     for mol_id, (molcomp, temperature) in (zip(molids, molcomps)):
         if isinstance(mol_id, tuple):
             mol_id, database = mol_id
@@ -188,7 +192,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
             raise NotImplementedError("icemol2 not implemented correctly / I don't know what I was going for")
             mol_frac2 = comps[mols.index(icemol2)] / sum(comps)
             ind_icemol2 = np.argmin(np.abs(tb['column'][sel] * mol_frac2 - icemol2_col))
-            L, = pl.plot(c1, c2, label=f'{comp} (X$_{{{icemol2}}}$ = {icemol2_col / h2col[ind_icemol2]:0.1e})', **kwargs)
+            L, = pl.plot(c1, c2, label=f'{comp} (X$_{{{format_icemol_label(icemol2)}}}$ = {icemol2_col / h2col[ind_icemol2]:0.1e})', **kwargs)
         else:
             label = comp
             if label_author:
@@ -204,6 +208,8 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
     pl.axis(axlims)
     pl.xlabel(f"{color1[0]} - {color1[1]}")
     pl.ylabel(f"{color2[0]} - {color2[1]}")
+    # If axis labels for icemol are used, update to subscripted
+    # (This function does not set x/y labels for icemol directly, but legend is handled above)
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
 
 
@@ -346,8 +352,13 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
 
 
     ax.set_xscale('log')
+    def format_icemol_label(mol):
+        # Replace trailing digits with subscript in LaTeX
+        import re
+        return re.sub(r'(\D)(\d+)', lambda m: f"{m.group(1)}$_{{{m.group(2)}}}$", mol)
+
     if xaxis == 'icemol':
-        ax.set_xlabel(f'N({icemol}) [cm$^{{-2}}$]')
+        ax.set_xlabel(f'N({format_icemol_label(icemol)}) [cm$^{{-2}}$]')
         # Add top axis for N(H2)
         twin_ax = ax.twiny()
         twin_ax.set_xscale('log')
@@ -375,7 +386,7 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
             twin_ticks = ticks * abundance_wrt_h2
             twin_ax.set_xticks(ticks)
             twin_ax.set_xticklabels([f"{val:.1e}" for val in twin_ticks])
-        twin_ax.set_xlabel(f'N({icemol}) [cm$^{{-2}}$]')
+        twin_ax.set_xlabel(f'N({format_icemol_label(icemol)}) [cm$^{{-2}}$]')
     else:
         raise ValueError(f"xaxis must be 'icemol' or 'h2', got {xaxis!r}")
     ax.set_ylabel(f'{color[0]} - {color[1]}')
@@ -609,12 +620,13 @@ example_plots = [
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
             ('Bertie', ('H2O (1)', 100)),
-            ('Mastrapa', ('H2O (1)', 100)),
+            #('Mastrapa', ('H2O (1)', 100)),
             ('Kitta', ('H2O (1)', 23)),
-            ('Mastrapa', ('H2O (1)', 50)),
+            #('Mastrapa', ('H2O (1)', 50)),
             ('Hudgins', ('H2O (1)', 80)),
             ('Hudgins', ('H2O (1)', 10)),
             ('Léger', ('H2O (1)', 77)),
+            ('Mastrapa', ('H2O (1)', 25)),
             ('Mastrapa', ('H2O (1)', 20)),
         ],
         'icemol': 'H2O',
