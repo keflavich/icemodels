@@ -206,6 +206,141 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
     return a_color1, a_color2, c1, c2, sel, E_V_color1, E_V_color2, tb
 
 
+@mpl.rc_context({'axes.prop_cycle': propcycle})
+def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
+                         icemol='CO', abundance_wrt_h2=2e-5, av_start=0,
+                         max_column=2e20, max_h2_column=None,
+                         nh_to_av=2.21e21, ext=ext, temperature_id=0,
+                         xaxis='icemol', include_dust=False,
+                         label_author=False, label_temperature=False,
+                         ax=None, verbose=False, **kwargs):
+    """
+    Plot model color (filter1 - filter2) versus column density for one or
+    more ice compositions.
+
+    Parameters
+    ----------
+    color : tuple of str
+        (filter1, filter2). Plotted color is filter1 - filter2.
+    dmag_tbl : astropy.table.Table
+        Precomputed dmag table (as in `plot_ccd_icemodels`). Must be
+        indexed on 'mol_id', 'composition', 'temperature' (and 'database'
+        / 'author' if those keys are used in molcomps).
+    molcomps, molids : see `plot_ccd_icemodels`.
+    icemol : str
+        Molecule whose column density is reported on the x-axis (and used
+        to scale composition fractions). Must appear in each composition.
+    abundance_wrt_h2 : float
+        N(icemol) / N(H2). Used to convert icemol column to H2 column
+        when `xaxis='h2'` or when `include_dust=True`.
+    max_column, max_h2_column : float
+        Upper edge of the column grid. Pass at most one.
+    xaxis : {'icemol', 'h2'}
+        Whether the x-axis is N(icemol) [cm^-2] or N(H2) [cm^-2].
+    include_dust : bool
+        If True, add foreground dust reddening to the ice color. The
+        reddening uses CT06_MWGC (extrapolated polynomially) and an Av
+        from `av_start` plus the implied H2 column.
+    av_start : float
+        Starting (foreground) Av if `include_dust=True`.
+    ax : matplotlib axis, optional
+        Axis to plot into. Defaults to current axis.
+    **kwargs : dict
+        Forwarded to `ax.plot`.
+
+    Returns
+    -------
+    ax : matplotlib axis
+    """
+    if ax is None:
+        ax = pl.gca()
+
+    if max_h2_column is not None:
+        if max_column is not None and max_column != 2e20:
+            raise ValueError("max_column and max_h2_column cannot both be set")
+        max_column = max_h2_column * abundance_wrt_h2
+
+    def wavelength_of_filter(filtername):
+        return u.Quantity(int(filtername[1:-1])/100, u.um).to(
+            u.um, u.spectral())
+
+    if include_dust:
+        E_V_color = (ext(wavelength_of_filter(color[0])) -
+                     ext(wavelength_of_filter(color[1])))
+    else:
+        E_V_color = 0.0
+
+    if molcomps is not None:
+        if isinstance(molcomps[0][1], tuple):
+            molids = [np.unique(dmag_tbl
+                                .loc['author', author]
+                                .loc['composition', mc]
+                                .loc['temperature', float(tem)]['mol_id'])
+                      for (author, (mc, tem)) in molcomps]
+            molcomps = [xx[1] for xx in molcomps]
+        else:
+            molids = [np.unique(dmag_tbl
+                                .loc['composition', mc]
+                                .loc['temperature', float(tem)]['mol_id'])
+                      for mc, tem in molcomps]
+    else:
+        molcomps = np.unique(dmag_tbl.loc['mol_id', molids]['composition'])
+
+    assert len(molcomps) == len(molids)
+    assert len(molcomps) > 0
+
+    for mol_id, (molcomp, temperature) in zip(molids, molcomps):
+        if isinstance(mol_id, tuple):
+            mol_id, database = mol_id
+            tb = (dmag_tbl.loc['mol_id', mol_id]
+                          .loc['database', database]
+                          .loc['composition', molcomp])
+        else:
+            tb = dmag_tbl.loc['mol_id', mol_id].loc['composition', molcomp]
+        comp = np.unique(tb['composition'])[0]
+        temp = np.unique(tb['temperature'])[temperature_id]
+        author = np.unique(tb['author'])[0]
+        tb = tb.loc['temperature', float(temp)]
+
+        mols, comps = molscomps(comp)
+        if icemol not in mols:
+            print(f"icemol {icemol} not in {mols} for {comp}")
+            continue
+
+        icemol_col = np.geomspace(1e17, max_column, 50)
+        h2col = icemol_col / abundance_wrt_h2
+
+        dmag = compute_dmag_from_column(icemol_col, tb, icemol=icemol,
+                                        maxcol=max_column,
+                                        filter1=color[0], filter2=color[1],
+                                        verbose=verbose)
+
+        if include_dust:
+            a_color = h2col * 2 / nh_to_av * E_V_color + av_start * E_V_color
+            yvals = dmag + a_color
+        else:
+            yvals = dmag
+
+        xvals = icemol_col if xaxis == 'icemol' else h2col
+
+        label = comp
+        if label_author:
+            label = label + f' {author}'
+        if label_temperature:
+            label = label + f' {temp}'
+        ax.plot(xvals, yvals, label=label, **kwargs)
+
+    ax.set_xscale('log')
+    if xaxis == 'icemol':
+        ax.set_xlabel(f'N({icemol}) [cm$^{{-2}}$]')
+    elif xaxis == 'h2':
+        ax.set_xlabel('N(H$_2$) [cm$^{-2}$]')
+    else:
+        raise ValueError(f"xaxis must be 'icemol' or 'h2', got {xaxis!r}")
+    ax.set_ylabel(f'{color[0]} - {color[1]}')
+    return ax
+
+
 # Constants for abundances and percent ice
 carbon_abundance = 10**(8.7-12)  # = 1e-3.3 = 5e-4
 oxygen_abundance = 10**(9.3-12)

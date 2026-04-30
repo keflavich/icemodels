@@ -316,7 +316,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                     pt = (fweighted / fnorm_max).to(u.dimensionless_unscaled).value \
                         if hasattr(fweighted, 'unit') else fweighted / fnorm_max.value
                     ax_main.scatter([filter_marker_wl[filt]], [pt],
-                                    marker='s', s=40, facecolor=color,
+                                    marker='s', s=40, facecolor='none',
                                     edgecolor=color, linestyle='-',
                                     linewidth=1.2, zorder=10)
 
@@ -349,7 +349,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                         pt = (fweighted / fnorm_max).to(u.dimensionless_unscaled).value \
                             if hasattr(fweighted, 'unit') else fweighted / fnorm_max.value
                         ax_main.scatter([filter_marker_wl[filt]], [pt],
-                                        marker='s', s=40, facecolor=color,
+                                        marker='s', s=40, facecolor='none',
                                         edgecolor=color, linestyle=linestyle,
                                         linewidth=1.2, zorder=10)
 
@@ -394,7 +394,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                 pt = (fweighted / fluxes.max()).to(u.dimensionless_unscaled).value \
                     if hasattr(fweighted, 'unit') else fweighted / fluxes.max().value
                 ax_zoom.scatter([filter_marker_wl[filt]], [pt],
-                                marker='s', s=40, facecolor=color,
+                                marker='s', s=40, facecolor='none',
                                 edgecolor=color, linestyle='-',
                                 linewidth=1.2, zorder=10)
 
@@ -425,7 +425,7 @@ def plot_stellar_seds(temperatures, filters, xarr=None, logg=4.0, ice_model_tabl
                         pt = (fweighted / fluxes.max()).to(u.dimensionless_unscaled).value \
                             if hasattr(fweighted, 'unit') else fweighted / fluxes.max().value
                         ax_zoom.scatter([filter_marker_wl[filt]], [pt],
-                                        marker='s', s=40, facecolor=color,
+                                        marker='s', s=40, facecolor='none',
                                         edgecolor=color, linestyle=linestyle,
                                         linewidth=1.2, zorder=10)
     # Add filter transmission curves to zoom plots (only if creating new axes)

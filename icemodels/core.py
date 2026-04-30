@@ -1144,12 +1144,11 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
         else:
             return np.nan
 
-    # print(interpd, model_data, filter_table['Transmission'])
-    # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
-    result = (interpd * filter_table['Transmission'].value)[valid]
+    weighted = interpd * filter_table['Transmission'].value
+    result = weighted[valid]
     if doplot:
         L, = pl.plot(filtwav, filter_table['Transmission'])
-        pl.plot(filtwav, result, color=L.get_color())
+        pl.plot(filtwav[valid], result, color=L.get_color())
         pl.plot(filtwav, interpd, color=L.get_color())
 
     # looking for average flux over the filter
@@ -1201,8 +1200,9 @@ def fluxes_in_filters(
                      for instrument in ('NIRCam', 'MIRI')
                      for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
 
+    # SvoFps.get_transmission_data takes a single filter ID, not a list.
     if transdata is None:
-        transdata = SvoFps.get_transmission_data(filterids)
+        transdata = {fid: SvoFps.get_transmission_data(fid) for fid in list(filterids)}
 
     fluxes = {fid: convsum(xarr, modeldata, transdata[fid], doplot=doplot)
               for fid in list(filterids)}
