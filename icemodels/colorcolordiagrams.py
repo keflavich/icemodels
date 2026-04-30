@@ -152,6 +152,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
             mols, comps = molscomps(comp)
         except Exception as ex:
             print(f'Error converting composition {comp} to molwt: {ex}')
+            raise ex
             continue
         if icemol in mols:
             mol_frac = comps[mols.index(icemol)] / sum(comps)
@@ -211,12 +212,12 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
                          icemol='CO', abundance_wrt_h2=2e-5, av_start=0,
                          max_column=2e20, max_h2_column=None,
                          nh_to_av=2.21e21, ext=ext, temperature_id=0,
-                         xaxis='icemol', include_dust=False,
+                         xaxis='icemol', include_dust=True,
                          label_author=False, label_temperature=False,
                          ax=None, verbose=False, **kwargs):
     """
-    Plot model color (filter1 - filter2) versus column density for one or
-    more ice compositions.
+    Plot model color (filter1 - filter2) versus column density of H2 for one or
+    more ice compositions assuming a specified abundance.
 
     Parameters
     ----------
@@ -255,6 +256,9 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
     if ax is None:
         ax = pl.gca()
 
+    # Prepare for twinned x-axis
+    twin_ax = None
+
     if max_h2_column is not None:
         if max_column is not None and max_column != 2e20:
             raise ValueError("max_column and max_h2_column cannot both be set")
@@ -289,6 +293,11 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
     assert len(molcomps) == len(molids)
     assert len(molcomps) > 0
 
+
+    # Store for twinning
+    all_icemol_col = None
+    all_h2col = None
+
     for mol_id, (molcomp, temperature) in zip(molids, molcomps):
         if isinstance(mol_id, tuple):
             mol_id, database = mol_id
@@ -309,6 +318,11 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
 
         icemol_col = np.geomspace(1e17, max_column, 50)
         h2col = icemol_col / abundance_wrt_h2
+        # print("DEBUG:", max_column, max_h2_column, h2col.max(), icemol_col.max(), abundance_wrt_h2)
+
+        # Save for twinned axis
+        all_icemol_col = icemol_col
+        all_h2col = h2col
 
         dmag = compute_dmag_from_column(icemol_col, tb, icemol=icemol,
                                         maxcol=max_column,
@@ -330,14 +344,60 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
             label = label + f' {temp}'
         ax.plot(xvals, yvals, label=label, **kwargs)
 
+
     ax.set_xscale('log')
     if xaxis == 'icemol':
         ax.set_xlabel(f'N({icemol}) [cm$^{{-2}}$]')
+        # Add top axis for N(H2)
+        twin_ax = ax.twiny()
+        twin_ax.set_xscale('log')
+        # Set limits to match
+        twin_ax.set_xlim(ax.get_xlim())
+        # Map icemol_col to h2col for ticks
+        if all_icemol_col is not None and all_h2col is not None:
+            # Choose a few ticks for icemol_col, map to h2col
+            ticks = ax.get_xticks()
+            # Remove ticks outside range
+            ticks = ticks[(ticks >= all_icemol_col.min()) & (ticks <= all_icemol_col.max())]
+            twin_ticks = ticks / abundance_wrt_h2
+            twin_ax.set_xticks(ticks)
+            twin_ax.set_xticklabels([f"{val:.1e}" for val in twin_ticks])
+        twin_ax.set_xlabel('N(H$_2$) [cm$^{-2}$]')
     elif xaxis == 'h2':
         ax.set_xlabel('N(H$_2$) [cm$^{-2}$]')
+        # Add top axis for N(icemol)
+        twin_ax = ax.twiny()
+        twin_ax.set_xscale('log')
+        twin_ax.set_xlim(ax.get_xlim())
+        if all_h2col is not None and all_icemol_col is not None:
+            ticks = ax.get_xticks()
+            ticks = ticks[(ticks >= all_h2col.min()) & (ticks <= all_h2col.max())]
+            twin_ticks = ticks * abundance_wrt_h2
+            twin_ax.set_xticks(ticks)
+            twin_ax.set_xticklabels([f"{val:.1e}" for val in twin_ticks])
+        twin_ax.set_xlabel(f'N({icemol}) [cm$^{{-2}}$]')
     else:
         raise ValueError(f"xaxis must be 'icemol' or 'h2', got {xaxis!r}")
     ax.set_ylabel(f'{color[0]} - {color[1]}')
+
+    # Add a third axis below for A_V (always linear)
+    def h2_to_av(h2):
+        return h2 / nh_to_av
+    def av_to_h2(av):
+        return av * nh_to_av
+
+    # The A_V axis should always correspond to N(H2), which is:
+    # - the main axis if xaxis == 'h2'
+    # - the twin axis if xaxis == 'icemol'
+
+    if xaxis == 'h2':
+        av_secax = ax.secondary_xaxis('bottom', functions=(h2_to_av, av_to_h2))
+    else:
+        av_secax = twin_ax.secondary_xaxis('bottom', functions=(h2_to_av, av_to_h2))
+    av_secax.set_xlabel(r'$A_V$',)
+    av_secax.tick_params(axis='x', which='both', pad=5, direction='out')
+    av_secax.spines['bottom'].set_position(('outward', 40))
+
     return ax
 
 
@@ -368,6 +428,7 @@ example_plots = [
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_nodata.png',
+        'icemix_name': 'H2O:CO',
     },
     {
         'color1': ['F182M', 'F212N'],
@@ -388,6 +449,7 @@ example_plots = [
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_nodata.png',
+        'icemix_name': 'H2O:CO',
     },
     {
         'color1': ['F182M', 'F212N'],
@@ -407,6 +469,7 @@ example_plots = [
         'max_column': 5e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_nodata.png',
+        'icemix_name': 'H2O:CO:CO2',
     },
     {
         # This one is totally pointless - it's just a vertical line
@@ -429,6 +492,7 @@ example_plots = [
         'column_to_plot_point': 1e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_pureicenodust_nodata.png',
+        'icemix_name': 'H2O:CO:CO2',
     },
     {
         'color1': ['F182M', 'F212N'],
@@ -444,6 +508,7 @@ example_plots = [
         'column_to_plot_point': 1e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F466N_H2OCOCO2_pureicenodust_nodata_kp5.png',
+        'icemix_name': 'H2O:CO:CO2_kp5',
     },
     # CO/H2O/CO2/CH3OH/CH3CH2OH mixes
     {
@@ -462,6 +527,7 @@ example_plots = [
         'max_column': 2e20,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F466N-F480M_mixes_nodata.png',
+        'icemix_name': 'H2O:CO:CO2:CH3OH:CH3CH2OH',
     },
     # OCN mixes
     {
@@ -480,6 +546,7 @@ example_plots = [
         'max_column': 5e19,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 5e19 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F410M-F466N_OCNmixes_nodata.png',
+        'icemix_name': 'H2O:CO:OCN',
     },
     {
         'color1': ['F182M', 'F212N'],
@@ -507,11 +574,38 @@ example_plots = [
         'label_temperature': True,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 2e19 cm$^{{-2}}$, $N(\\bullet)=1e18 \\mathrm{{cm}}^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_CO2only_nodata.png',
+        'icemix_name': 'CO2only',
     },
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F410M'],
         'axlims': (-0.1, 2.5, -0.2, 0.15),
+        'molcomps': [
+            # ('Curtis', ('H2O (1)', '146K')),
+            ('Bertie', ('H2O (1)', 100)),
+            #('Mastrapa', ('H2O (1)', 100)),
+            ('Kitta', ('H2O (1)', 23)),
+            #('Mastrapa', ('H2O (1)', 50)),
+            ('Hudgins', ('H2O (1)', 80)),
+            ('Hudgins', ('H2O (1)', 10)),
+            ('Léger', ('H2O (1)', 77)),
+            ('Mastrapa', ('H2O (1)', 25)),
+            ('Mastrapa', ('H2O (1)', 20)),
+        ],
+        'icemol': 'H2O',
+        'abundance_wrt_h2': (percent_ice/100.)*oxygen_abundance,
+        'max_column': 1e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"{percent_ice}% of O in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2Oonly_nodata.png',
+        'icemix_name': 'H2Oonly',
+    },
+    {
+        'color1': ['F356W', 'F444W'],
+        'color2': ['F405N', 'F466N'],
+        'axlims': (-0.5, 1.5, -1.5, 1.0),
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
             ('Bertie', ('H2O (1)', 100)),
@@ -529,8 +623,9 @@ example_plots = [
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
-        'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2Oonly_nodata.png',
+        'title': f"{percent_ice}% of O in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
+        'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_H2Oonly_nodata.png',
+        'icemix_name': 'H2Oonly',
     },
     {
         'color1': ['F182M', 'F212N'],
@@ -552,6 +647,7 @@ example_plots = [
         'label_temperature': True,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F182M-F212N_F405N-F410M_H2OandMethanolonly_nodata.png',
+        'icemix_name': 'H2O:CH3OH:CO2',
     },
     {
         'color1': ['F200W', 'F356W'],
@@ -573,6 +669,7 @@ example_plots = [
         'label_temperature': True,
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F200W-F356W_F356W-F444W_H2OandMethanolonly_nodata.png',
+        'icemix_name': 'H2O:CH3OH:CO2',
     }
     # Add more plot configs as needed...
 ]
@@ -624,3 +721,29 @@ if __name__ == "__main__":
             pl.savefig(os.path.join(savefig_path, plot_cfg['filename']),
                        bbox_inches='tight', dpi=150)
             pl.close()
+
+            for color in ([plot_cfg['color1'], plot_cfg['color2']]):
+                pl.figure()
+                ax = plot_color_vs_column(
+                    color=color,
+                    dmag_tbl=dmag_tbl,
+                    molcomps=plot_cfg['molcomps'],
+                    abundance_wrt_h2=plot_cfg['abundance_wrt_h2'],
+                    max_column=plot_cfg['max_column'],
+                    icemol=plot_cfg['icemol'],
+                    label_author=plot_cfg.get('label_author', False),
+                    label_temperature=plot_cfg.get('label_temperature', False),
+                    av_start=plot_cfg.get('av_start', 0),
+                    xaxis='h2',
+                    include_dust=True,
+                    verbose=True,
+                )
+                ax.legend(loc='upper left', bbox_to_anchor=(1, 1, 0, 0))
+
+                ymin, ymax = ax.get_ylim()
+                ax.set_ylim(max(-5, ymin), min(5, ymax))
+
+                pl.title(plot_cfg['title'] + ' (color vs H2 column)')
+                pl.savefig(os.path.join(savefig_path, f'dmag_vs_color_{color[0]}-{color[1]}_{plot_cfg["icemix_name"]}.png'),
+                           bbox_inches='tight', dpi=150)
+                pl.close()
