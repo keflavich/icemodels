@@ -639,6 +639,58 @@ example_plots = [
         'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_H2Oonly_nodata.png',
         'icemix_name': 'H2Oonly',
     },
+    # All pure-H2O variants whose optical-constants tables span [4.0, 4.7] um
+    # with non-zero k (i.e. excluding Curtis/Rajaram/Zhang sub-ranges and Mukai
+    # which starts at 4.17 um). Used to bracket how strongly H2O alone can bias
+    # F405N-F466N color (and therefore CO column inferences).
+    #
+    # Mastrapa T = 40, 50, 60, 80, 100, 120 K are *excluded*: those temperatures
+    # are present twice in the OCDB precomputed table under two different
+    # mol_ids (e.g. 241 and 249 both labeled "Mastrapa H2O 40K", from two
+    # different deposits / annealing histories with different wavelength
+    # coverage). When selected purely by (author, composition, T), the lookup
+    # returns both data sets; sorting by column interleaves them, and the
+    # resulting "path" in color1-color2 space oscillates between the two
+    # measurements rather than being monotonic. Single-mol_id temperatures
+    # (15, 20, 25, 30, 70, 90, 110, 130, 140, 150 K) are clean.
+    {
+        'color1': ['F356W', 'F444W'],
+        'color2': ['F405N', 'F466N'],
+        'axlims': (-0.5, 1.5, -1.5, 1.0),
+        'molcomps': [
+            # amorphous water (cold deposit; Mastrapa T<110, Hudgins T<=100, Kitta, Léger)
+            ('Mastrapa', ('H2O (1)', 15)),
+            ('Mastrapa', ('H2O (1)', 20)),
+            ('Mastrapa', ('H2O (1)', 25)),
+            ('Mastrapa', ('H2O (1)', 30)),
+            ('Mastrapa', ('H2O (1)', 70)),
+            ('Mastrapa', ('H2O (1)', 90)),
+            ('Hudgins', ('H2O (1)', 10)),
+            ('Hudgins', ('H2O (1)', 40)),
+            ('Hudgins', ('H2O (1)', 80)),
+            ('Hudgins', ('H2O (1)', 100)),
+            ('Kitta', ('H2O (1)', 23)),
+            ('Léger', ('H2O (1)', 77)),
+            # crystalline water (annealed/warm; Mastrapa T>=110, Hudgins T>=120, Bertie, Clapp)
+            ('Mastrapa', ('H2O (1)', 110)),
+            ('Mastrapa', ('H2O (1)', 130)),
+            ('Mastrapa', ('H2O (1)', 140)),
+            ('Mastrapa', ('H2O (1)', 150)),
+            ('Hudgins', ('H2O (1)', 120)),
+            ('Hudgins', ('H2O (1)', 140)),
+            ('Bertie', ('H2O (1)', 100)),
+            ('Clapp', ('H2O (1)', 190)),
+        ],
+        'icemol': 'H2O',
+        'abundance_wrt_h2': oxygen_abundance,
+        'max_column': 5e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"Pure H$_2$O, $N_{{H_2O}}$ = {oxygen_abundance:0.1e} N(H$_2$)",
+        'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_H2Oallvariants_nodata.png',
+        'icemix_name': 'H2Oallvariants',
+    },
     {
         'color1': ['F182M', 'F212N'],
         'color2': ['F405N', 'F410M'],
