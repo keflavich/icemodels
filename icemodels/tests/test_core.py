@@ -216,6 +216,55 @@ def test_top_level_exports_for_docs_and_examples():
     assert hasattr(icemodels, 'read_lida_file')
     assert callable(icemodels.read_ocdb_file)
     assert callable(icemodels.read_lida_file)
+    # Wayback / Schutte download wrappers should be exported
+    assert callable(icemodels.download_all_isodb_wayback)
+    assert callable(icemodels.download_all_schutte_wayback)
+    assert callable(icemodels.download_all_schutte_dropbox)
+
+
+def test_resolve_single_mol_id_picks_first_when_ambiguous():
+    """Multiple mol_ids with the same (author, composition, T) must collapse
+    to a single one to prevent the precomputed-table 'two-models-at-once'
+    interleaving that produced non-monotonic color paths."""
+    from astropy.table import Table
+    from icemodels.colorcolordiagrams import _resolve_single_mol_id
+
+    tbl = Table(
+        {
+            'mol_id': [241, 241, 249, 249],
+            'author': ['Mastrapa'] * 4,
+            'composition': ['H2O (1)'] * 4,
+            'temperature': [40.0] * 4,
+            'column': [1e17, 1e18, 1e17, 1e18],
+        }
+    )
+    for col in ('mol_id', 'author', 'composition', 'temperature'):
+        tbl.add_index(col)
+
+    import warnings
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        chosen = _resolve_single_mol_id(tbl, 'Mastrapa', 'H2O (1)', 40.0)
+    assert chosen == 241
+    assert any('mol_ids' in str(w.message) for w in caught)
+
+
+def test_resolve_single_mol_id_unique():
+    from astropy.table import Table
+    from icemodels.colorcolordiagrams import _resolve_single_mol_id
+
+    tbl = Table(
+        {
+            'mol_id': [240, 240],
+            'author': ['Mastrapa', 'Mastrapa'],
+            'composition': ['H2O (1)', 'H2O (1)'],
+            'temperature': [25.0, 25.0],
+            'column': [1e17, 1e18],
+        }
+    )
+    for col in ('mol_id', 'author', 'composition', 'temperature'):
+        tbl.add_index(col)
+    assert _resolve_single_mol_id(tbl, 'Mastrapa', 'H2O (1)', 25.0) == 240
 
 
 # Test for composition_to_molweight

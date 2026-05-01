@@ -2477,6 +2477,115 @@ def find_wayback_ice_data(molecule=None, database=None, use_cached=True):
     return summary_table['filepath'].tolist()
 
 
+def download_all_isodb_wayback(use_cached=True, redo=False):
+    """
+    Download the Leiden Laboratory for Astrophysics ISO ice database (isodb)
+    from the Internet Archive Wayback Machine.
+
+    Files are written to ``optical_constants_cache_dir`` with the prefix
+    ``wayback_isodb_``. The database is no longer hosted at its original URL;
+    this is the standalone per-source wrapper around the combined
+    :func:`retrieve_wayback_ice_tables` retriever.
+
+    Parameters
+    ----------
+    use_cached : bool
+        If True (default) and the cached metadata JSON exists, return it
+        without re-fetching.
+    redo : bool
+        If True, redownload files even when local copies exist.
+
+    Returns
+    -------
+    dict
+        ``{'base_url': ..., 'data_links': [...], 'downloaded_files': [...]}``
+        for the isodb subset of the wayback retriever output.
+
+    See Also
+    --------
+    download_all_schutte_wayback
+        Schutte database equivalent.
+    download_all_schutte_dropbox
+        Schutte database from a Dropbox mirror (preferred when available).
+    retrieve_wayback_ice_tables
+        Underlying combined retriever used by both wayback wrappers.
+    """
+    data = retrieve_wayback_ice_tables(use_cached=use_cached, redo=redo)
+    return data.get('isodb', {'base_url': None, 'data_links': [], 'downloaded_files': []})
+
+
+def download_all_schutte_wayback(use_cached=True, redo=False):
+    """
+    Download the Schutte ice database from the Internet Archive Wayback
+    Machine. Files are cached under ``optical_constants_cache_dir`` with
+    prefix ``wayback_schutte_``.
+
+    See :func:`download_all_isodb_wayback` for parameters and notes.
+    """
+    data = retrieve_wayback_ice_tables(use_cached=use_cached, redo=redo)
+    return data.get('schutte', {'base_url': None, 'data_links': [], 'downloaded_files': []})
+
+
+def download_all_schutte_dropbox(
+    url=('https://www.dropbox.com/scl/fi/w1of19qy3w7cqr0twjd8d/'
+         'schutte_database.zip?rlkey=4o1zynauksm8aj203u4pl8ip3&dl=1'),
+    redo=False,
+):
+    """
+    Download the Schutte ice database from a Dropbox mirror as a zip archive
+    and extract its contents into ``optical_constants_cache_dir`` with the
+    prefix ``schutte_dropbox_``.
+
+    The Dropbox URL is forced to ``dl=1`` so it returns the file rather than
+    the preview page. Existing files are not re-extracted unless ``redo=True``.
+
+    Parameters
+    ----------
+    url : str
+        Direct-download Dropbox URL (with ``dl=1``).
+    redo : bool
+        If True, re-download and re-extract.
+
+    Returns
+    -------
+    list of str
+        Absolute paths of files extracted into the cache directory.
+    """
+    import io
+    import zipfile
+
+    if 'dl=0' in url:
+        url = url.replace('dl=0', 'dl=1')
+    if 'dl=' not in url:
+        sep = '&' if '?' in url else '?'
+        url = f"{url}{sep}dl=1"
+
+    archive_path = os.path.join(optical_constants_cache_dir, 'schutte_dropbox.zip')
+    extracted = []
+
+    if not os.path.exists(archive_path) or redo:
+        resp = requests.get(url, timeout=120)
+        resp.raise_for_status()
+        os.makedirs(optical_constants_cache_dir, exist_ok=True)
+        with open(archive_path, 'wb') as fh:
+            fh.write(resp.content)
+
+    with zipfile.ZipFile(archive_path) as zf:
+        for member in zf.namelist():
+            if member.endswith('/'):
+                continue
+            target = os.path.join(
+                optical_constants_cache_dir,
+                'schutte_dropbox_' + os.path.basename(member),
+            )
+            if not os.path.exists(target) or redo:
+                with zf.open(member) as src, open(target, 'wb') as dst:
+                    dst.write(src.read())
+            extracted.append(target)
+
+    return extracted
+
+
 def load_wayback_ice_data(molecule, database=None, use_cached=True):
     """
     Load ice data for a specific molecule from the wayback machine.
