@@ -2551,7 +2551,6 @@ def download_all_schutte_dropbox(
     list of str
         Absolute paths of files extracted into the cache directory.
     """
-    import io
     import zipfile
 
     if 'dl=0' in url:
