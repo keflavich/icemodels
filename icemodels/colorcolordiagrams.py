@@ -20,6 +20,36 @@ x = np.linspace(1.24*u.um, 5*u.um, 1000)
 pp_ct06 = np.polyfit(x, CT06_MWGC()(x), 7)
 
 
+def _resolve_single_mol_id(dmag_tbl, author, composition, temperature, verbose=False):
+    """
+    Look up a unique mol_id for (author, composition, temperature). The
+    precomputed combined-ice-absorption table can contain multiple distinct
+    mol_ids that share the same (author, composition, temperature) triple
+    (different deposit / annealing histories with different wavelength
+    coverage; e.g. Mastrapa H2O 40 K appears as both mol_id 241 and 249).
+    Selecting by metadata only would return rows from both, and sorting by
+    column would interleave them, producing a non-monotonic 'path' in
+    color-color space. This helper enforces a single mol_id per request: if
+    multiple match, the lowest mol_id is returned and a warning is emitted.
+    """
+    sub = (dmag_tbl
+           .loc['author', author]
+           .loc['composition', composition]
+           .loc['temperature', float(temperature)])
+    ids = np.unique(np.asarray(sub['mol_id']))
+    if ids.size == 0:
+        raise KeyError(f"No mol_id found for ({author!r}, {composition!r}, {temperature} K)")
+    if ids.size > 1:
+        import warnings
+        warnings.warn(
+            f"({author!r}, {composition!r}, {temperature} K) maps to "
+            f"mol_ids {list(map(int, ids))}; using {int(ids[0])}. Specify "
+            f"mol_id explicitly to disambiguate.",
+            stacklevel=2,
+        )
+    return int(ids[0])
+
+
 def compute_molecular_column(unextincted_1m2, dmag_tbl, icemol='CO', filter1='F410M', filter2='F466N',
                              maxcol=1e21, verbose=True):
     dmags1 = dmag_tbl[filter1]
@@ -112,16 +142,13 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
 
     if molcomps is not None:
         if isinstance(molcomps[0][1], tuple):
-            molids = [np.unique(dmag_tbl
-                                .loc['author', author]
-                                .loc['composition', mc]
-                                .loc['temperature', float(tem)]['mol_id'])
+            molids = [_resolve_single_mol_id(dmag_tbl, author, mc, tem, verbose=verbose)
                       for (author, (mc, tem)) in molcomps]
             molcomps = [xx[1] for xx in molcomps]
         else:
-            molids = [np.unique(dmag_tbl
-                                .loc['composition', mc]
-                                .loc['temperature', float(tem)]['mol_id'])
+            molids = [int(np.unique(dmag_tbl
+                                    .loc['composition', mc]
+                                    .loc['temperature', float(tem)]['mol_id'])[0])
                       for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc['mol_id', molids]['composition'])
@@ -282,16 +309,13 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
 
     if molcomps is not None:
         if isinstance(molcomps[0][1], tuple):
-            molids = [np.unique(dmag_tbl
-                                .loc['author', author]
-                                .loc['composition', mc]
-                                .loc['temperature', float(tem)]['mol_id'])
+            molids = [_resolve_single_mol_id(dmag_tbl, author, mc, tem, verbose=verbose)
                       for (author, (mc, tem)) in molcomps]
             molcomps = [xx[1] for xx in molcomps]
         else:
-            molids = [np.unique(dmag_tbl
-                                .loc['composition', mc]
-                                .loc['temperature', float(tem)]['mol_id'])
+            molids = [int(np.unique(dmag_tbl
+                                    .loc['composition', mc]
+                                    .loc['temperature', float(tem)]['mol_id'])[0])
                       for mc, tem in molcomps]
     else:
         molcomps = np.unique(dmag_tbl.loc['mol_id', molids]['composition'])
