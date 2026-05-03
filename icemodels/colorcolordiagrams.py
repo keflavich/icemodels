@@ -442,6 +442,18 @@ solar_carbon_abundance = 10**(8.43-12)  # Asplund et al. 2009, Table 1
 oxygen_abundance = 10**(9.3-12)
 percent_ice = 25  # can be changed per plot if needed
 
+
+def _fmt_sci(value, digits=1):
+    """Format a float as a LaTeX scientific-notation string. Returns
+    e.g. ``2.5\\times10^{-4}`` for value=2.5e-4. The result is intended to be
+    embedded inside a math-mode block (``$...$``) in a plot title."""
+    if value == 0:
+        return "0"
+    s = f"{value:.{digits}e}"          # e.g. '2.5e-04'
+    mantissa, exponent = s.split('e')
+    exp_int = int(exponent)
+    return f"{mantissa}\\times10^{{{exp_int}}}"
+
 # Ice-mix sets used in the paper. Mirrors the lists in
 # brick-jwst-2221/brick2221/analysis/make_ccd_with_icemodels.py so
 # colorcolordiagrams.py can render the corresponding dmag-vs-column / CCD
@@ -501,7 +513,7 @@ def _mix_plot_config(name, molcomps, abundance):
         'label_author': False,
         'label_temperature': False,
         'title': (f"{name}, $N(\\mathrm{{CO}})/N(\\mathrm{{H}}_2)"
-                  f"={abundance:.1e}$"),
+                  f"={_fmt_sci(abundance)}$"),
         'filename': f'CCD_icemodel_F405N-F410M_F405N-F466N_{name}_nodata.png',
         'icemix_name': name,
     }
@@ -777,7 +789,7 @@ example_plots = [
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"Pure H$_2$O, $N_{{H_2O}}$ = {oxygen_abundance:0.1e} N(H$_2$)",
+        'title': f"Pure H$_2$O, $N(\\mathrm{{H_2O}}) = {_fmt_sci(oxygen_abundance)}\\,N(\\mathrm{{H_2}})$",
         'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_H2Oallvariants_nodata.png',
         'icemix_name': 'H2Oallvariants',
     },
@@ -803,7 +815,7 @@ example_plots = [
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"Pure CO, $N_{{CO}}$ = {solar_carbon_abundance:0.1e} N(H$_2$)",
+        'title': f"Pure CO, $N(\\mathrm{{CO}}) = {_fmt_sci(solar_carbon_abundance)}\\,N(\\mathrm{{H_2}})$",
         'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_COallvariants_nodata_solarcarbon.png',
         'icemix_name': 'COallvariants_solarcarbon',
     },
@@ -826,7 +838,7 @@ example_plots = [
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"Pure CO, $N_{{CO}}$ = {carbon_abundance:0.1e} N(H$_2$)",
+        'title': f"Pure CO, $N(\\mathrm{{CO}}) = {_fmt_sci(carbon_abundance)}\\,N(\\mathrm{{H_2}})$",
         'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_COallvariants_nodata.png',
         'icemix_name': 'COallvariants',
     },
@@ -853,7 +865,7 @@ example_plots = [
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
-        'title': f"Pure CO$_2$, $N_{{CO_2}}$ = {carbon_abundance:0.1e} N(H$_2$)",
+        'title': f"Pure CO$_2$, $N(\\mathrm{{CO_2}}) = {_fmt_sci(carbon_abundance)}\\,N(\\mathrm{{H_2}})$",
         'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_CO2allvariants_nodata.png',
         'icemix_name': 'CO2allvariants',
     },
