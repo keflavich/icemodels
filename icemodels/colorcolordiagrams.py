@@ -438,8 +438,74 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
 
 # Constants for abundances and percent ice
 carbon_abundance = 10**(8.7-12)  # = 1e-3.3 = 5e-4
+solar_carbon_abundance = 10**(8.43-12)  # Asplund et al. 2009, Table 1
 oxygen_abundance = 10**(9.3-12)
 percent_ice = 25  # can be changed per plot if needed
+
+# Ice-mix sets used in the paper. Mirrors the lists in
+# brick-jwst-2221/brick2221/analysis/make_ccd_with_icemodels.py so
+# colorcolordiagrams.py can render the corresponding dmag-vs-column / CCD
+# figures from a single source of truth.
+mixes1 = [
+    ('H2O:CO (1:1)', 25.0),
+    ('H2O:CO (3:1)', 25.0),
+    ('H2O:CO (5:1)', 25.0),
+    ('H2O:CO (10:1)', 25.0),
+    ('H2O:CO (20:1)', 25.0),
+    ('H2O:CO:CO2:CH3OH (1:1:0.1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (1:1:0.1:1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.1:1:0.1:1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.01:0.1:0.1:0.1:1)', 25.0),
+]
+mixes2 = [
+    ('H2O:CO:CO2 (1:1:1)', 25.0),
+    ('H2O:CO:CO2 (2:1:1)', 25.0),
+    ('H2O:CO:CO2 (3:1:1)', 25.0),
+    ('H2O:CO:CO2 (5:1:1)', 25.0),
+    ('H2O:CO:CO2 (10:1:1)', 25.0),
+    ('H2O:CO:CO2 (10:1:0.5)', 25.0),
+    ('H2O:CO:CO2 (15:1:1)', 25.0),
+    ('H2O:CO:CO2 (20:1:1)', 25.0),
+    ('H2O:CO:CO2:CH3OH (1:1:1:1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (1:1:1:1:1)', 25.0),
+]
+molcomps_ch3 = [
+    ('CO:HCOOH 1:1', 14.0),
+    ('CO:CH3OH:CH3CHO (20:20:1)', 15.0),
+    ('CO:CH3OH:CH3CH2OH (20:20:1)', 15.0),
+    ('CO:CH3OCH3 (20:1)', 15.0),
+    ('CO:CH3OH:CH3OCH3 (20:20:1)', 15.0),
+    ('H2O:CO:CO2:CH3OH (1:1:0.1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH (1:1:0.1:1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (1:1:0.1:1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (1:1:0.1:0.1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.1:1:0.1:1:0.1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.01:1:0.1:0.1:1)', 25.0),
+    ('H2O:CO:CO2:CH3OH:CH3CH2OH (0.01:0.1:0.1:0.1:1)', 25.0),
+]
+
+
+def _mix_plot_config(name, molcomps, abundance):
+    """Build a plot_configs entry that yields three dmag-vs-color outputs
+    (F405N-F410M, F405N-F466N, F356W-F444W) per mix set."""
+    return {
+        'color1': ['F405N', 'F410M'],
+        'color2': ['F405N', 'F466N'],
+        'extra_dmag_colors': [['F356W', 'F444W']],
+        'axlims': (-0.5, 0.5, -1.5, 1.0),
+        'molcomps': molcomps,
+        'icemol': 'CO',
+        'abundance_wrt_h2': abundance,
+        'max_column': 5e19,
+        'av_start': 0,
+        'label_author': False,
+        'label_temperature': False,
+        'title': (f"{name}, $N(\\mathrm{{CO}})/N(\\mathrm{{H}}_2)"
+                  f"={abundance:.1e}$"),
+        'filename': f'CCD_icemodel_F405N-F410M_F405N-F466N_{name}_nodata.png',
+        'icemix_name': name,
+    }
+
 
 # Example plot configurations
 example_plots = [
@@ -732,8 +798,31 @@ example_plots = [
             ('Palumbo', ('CO (1)', 15.0)),
         ],
         'icemol': 'CO',
+        'abundance_wrt_h2': solar_carbon_abundance,
+        'max_column': 1e20,
+        'av_start': 0,
+        'label_author': True,
+        'label_temperature': True,
+        'title': f"Pure CO, $N_{{CO}}$ = {solar_carbon_abundance:0.1e} N(H$_2$)",
+        'filename': 'CCD_icemodel_F356W-F444W_F405N-F466N_COallvariants_nodata_solarcarbon.png',
+        'icemix_name': 'COallvariants_solarcarbon',
+    },
+    {
+        'color1': ['F356W', 'F444W'],
+        'color2': ['F405N', 'F466N'],
+        'axlims': (-0.5, 1.5, -1.5, 1.0),
+        'molcomps': [
+            ('Baratta', ('CO (1)', 12.5)),
+            ('Ehrenfreund', ('CO (1)', 10.0)),
+            ('Ehrenfreund', ('CO (1)', 30.0)),
+            ('Elsila', ('CO (1)', 12.0)),
+            ('Gerakines', ('CO (1)', 25.0)),
+            ('Hudgins', ('CO (1)', 10.0)),
+            ('Palumbo', ('CO (1)', 15.0)),
+        ],
+        'icemol': 'CO',
         'abundance_wrt_h2': carbon_abundance,
-        'max_column': 5e19,
+        'max_column': 1e20,
         'av_start': 0,
         'label_author': True,
         'label_temperature': True,
@@ -811,7 +900,10 @@ example_plots = [
         'title': f"{percent_ice}% of C in ice, $N_{{max}}$ = 1e20 cm$^{{-2}}$",
         'filename': 'CCD_icemodel_F200W-F356W_F356W-F444W_H2OandMethanolonly_nodata.png',
         'icemix_name': 'H2O:CH3OH:CO2',
-    }
+    },
+    _mix_plot_config('mixes1', mixes1, 2.5e-4),
+    _mix_plot_config('mixes2', mixes2, 2.5e-4),
+    _mix_plot_config('molcomps_ch3', molcomps_ch3, 2.5e-4),
     # Add more plot configs as needed...
 ]
 
@@ -863,7 +955,14 @@ if __name__ == "__main__":
                        bbox_inches='tight', dpi=150)
             pl.close()
 
-            for color in ([plot_cfg['color1'], plot_cfg['color2']]):
+            dmag_color_list = [plot_cfg['color1'], plot_cfg['color2']]
+            for extra in plot_cfg.get('extra_dmag_colors', []):
+                dmag_color_list.append(list(extra))
+            # de-duplicate while preserving order
+            seen = set()
+            dmag_color_list = [c for c in dmag_color_list
+                               if not (tuple(c) in seen or seen.add(tuple(c)))]
+            for color in dmag_color_list:
                 pl.figure()
                 ax = plot_color_vs_column(
                     color=color,
