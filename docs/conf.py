@@ -14,10 +14,120 @@
 import os
 import sys
 import datetime
-from importlib import import_module
+import urllib.request
+import requests
+from importlib.metadata import version as metadata_version
 
 # Add the project root directory to the Python path
 sys.path.insert(0, os.path.abspath('..'))
+
+
+def _setup_minimal_synphot_for_docs():
+    """Download a minimal, correct synphot atmosphere subset for docs builds.
+
+    This ensures PYSYN_CDBS is properly configured before Sphinx-Gallery runs,
+    so gallery scripts can access synphot atmosphere catalogs.
+    """
+    should_prepare = (
+        os.environ.get('READTHEDOCS', '').lower() == 'true'
+        or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
+        or os.environ.get('ICEMODELS_DOCS_PREPARE_SYNPHOT', '') == '1'
+    )
+
+    cdbs_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '_synphot_cdbs'))
+
+    if should_prepare:
+        # Download CDBS files if not already cached
+        os.makedirs(cdbs_root, exist_ok=True)
+
+        base = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs'
+        required_files = [
+            ('grid/phoenix/catalog.fits', f'{base}/grid/phoenix/catalog.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_2000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_2000.fits'),
+            ('grid/phoenix/phoenixm00/phoenixm00_3000.fits', f'{base}/grid/phoenix/phoenixm00/phoenixm00_3000.fits'),
+            ('grid/k93models/catalog.fits', f'{base}/grid/k93models/catalog.fits'),
+            ('grid/k93models/kp00/kp00_4000.fits', f'{base}/grid/k93models/kp00/kp00_4000.fits'),
+            ('grid/k93models/kp00/kp00_5000.fits', f'{base}/grid/k93models/kp00/kp00_5000.fits'),
+        ]
+
+        for relpath, url in required_files:
+            destination = os.path.join(cdbs_root, relpath)
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            if not os.path.exists(destination):
+                urllib.request.urlretrieve(url, destination)
+
+    # Always set PYSYN_CDBS to the docs cache location if it exists
+    # This ensures gallery scripts can find synphot data regardless of environment
+    if os.path.exists(os.path.join(cdbs_root, 'grid')):
+        os.environ['PYSYN_CDBS'] = cdbs_root
+
+
+def _setup_ocdb_files_for_docs():
+    """Ensure required OCDB files used by examples exist for docs builds."""
+    should_prepare = (
+        os.environ.get('READTHEDOCS', '').lower() == 'true'
+        or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true'
+        or os.environ.get('ICEMODELS_DOCS_PREPARE_OCDB', '') == '1'
+    )
+    if not should_prepare:
+        return
+
+    package_data_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', 'icemodels', 'data')
+    )
+    os.makedirs(package_data_dir, exist_ok=True)
+
+    def _is_valid_ocdb_payload(text):
+        return (
+            ('Composition:' in text)
+            and ('Reference:' in text)
+            and (('Wavenumber' in text) or ('Wavelength' in text))
+            and ('<meta http-equiv="x-ua-compatible"' not in text.lower())
+        )
+
+    required_datasets = {
+        85: 'ocdb_85_CO_(1)_10K_Hudgins.txt',
+        1: 'ocdb_1_CO_(1)_12.5K_Baratta.txt',
+        267: 'ocdb_267_CO_(1)_15K_Palumbo.txt',
+        63: 'ocdb_63_CO_(1)_25K_Gerakines.txt',
+        35: 'ocdb_35_CO_(1)_30K_Ehrenfreund.txt',
+    }
+
+    session = requests.Session()
+    session.get('https://ocdb.smce.nasa.gov/search/ice')
+
+    for dataset_id, filename in required_datasets.items():
+        destination = os.path.join(package_data_dir, filename)
+        should_download = True
+
+        if os.path.exists(destination):
+            with open(destination, 'r') as fh:
+                existing_payload = fh.read(4096)
+            if _is_valid_ocdb_payload(existing_payload):
+                should_download = False
+
+        if should_download:
+            url = f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all'
+            response = session.get(url)
+            response.raise_for_status()
+            payload = response.text
+            if not _is_valid_ocdb_payload(payload):
+                if os.path.exists(destination):
+                    os.remove(destination)
+                print(
+                    f"[icemodels docs] Skipping dataset {dataset_id}: downloaded payload from {url} "
+                    "did not match expected OCDB file format."
+                )
+                continue
+            with open(destination, 'w') as fh:
+                fh.write(payload)
+
+
+_setup_minimal_synphot_for_docs()
+_setup_ocdb_files_for_docs()
+
+# Ensure docs/gallery builds do not attempt live DREAM database downloads.
+os.environ.setdefault('ICEMODELS_DOCS_OFFLINE', '1')
 
 # -- Project information -----------------------------------------------------
 project = 'icemodels'
@@ -25,8 +135,7 @@ copyright = '2024, Adam Ginsburg'
 author = 'Adam Ginsburg'
 
 # The full version, including alpha/beta/rc tags
-import icemodels
-release = icemodels.__version__
+release = metadata_version('icemodels')
 version = release.split('-', 1)[0]
 
 # -- General configuration ---------------------------------------------------
@@ -48,15 +157,32 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# Use docs/icemodels/index.rst as the documentation landing page.
+root_doc = 'icemodels/index'
+
 # Ignore specific warnings
 nitpicky = True
 
 # Treat warnings as errors
 nitpick_ignore = []
+nitpick_ignore_regex = [
+    (r'py:class', r'optional'),
+    (r'py:class', r'iterable'),
+    (r'py:class', r'array-like'),
+    (r'py:class', r'array'),
+    (r'py:class', r'Tables'),
+    (r'py:class', r'Quantity'),
+    (r'py:class', r'float/Quantity'),
+    (r'py:class', r'dust_extinction model instance'),
+    (r'py:class', r'matplotlib\.figure\.Figure'),
+    (r'py:class', r'matplotlib\.axes\.Axes'),
+]
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+_docs_dir = os.path.dirname(__file__)
+_static_dir = os.path.join(_docs_dir, '_static')
+html_static_path = ['_static'] if os.path.isdir(_static_dir) else []
 
 # Sphinx-Gallery configuration
 sphinx_gallery_conf = {

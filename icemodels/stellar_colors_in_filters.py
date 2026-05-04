@@ -58,7 +58,8 @@ cmd_x_default = (
 # Define stellar parameter ranges
 # Temperature range from cool M dwarfs to hot O stars
 # temperatures = np.linspace(2000, 50000, 50)  # K
-temperatures = np.geomspace(2000, 10000, 20)
+temperatures = np.geomspace(2000, 8000, 20)
+logg_values = (1, 2, 3, 4)
 
 # Wavelength grid for spectral calculations
 # Extended range to cover all JWST filters: F070W (0.699 μm) to F2550W (25.152 μm)
@@ -85,7 +86,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
     mag_row : dict
         Dictionary with computed magnitudes for each filter and stellar parameters.
     """
-    temperature, xarr, user_cmd_x, user_transdata, user_filter_data, basepath = args
+    temperature, logg, xarr, user_cmd_x, user_transdata, user_filter_data, basepath = args
 
     # Use provided parameters or defaults
     if cmd_x is None:
@@ -96,11 +97,11 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
         filter_data = user_filter_data
 
     # Generate stellar atmosphere model
-    stellar_model = atmo_model(temperature, xarr=xarr)
+    stellar_model = atmo_model(temperature, xarr=xarr, logg=logg, model_grid='phoenix')
 
     # Calculate fluxes in filters
     fluxes = fluxes_in_filters(xarr, stellar_model['fnu'].quantity,
-                                filterids=cmd_x, transdata=transdata)
+                               filterids=cmd_x, transdata=transdata)
 
     # Calculate magnitudes
     mags = {}
@@ -117,6 +118,7 @@ def process_stellar_model(args, cmd_x=None, transdata=None, filter_data=None):
     # Create result row
     mag_row = {
         'temperature': temperature,
+        'logg': logg,
         'model_type': 'stellar_atmosphere',
         'spectral_type': get_spectral_type(temperature),
     }
@@ -161,13 +163,15 @@ if __name__ == '__main__':
 
     # Define the filter set globally for reuse
     cmd_x = cmd_x_default
+    # zero points for Vega magnitude system
     filter_data = {fid: float(jfilts.loc[fid]['ZeroPoint']) for fid in cmd_x}
     transdata = {fid: SvoFps.get_transmission_data(fid) for fid in cmd_x}
 
     # Create list of all stellar models to process
     all_models = []
     for temp in temperatures:
-        all_models.append((temp, xarr, cmd_x, transdata, filter_data, basepath))
+        for logg in logg_values:
+            all_models.append((temp, logg, xarr, cmd_x, transdata, filter_data, basepath))
 
     # Process all models in parallel
     results = process_map(partial(process_stellar_model, cmd_x=cmd_x, transdata=transdata, filter_data=filter_data),
@@ -199,7 +203,31 @@ if __name__ == '__main__':
 
     # Add some useful indices
     mag_tbl.add_index('temperature')
+    mag_tbl.add_index('logg')
     mag_tbl.add_index('spectral_type')
+
+    # Print summary statistics
+    print("\nSummary by spectral type:")
+    for spec_type in np.unique(mag_tbl['spectral_type']):
+        mask = mag_tbl['spectral_type'] == spec_type
+        temp_range = f"{mag_tbl[mask]['temperature'].min():.0f}-{mag_tbl[mask]['temperature'].max():.0f}K"
+        count = np.sum(mask)
+        print(f"  {spec_type}: {count} models ({temp_range})")
+
+    print("\nSummary by logg:")
+    for logg in np.unique(mag_tbl['logg']):
+        mask = mag_tbl['logg'] == logg
+        temp_range = f"{mag_tbl[mask]['temperature'].min():.0f}-{mag_tbl[mask]['temperature'].max():.0f}K"
+        count = np.sum(mask)
+        print(f"  logg={logg}: {count} models ({temp_range})")
+
+    # Verify we have magnitudes for key filters
+    key_filters = ['F212N', 'F444W', 'F1000W']
+    for filt in key_filters:
+        if filt in mag_tbl.colnames:
+            print(f"✓ {filt} magnitudes available")
+        else:
+            print(f"✗ {filt} magnitudes missing")
 
     colors = [['F182M', 'F210M'], ['F405N', 'F466N'], ['F356W', 'F444W']]
     for color_pair in colors:
@@ -207,5 +235,4 @@ if __name__ == '__main__':
         mag_tbl[color_name] = mag_tbl[color_pair[0]] - mag_tbl[color_pair[1]]
 
     inds = ['temperature'] + [color_name for color_name in [f"{cp[0]}-{cp[1]}" for cp in colors]]
-
     print(mag_tbl[inds])

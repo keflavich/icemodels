@@ -20,6 +20,7 @@ import astropy.io.ascii.core
 from tqdm.auto import tqdm
 from pylatexenc.latex2text import LatexNodes2Text
 from molmass import Formula
+import warnings
 
 cache = {}
 optical_constants_cache_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -173,26 +174,168 @@ lida_molname_lookup = {
     'H2O 3000 L': 'H2O',
 }
 
-def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um):
-    """
-    Use https://github.com/astrofrog/mysg to load Kurucz & Phoenix models and interpolate them
-    to a specified temperature.
 
-    Then, interpolate those onto a finely-sampled(ish) wavelength grid that covers the JWST filters.
+PHOENIX_BASE_URL = 'https://archive.stsci.edu/hlsps/reference-atlases/cdbs/grid/phoenix'
+PHOENIX_CATALOG_URL = f'{PHOENIX_BASE_URL}/catalog.fits'
+PHOENIX_METALLICITY_DIRS = {
+    0.0: 'phoenixm00',
+    0.3: 'phoenixp03',
+}
 
-    (the default spectral grid has essentially no sampling from 10-25 microns)
+
+def _phoenix_metallicity_dir(metallicity):
+    metallicity = float(metallicity)
+    for mh, dirname in PHOENIX_METALLICITY_DIRS.items():
+        if np.isclose(metallicity, mh, atol=1e-6):
+            return dirname
+    return None
+
+
+def _download_file(url, filename):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.exists(filename) and os.path.getsize(filename) > 0:
+        return filename
+
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(filename, 'wb') as fout:
+        for chunk in response.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                fout.write(chunk)
+    return filename
+
+
+def _list_remote_phoenix_temperatures(metallicity_dir):
+    response = requests.get(f'{PHOENIX_BASE_URL}/{metallicity_dir}/')
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    temps = []
+    pattern = re.compile(rf'{metallicity_dir}_(\d+)\.fits$')
+    for anchor in soup.find_all('a'):
+        href = anchor.get('href', '')
+        basename = os.path.basename(href.rstrip('/'))
+        match = pattern.match(basename)
+        if match:
+            temps.append(int(match.group(1)))
+    return sorted(set(temps))
+
+
+def _select_bracketing_temperatures(temperature, available_temperatures):
+    if not available_temperatures:
+        return []
+
+    target = int(round(float(temperature)))
+    arr = np.array(available_temperatures, dtype=int)
+    if target in arr:
+        return [target]
+
+    lower = arr[arr < target]
+    upper = arr[arr > target]
+
+    selected = []
+    if lower.size > 0:
+        selected.append(int(lower.max()))
+    if upper.size > 0:
+        selected.append(int(upper.min()))
+
+    if not selected:
+        selected = [int(arr[np.argmin(np.abs(arr - target))])]
+
+    return selected
+
+
+def _ensure_phoenix_reference_data(pysyn_root, temperature, metallicity):
+    phoenix_root = os.path.join(pysyn_root, 'grid', 'phoenix')
+    os.makedirs(phoenix_root, exist_ok=True)
+
+    _download_file(PHOENIX_CATALOG_URL, os.path.join(phoenix_root, 'catalog.fits'))
+
+    metallicity_dir = _phoenix_metallicity_dir(metallicity)
+    if metallicity_dir is None:
+        return
+
+    local_metallicity_root = os.path.join(phoenix_root, metallicity_dir)
+    os.makedirs(local_metallicity_root, exist_ok=True)
+
+    available_temperatures = _list_remote_phoenix_temperatures(metallicity_dir)
+    needed_temperatures = _select_bracketing_temperatures(temperature, available_temperatures)
+
+    for temp in needed_temperatures:
+        filename = f'{metallicity_dir}_{temp}.fits'
+        url = f'{PHOENIX_BASE_URL}/{metallicity_dir}/{filename}'
+        destination = os.path.join(local_metallicity_root, filename)
+        _download_file(url, destination)
+
+
+def atmo_model(temperature, xarr=np.linspace(1, 28, 15000) * u.um, logg=4.0,
+               metallicity=0.0, model_grid=None,
+               pysyn_cdbs=os.getenv('PYSYN_CDBS', '').strip()):
     """
-    import mysg
-    mod = Table(mysg.atmosphere.interp_atmos(temperature))
-    mod['nu'].unit = u.Hz
-    mod['fnu'].unit = u.erg / u.s / u.cm**2 / u.Hz
-    inds = np.argsort(mod['nu'])
-    xarrhz = xarr.to(u.Hz, u.spectral())
+    Load a stellar atmosphere model with stsynphot catalogs and interpolate it
+    onto the requested wavelength grid.
+
+    Parameters
+    ----------
+    temperature : float
+        Stellar effective temperature in Kelvin.
+    xarr : `astropy.units.Quantity`
+        Wavelength grid on which to evaluate the model.
+    logg : float
+        Surface gravity (log g) for the atmosphere grid query.
+    metallicity : float
+        Metallicity [M/H] passed to stsynphot catalog lookup. Default is 0.0 (solar).
+    model_grid : str or None
+        stsynphot catalog name (e.g., 'phoenix', 'k93models').
+        If None, uses 'phoenix' for all temperatures.
+    pysyn_cdbs : str
+        Root directory for synphot reference files (PYSYN_CDBS).
+        If None, uses ``$PYSYN_CDBS`` when set, otherwise a writable cache
+        directory in ``~/.astropy/cache/icemodels/synphot_cdbs``.
+
+    Returns
+    -------
+    mod : `astropy.table.Table`
+        Table with columns ``nu`` and ``fnu`` in cgs units, evaluated on ``xarr``.
+    """
+    if model_grid is None:
+        model_grid = 'phoenix'
+
+    pysyn_root = pysyn_cdbs or os.environ.get('PYSYN_CDBS', '').strip()
+    os.environ['PYSYN_CDBS'] = pysyn_root
+
+    if model_grid == 'phoenix':
+        _ensure_phoenix_reference_data(pysyn_root, temperature=temperature, metallicity=metallicity)
+
+    catalog_path = os.path.join(pysyn_root, 'grid', model_grid, 'catalog.fits')
+    if not os.path.exists(catalog_path):
+        raise FileNotFoundError(
+            f"Required stsynphot atmosphere catalog not found at {catalog_path}. "
+            "Set PYSYN_CDBS to a valid CDBS root with grid catalogs installed."
+        )
+
+    import stsynphot.catalog as stsyn_catalog
+    from synphot import units as syn_units
+
+    source_spectrum = stsyn_catalog.grid_to_spec(model_grid, temperature, metallicity, logg)
+    wavelength_angstrom = xarr.to(u.AA)
+    flux_photlam = source_spectrum(wavelength_angstrom)
+    flux_fnu = syn_units.convert_flux(
+        wavelength_angstrom,
+        flux_photlam,
+        u.erg / u.s / u.cm**2 / u.Hz
+    )
+
     mod = Table({
-        'fnu': np.interp(xarrhz, mod['nu'].quantity[inds],
-                         mod['fnu'].quantity[inds], left=0, right=0),
-        'nu': xarrhz
-    }, meta={'temperature': temperature})
+        'fnu': flux_fnu,
+        'nu': xarr.to(u.Hz, u.spectral())
+    }, meta={
+        'temperature': temperature,
+        'logg': logg,
+        'metallicity': metallicity,
+        'model_grid': model_grid,
+        'pysyn_cdbs': os.environ.get('PYSYN_CDBS', '')
+    })
 
     return mod
 
@@ -201,6 +344,9 @@ def load_molecule(molname):
     """
     Load a molecule based on its name from the dictionary of molecular data files above.
     """
+    warnings.warn("load_molecule is deprecated as it's too simple an interface.  "
+                  "Instead, use read_{database}_file functions directly.",
+                  DeprecationWarning)
     if molname in cache:
         return cache[molname]
     url = molecule_data[molname]['url']
@@ -309,8 +455,8 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
             raise ValueError(f"File {filename} has no source metadata, so meta_row must be provided.")
 
     else:
-        #url = univap_molecule_data[molname]['url']
-        #molid = url.split('/')[-1].split('.')[0]
+        # url = univap_molecule_data[molname]['url']
+        # molid = url.split('/')[-1].split('.')[0]
 
         consts = Table.read(url, format='ascii', data_start=3)
 
@@ -331,7 +477,6 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
         consts.rename_column(col4, 'n')
         consts['Wavelength'] = consts['WaveNum'].quantity.to(
             u.um, u.spectral())
-
 
     consts['Wavelength'].unit = u.um
     consts['WaveNum'].unit = u.cm**-1
@@ -432,28 +577,70 @@ def download_all_ocdb(n_ocdb=298, redo=False):
     S.get('https://ocdb.smce.nasa.gov/search/ice')
 
     for ii in tqdm(range(1, n_ocdb + 1)):
-        if not redo and len(
-            glob.glob(
-                os.path.join(optical_constants_cache_dir, f'ocdb_{ii}*'))) > 0:
-            # note that this can miss important parameters when there are many
-            # temperatures
-            continue
-        resp = S.get(
-            f'https://ocdb.smce.nasa.gov/dataset/{ii}/download-data/all')
-        for row in resp.text.split("\n"):
-            if row.startswith('Composition:'):
-                molname = shlex.split(row)[1]
-            if row.startswith('Temperature:'):
-                temperature = shlex.split(row)[1]
-            if row.startswith('Reference:'):
-                reference = shlex.split(row)[1].split()[0]
+        _download_ocdb_dataset(ii, session=S, redo=redo)
 
-        filename = os.path.join(optical_constants_cache_dir, f'ocdb_{ii}_{molname}_{temperature}_{reference}.txt')
-        filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
-        filename = filename.replace('"', '')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as fh:
-            fh.write(resp.text)
+
+def download_ocdb_subset(dataset_ids, redo=False):
+    """Download and cache only selected OCDB dataset IDs.
+
+    Parameters
+    ----------
+    dataset_ids : iterable of int
+        Dataset indices from OCDB (e.g., ``[85, 86, 107]``).
+    redo : bool
+        If ``True``, overwrite cached local files.
+
+    Returns
+    -------
+    list of str
+        Local file paths for downloaded (or cached) datasets.
+    """
+    S = requests.Session()
+    S.get('https://ocdb.smce.nasa.gov/search/ice')
+
+    filenames = []
+    for dataset_id in dataset_ids:
+        filename = _download_ocdb_dataset(int(dataset_id), session=S, redo=redo)
+        filenames.append(filename)
+
+    return filenames
+
+
+def _download_ocdb_dataset(dataset_id, session, redo=False):
+    """Download a single OCDB dataset and return the local filename."""
+    cached_files = glob.glob(os.path.join(optical_constants_cache_dir, f'ocdb_{dataset_id}*'))
+    if not redo and cached_files:
+        return cached_files[0]
+
+    resp = session.get(f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all')
+    molname = 'unknown'
+    temperature = 'unknown'
+    reference = 'unknown'
+    for row in resp.text.split("\n"):
+        if row.startswith('Composition:'):
+            molname = shlex.split(row)[1]
+        if row.startswith('Temperature:'):
+            temperature = shlex.split(row)[1]
+        if row.startswith('Reference:'):
+            reference = shlex.split(row)[1].split()[0]
+
+    if molname == 'unknown' or temperature == 'unknown' or reference == 'unknown':
+        raise ValueError(
+            f"Could not parse metadata from OCDB response for dataset {dataset_id}. "
+            f"Parsed values: molname={molname}, temperature={temperature}, reference={reference}"
+        )
+
+    filename = os.path.join(
+        optical_constants_cache_dir,
+        f'ocdb_{dataset_id}_{molname}_{temperature}_{reference}.txt'
+    )
+    filename = filename.replace(" ", "_").replace("'", "").replace('\\', '')
+    filename = filename.replace('"', '')
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, 'w') as fh:
+        fh.write(resp.text)
+
+    return filename
 
 
 def read_ocdb_file(filename):
@@ -465,11 +652,15 @@ def read_ocdb_file(filename):
     .. code-block:: python
 
         import icemodels
-        icemodels.download_all_ocdb()
-        tb = icemodels.read_ocdb_file(
-            f'{icemodels.optical_constants_cache_dir}/240_H2O_(1)_25K_Mastrapa.txt'
-        )
+        import glob
+        icemodels.download_ocdb_subset([107])
+        filename = glob.glob(
+            f'{icemodels.optical_constants_cache_dir}/ocdb_107*'
+        )[0]
+        tb = icemodels.read_ocdb_file(filename)
     """
+    filename = os.fspath(filename)
+
     for ii in range(5, 15):
         try:
             # new header data appear to be added from time to time
@@ -545,7 +736,7 @@ def read_ocdb_file(filename):
     return tb
 
 
-#@deprecated(details="Use download_all_ocdb() and read_ocdb_file() instead.")
+# @deprecated(details="Use download_all_ocdb() and read_ocdb_file() instead.")
 def load_molecule_ocdb(molname, temperature=10):
     """
     Load a molecule from the OCDB by performing a query.
@@ -759,14 +950,16 @@ def cde_correct(freq, m):
     return cabs, cabs_vol, cscat_vol, ctot
 
 
-phx4000 = atmo_model(4000)
+def _default_stellar_reference_model():
+    """Return a 4000 K reference atmosphere model lazily."""
+    return atmo_model(4000)
 
 
 def absorbed_spectrum(
     ice_column,
     ice_model_table,
-    spectrum=phx4000['fnu'],
-    xarr=u.Quantity(phx4000['nu'], u.Hz).to(u.um, u.spectral()),
+    spectrum=None,
+    xarr=None,
     molecular_weight=44 * u.Da,
     minimum_tau=0,
     return_tau=False
@@ -791,6 +984,13 @@ def absorbed_spectrum(
     return_tau : bool
         If True, return the tau rather than the absorbed spectrum
     """
+    if spectrum is None or xarr is None:
+        reference_model = _default_stellar_reference_model()
+        if spectrum is None:
+            spectrum = reference_model['fnu']
+        if xarr is None:
+            xarr = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
+
     xarr_icm = xarr.to(u.cm**-1, u.spectral())
     # not used dx_icm = np.abs(xarr_icm[1]-xarr_icm[0])
     inds = np.argsort(ice_model_table['Wavelength'].quantity)
@@ -837,17 +1037,12 @@ def isscalar(x):
     return np.isscalar(x) or (hasattr(x, 'isscalar') and x.isscalar)
 
 
-def absorbed_spectrum_Gaussians(
-    ice_column,
-    center,
-    width,
-    ice_bandstrength,
-    spectrum=phx4000['fnu'],
-    xarr=u.Quantity(
-        phx4000['nu'],
-        u.Hz).to(
-            u.um,
-        u.spectral())):
+def absorbed_spectrum_Gaussians(ice_column,
+                                center,
+                                width,
+                                ice_bandstrength,
+                                spectrum=None,
+                                xarr=None):
     """
     Calculate the absorbed spectrum using Gaussian absorption bands.
 
@@ -871,6 +1066,13 @@ def absorbed_spectrum_Gaussians(
     absorbed_spectrum : `numpy.ndarray`
         The absorbed spectrum
     """
+    if spectrum is None or xarr is None:
+        reference_model = _default_stellar_reference_model()
+        if spectrum is None:
+            spectrum = reference_model['fnu']
+        if xarr is None:
+            xarr = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
+
     tau = np.zeros(xarr.size)
 
     cens, wids, strengths = center, width, ice_bandstrength
@@ -942,12 +1144,11 @@ def convsum(xarr, model_data, filter_table, finite_only=True, doplot=False):
         else:
             return np.nan
 
-    # print(interpd, model_data, filter_table['Transmission'])
-    # print(interpd.max(), model_data.max(), filter_table['Transmission'].max())
-    result = (interpd * filter_table['Transmission'].value)[valid]
+    weighted = interpd * filter_table['Transmission'].value
+    result = weighted[valid]
     if doplot:
         L, = pl.plot(filtwav, filter_table['Transmission'])
-        pl.plot(filtwav, result, color=L.get_color())
+        pl.plot(filtwav[valid], result, color=L.get_color())
         pl.plot(filtwav, interpd, color=L.get_color())
 
     # looking for average flux over the filter
@@ -999,8 +1200,9 @@ def fluxes_in_filters(
                      for instrument in ('NIRCam', 'MIRI')
                      for x in SvoFps.get_filter_list(telescope, instrument=instrument)['filterID']]
 
+    # SvoFps.get_transmission_data takes a single filter ID, not a list.
     if transdata is None:
-        transdata = SvoFps.get_transmission_data(filterids)
+        transdata = {fid: SvoFps.get_transmission_data(fid) for fid in list(filterids)}
 
     fluxes = {fid: convsum(xarr, modeldata, transdata[fid], doplot=doplot)
               for fid in list(filterids)}
@@ -1060,7 +1262,7 @@ def download_all_lida(
         redo=False,
         baseurl='https://icedb.strw.leidenuniv.nl',
         download_optcon=True,
-        ):
+):
     S = requests.Session()
 
     if redo or not os.path.exists(
@@ -1132,7 +1334,7 @@ def download_all_lida(
         # ML = monolayer?
         # 1 L =10^15 mol/cm^2 = 1 monolayer, from van Broekhuizen 2006 pg 725 table 1
         ice_thickness = soup.find('strong', string='Ice thickness: ').next_sibling.text.strip()
-        #if ice_thickness.endswith('ML'):
+        # if ice_thickness.endswith('ML'):
         #    ice_thickness = float(ice_thickness.replace('ML', '')) * monolayer
 
         ice_column_density = soup.find('strong', string='Ice column density: ').next_sibling.text.strip()
@@ -1222,15 +1424,14 @@ def read_lida_file(filename, ice_thickness=None):
     kay = (tb['absorbance'] * 2.3 / (4 * np.pi * ice_depth * tb['Wavenumber'].quantity)).decompose()
     assert kay.unit.is_equivalent(u.dimensionless_unscaled)
 
-
     # use https://icedb.strw.leidenuniv.nl/Kramers_Kronig to derive k
     # inspired by, but not using at all, https://github.com/leiden-laboratory-for-astrophysics/refractive-index
     # This all turns out to be wrong by ~20 orders of magnitude
-    #alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
-    #imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
-    #tb['k'] = imag
-    #alpha = 1/ice_thickness.to(u.cm**-2).value * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
-    #kay = imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    # alpha = 1/thickness * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    # imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
+    # tb['k'] = imag
+    # alpha = 1/ice_thickness.to(u.cm**-2).value * (2.3 * tb['absorbance'] + 2 * np.log(1/10**tb['absorbance']))
+    # kay = imag = alpha / (12.5 * tb['Wavenumber'].quantity.to(u.cm**-1).value)
 
     tb.add_column(kay, name='k', )
     tb.meta['k_comment'] = 'The complex refractive index is estimated from the provided ice depth data using k = A * ln(10) / (4 pi wavenumber d), where A is absorbance, lambda is wavelength, and d is the ice depth.  We assume the ice has a density of 1 g/cm^3 and a molar mass of the composition.'
@@ -1438,7 +1639,7 @@ def download_lida_optcon(
                         raise ValueError(f"Unknown spectrum type for {compound_id} {compound_name} {temperature} {parent_text}")
 
                     outfn = os.path.join(optical_constants_cache_dir,
-                                       f'lida_optcon_{compound_id}_{compound_name}_{temperature}_{spectrum_type}.txt')
+                                         f'lida_optcon_{compound_id}_{compound_name}_{temperature}_{spectrum_type}.txt')
                     outfn = outfn.replace(' ', '_').replace(':', '_')
 
                     os.makedirs(os.path.dirname(outfn), exist_ok=True)
@@ -1506,7 +1707,6 @@ def read_lida_optcon_file_(filename):
         if first_line.startswith('# '):
             meta = json.loads(first_line.lstrip('# '))
 
-
     # Read the data starting from line 1 (after metadata)
     tb = ascii.read(filename, data_start=1)
     tb.meta.update(meta)
@@ -1544,10 +1744,10 @@ def retrieve_kp5():
         url = 'https://content.cld.iop.org/journals/2515-5172/8/3/68/revision2/rnaasad303ff1.tar.gz'
         response = requests.get(url)
         response.raise_for_status()
-        with tempfile.NamedTemporaryFile(delete=True) as tempfile:
-            with open(tempfile.name, 'wb') as fh:
+        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+            with open(temp_file.name, 'wb') as fh:
                 fh.write(response.content)
-            with tarfile.open(tempfile.name) as fh:
+            with tarfile.open(temp_file.name) as fh:
                 kp5 = fh.extractfile('kp5.fits')
                 with open(f'{optical_constants_cache_dir}/kp5.fits', 'wb') as fh:
                     fh.write(kp5.read())
@@ -1576,11 +1776,21 @@ def get_dream_meta_table(
     astropy.table.Table
         Metadata table with columns for composition, ratio, data type, reference, and URL
     """
+    docs_offline_mode = os.environ.get('ICEMODELS_DOCS_OFFLINE', '') == '1'
+
     if 'dream_meta_table' in cache:
         return cache['dream_meta_table']
     elif use_cached and os.path.exists(
             os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv')):
-        return Table.read(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'))
+        meta_table = Table.read(os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv'))
+        cache['dream_meta_table'] = meta_table
+        return meta_table
+
+    if docs_offline_mode:
+        raise FileNotFoundError(
+            f"DREAM metadata cache missing at {os.path.join(optical_constants_cache_dir, 'dream_meta_table.ecsv')} "
+            "while ICEMODELS_DOCS_OFFLINE=1."
+        )
 
     # Fetch the webpage
     resp = requests.get(dream_url)
@@ -1741,11 +1951,11 @@ def read_dream_file(filename):
 
     Examples
     --------
-    >>> import icemodels
-    >>> icemodels.download_all_dream()
-    >>> data = icemodels.read_dream_file(
+    >>> import icemodels  # doctest: +SKIP
+    >>> icemodels.download_all_dream()  # doctest: +SKIP
+    >>> data = icemodels.read_dream_file(  # doctest: +SKIP
     ...     f'{icemodels.optical_constants_cache_dir}/dream_H2O_CO2_100_14_Dartois_et_al_2022.txt'
-    ... )
+    ... )  # doctest: +SKIP
     """
     meta = {}
 
@@ -1845,12 +2055,14 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 
     Examples
     --------
-    >>> import icemodels
+    >>> import icemodels  # doctest: +SKIP
     >>> # Download all DREAM data first
-    >>> icemodels.download_all_dream()
+    >>> icemodels.download_all_dream()  # doctest: +SKIP
     >>> # Load specific composition
-    >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')
+    >>> data = icemodels.load_molecule_dream('H2O : CO2', ratio='100 : 14')  # doctest: +SKIP
     """
+    docs_offline_mode = os.environ.get('ICEMODELS_DOCS_OFFLINE', '') == '1'
+
     if use_cached:
         # Search for matching files
         pattern = composition.replace(':', '_').replace(' ', '_')
@@ -1865,6 +2077,14 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 
             if files:
                 return read_dream_file(files[0])
+
+    if docs_offline_mode:
+        pattern = composition.replace(':', '_').replace(' ', '_')
+        raise FileNotFoundError(
+            f"No cached DREAM data found for composition={composition!r}, ratio={ratio!r}. "
+            f"Expected files matching {os.path.join(optical_constants_cache_dir, f'dream_{pattern}*')} "
+            "while ICEMODELS_DOCS_OFFLINE=1."
+        )
 
     # If not cached, download from the database
     meta_table = get_dream_meta_table()
@@ -1931,6 +2151,7 @@ def load_molecule_dream(composition, ratio=None, use_cached=True):
 #   # Load ice data for a specific molecule
 #   h2o_tables = icemodels.load_wayback_ice_data('H2O')
 
+
 def retrieve_wayback_ice_tables(use_cached=True, redo=False):
     """
     Retrieve ice opacity tables from the old Leiden ice databases via the wayback machine.
@@ -1967,6 +2188,8 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
         'schutte': 'https://web.archive.org/web/20050212070342/http://www.strw.leidenuniv.nl/~schutte/database/'
     }
 
+    data_extensions = ['.dat', '.txt', '.csv']
+
     cache_file = os.path.join(optical_constants_cache_dir, 'wayback_ice_tables.json')
 
     # Check if we have cached metadata
@@ -1998,7 +2221,6 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                 'filename': os.path.basename(urlparse(href).path),
                 'text': link.get_text(strip=True)
             })
-
 
         retrieved_data[db_name] = {
             'base_url': base_url,
@@ -2035,7 +2257,7 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                                         extracted_file = tar.extractfile(member)
                                         if extracted_file:
                                             extracted_filename = os.path.join(optical_constants_cache_dir,
-                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                                                              f'wayback_{db_name}_{os.path.basename(member.name)}')
                                             with open(extracted_filename, 'wb') as fh:
                                                 fh.write(extracted_file.read())
                                             retrieved_data[db_name]['downloaded_files'].append(extracted_filename)
@@ -2046,7 +2268,7 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
                                         extracted_file = tar.extractfile(member)
                                         if extracted_file:
                                             extracted_filename = os.path.join(optical_constants_cache_dir,
-                                                                            f'wayback_{db_name}_{os.path.basename(member.name)}')
+                                                                              f'wayback_{db_name}_{os.path.basename(member.name)}')
                                             with open(extracted_filename, 'wb') as fh:
                                                 fh.write(extracted_file.read())
                                             retrieved_data[db_name]['downloaded_files'].append(extracted_filename)
@@ -2253,6 +2475,114 @@ def find_wayback_ice_data(molecule=None, database=None, use_cached=True):
         return matching_files
 
     return summary_table['filepath'].tolist()
+
+
+def download_all_isodb_wayback(use_cached=True, redo=False):
+    """
+    Download the Leiden Laboratory for Astrophysics ISO ice database (isodb)
+    from the Internet Archive Wayback Machine.
+
+    Files are written to ``optical_constants_cache_dir`` with the prefix
+    ``wayback_isodb_``. The database is no longer hosted at its original URL;
+    this is the standalone per-source wrapper around the combined
+    :func:`retrieve_wayback_ice_tables` retriever.
+
+    Parameters
+    ----------
+    use_cached : bool
+        If True (default) and the cached metadata JSON exists, return it
+        without re-fetching.
+    redo : bool
+        If True, redownload files even when local copies exist.
+
+    Returns
+    -------
+    dict
+        ``{'base_url': ..., 'data_links': [...], 'downloaded_files': [...]}``
+        for the isodb subset of the wayback retriever output.
+
+    See Also
+    --------
+    download_all_schutte_wayback
+        Schutte database equivalent.
+    download_all_schutte_dropbox
+        Schutte database from a Dropbox mirror (preferred when available).
+    retrieve_wayback_ice_tables
+        Underlying combined retriever used by both wayback wrappers.
+    """
+    data = retrieve_wayback_ice_tables(use_cached=use_cached, redo=redo)
+    return data.get('isodb', {'base_url': None, 'data_links': [], 'downloaded_files': []})
+
+
+def download_all_schutte_wayback(use_cached=True, redo=False):
+    """
+    Download the Schutte ice database from the Internet Archive Wayback
+    Machine. Files are cached under ``optical_constants_cache_dir`` with
+    prefix ``wayback_schutte_``.
+
+    See :func:`download_all_isodb_wayback` for parameters and notes.
+    """
+    data = retrieve_wayback_ice_tables(use_cached=use_cached, redo=redo)
+    return data.get('schutte', {'base_url': None, 'data_links': [], 'downloaded_files': []})
+
+
+def download_all_schutte_dropbox(
+    url=('https://www.dropbox.com/scl/fi/w1of19qy3w7cqr0twjd8d/'
+         'schutte_database.zip?rlkey=4o1zynauksm8aj203u4pl8ip3&dl=1'),
+    redo=False,
+):
+    """
+    Download the Schutte ice database from a Dropbox mirror as a zip archive
+    and extract its contents into ``optical_constants_cache_dir`` with the
+    prefix ``schutte_dropbox_``.
+
+    The Dropbox URL is forced to ``dl=1`` so it returns the file rather than
+    the preview page. Existing files are not re-extracted unless ``redo=True``.
+
+    Parameters
+    ----------
+    url : str
+        Direct-download Dropbox URL (with ``dl=1``).
+    redo : bool
+        If True, re-download and re-extract.
+
+    Returns
+    -------
+    list of str
+        Absolute paths of files extracted into the cache directory.
+    """
+    import zipfile
+
+    if 'dl=0' in url:
+        url = url.replace('dl=0', 'dl=1')
+    if 'dl=' not in url:
+        sep = '&' if '?' in url else '?'
+        url = f"{url}{sep}dl=1"
+
+    archive_path = os.path.join(optical_constants_cache_dir, 'schutte_dropbox.zip')
+    extracted = []
+
+    if not os.path.exists(archive_path) or redo:
+        resp = requests.get(url, timeout=120)
+        resp.raise_for_status()
+        os.makedirs(optical_constants_cache_dir, exist_ok=True)
+        with open(archive_path, 'wb') as fh:
+            fh.write(resp.content)
+
+    with zipfile.ZipFile(archive_path) as zf:
+        for member in zf.namelist():
+            if member.endswith('/'):
+                continue
+            target = os.path.join(
+                optical_constants_cache_dir,
+                'schutte_dropbox_' + os.path.basename(member),
+            )
+            if not os.path.exists(target) or redo:
+                with zf.open(member) as src, open(target, 'wb') as dst:
+                    dst.write(src.read())
+            extracted.append(target)
+
+    return extracted
 
 
 def load_wayback_ice_data(molecule, database=None, use_cached=True):
