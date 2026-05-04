@@ -567,20 +567,36 @@ def download_all_univap(meta_table=None, redo=False, redo_meta=True):
 # defunct     pl.plot(icedb_co['col1'], icedb_co['col2'])
 
 
-def download_all_ocdb(n_ocdb=298, redo=False):
+def download_all_ocdb(n_ocdb=298, redo=False, wayback_fallback=True):
     """
     Retrieve and locally cache all data files from the OCDB.
 
     n_ocdb is hard-coded because the search tool does not return a correct number of entries (entries exist at least up to 296 as of 2025-11-30).
+
+    If ``wayback_fallback`` is True (default), individual datasets that
+    cannot be fetched from the live ocdb.smce.nasa.gov host fall back to
+    the Internet Archive Wayback Machine. The wayback path reconstructs
+    the OCDB text file from the embedded JSON on the dataset HTML page
+    (the ``/download-data/all`` endpoint itself is not crawled).
     """
     S = requests.Session()
-    S.get('https://ocdb.smce.nasa.gov/search/ice')
+    try:
+        S.get('https://ocdb.smce.nasa.gov/search/ice', timeout=15)
+        live_ok = True
+    except requests.exceptions.RequestException as exc:
+        if not wayback_fallback:
+            raise
+        log.warning(f'OCDB live host unreachable ({exc}); using Wayback Machine fallback.')
+        live_ok = False
 
     for ii in tqdm(range(1, n_ocdb + 1)):
-        _download_ocdb_dataset(ii, session=S, redo=redo)
+        _download_ocdb_dataset(
+            ii, session=S, redo=redo,
+            wayback_fallback=wayback_fallback, prefer_live=live_ok,
+        )
 
 
-def download_ocdb_subset(dataset_ids, redo=False):
+def download_ocdb_subset(dataset_ids, redo=False, wayback_fallback=True):
     """Download and cache only selected OCDB dataset IDs.
 
     Parameters
@@ -589,6 +605,9 @@ def download_ocdb_subset(dataset_ids, redo=False):
         Dataset indices from OCDB (e.g., ``[85, 86, 107]``).
     redo : bool
         If ``True``, overwrite cached local files.
+    wayback_fallback : bool
+        If ``True`` (default), fall back to the Internet Archive Wayback
+        Machine when the live OCDB host is unreachable.
 
     Returns
     -------
@@ -596,23 +615,48 @@ def download_ocdb_subset(dataset_ids, redo=False):
         Local file paths for downloaded (or cached) datasets.
     """
     S = requests.Session()
-    S.get('https://ocdb.smce.nasa.gov/search/ice')
+    try:
+        S.get('https://ocdb.smce.nasa.gov/search/ice', timeout=15)
+        live_ok = True
+    except requests.exceptions.RequestException as exc:
+        if not wayback_fallback:
+            raise
+        log.warning(f'OCDB live host unreachable ({exc}); using Wayback Machine fallback.')
+        live_ok = False
 
     filenames = []
     for dataset_id in dataset_ids:
-        filename = _download_ocdb_dataset(int(dataset_id), session=S, redo=redo)
+        filename = _download_ocdb_dataset(
+            int(dataset_id), session=S, redo=redo,
+            wayback_fallback=wayback_fallback, prefer_live=live_ok,
+        )
         filenames.append(filename)
 
     return filenames
 
 
-def _download_ocdb_dataset(dataset_id, session, redo=False):
+def _download_ocdb_dataset(dataset_id, session, redo=False,
+                           wayback_fallback=True, prefer_live=True):
     """Download a single OCDB dataset and return the local filename."""
     cached_files = glob.glob(os.path.join(optical_constants_cache_dir, f'ocdb_{dataset_id}*'))
     if not redo and cached_files:
         return cached_files[0]
 
-    resp = session.get(f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all')
+    if prefer_live:
+        try:
+            resp = session.get(
+                f'https://ocdb.smce.nasa.gov/dataset/{dataset_id}/download-data/all',
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            if not wayback_fallback:
+                raise
+            log.warning(f'OCDB dataset {dataset_id} live fetch failed ({exc}); falling back to Wayback Machine.')
+            return _download_ocdb_dataset_wayback(dataset_id, redo=redo)
+    else:
+        return _download_ocdb_dataset_wayback(dataset_id, redo=redo)
+
     molname = 'unknown'
     temperature = 'unknown'
     reference = 'unknown'
@@ -639,6 +683,162 @@ def _download_ocdb_dataset(dataset_id, session, redo=False):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as fh:
         fh.write(resp.text)
+
+    return filename
+
+
+def _download_ocdb_dataset_wayback(dataset_id, redo=False):
+    """Reconstruct an OCDB dataset file from the Wayback Machine.
+
+    The wayback crawler captures the ``/dataset/<id>`` HTML detail page
+    but not the ``/dataset/<id>/download-data/all`` endpoint, so we
+    extract the spectrum from the inline ``var dataset_chart_data``
+    JSON and the metadata (composition, temperature, reference) from
+    the H3 heading and citation block, then write a file in the same
+    tab-delimited format ``read_ocdb_file`` expects.
+    """
+    cached_files = glob.glob(os.path.join(optical_constants_cache_dir, f'ocdb_{dataset_id}*'))
+    if not redo and cached_files:
+        return cached_files[0]
+
+    target = f'ocdb.smce.nasa.gov/dataset/{dataset_id}'
+    timestamp = None
+    # The availability API is flaky w.r.t. which timestamp hint surfaces
+    # snapshots, so try a few before falling back to CDX.
+    for ts_hint in ('20250301', '20231101', '20240601', '20250601'):
+        try:
+            avail = requests.get(
+                'http://archive.org/wayback/available',
+                params={'url': target, 'timestamp': ts_hint},
+                timeout=30,
+            )
+            avail.raise_for_status()
+            snap = avail.json().get('archived_snapshots', {}).get('closest')
+            if snap and snap.get('available') and snap.get('status') == '200':
+                timestamp = snap['timestamp']
+                break
+        except (requests.exceptions.RequestException, ValueError):
+            continue
+
+    if timestamp is None:
+        last_err = None
+        for attempt in range(3):
+            try:
+                cdx = requests.get(
+                    'https://web.archive.org/cdx/search/cdx',
+                    params={
+                        'url': target,
+                        'matchType': 'exact',
+                        'filter': ['statuscode:200', 'mimetype:text/html'],
+                        'output': 'json',
+                        'limit': '-1',
+                    },
+                    timeout=60,
+                )
+                cdx.raise_for_status()
+                rows = cdx.json()
+                if len(rows) < 2:
+                    raise FileNotFoundError(
+                        f'No Wayback Machine snapshot found for OCDB dataset {dataset_id}.'
+                    )
+                timestamp = rows[-1][1]
+                break
+            except (requests.exceptions.RequestException, ValueError) as exc:
+                last_err = exc
+        if timestamp is None:
+            raise RuntimeError(
+                f'Could not locate a Wayback snapshot for OCDB dataset {dataset_id}: {last_err}'
+            )
+
+    wb_url = f'https://web.archive.org/web/{timestamp}id_/https://{target}'
+    resp = requests.get(wb_url, timeout=120)
+    resp.raise_for_status()
+    txt = resp.text
+
+    heading = None
+    for m_head in re.finditer(r'<h3[^>]*>(.*?)</h3>', txt, re.DOTALL):
+        clean = re.sub(r'<[^>]+>', '', m_head.group(1)).strip()
+        clean = re.sub(r'\s+', ' ', clean)
+        if re.search(r'Ice\s+at\s+[\d.]+\s*K', clean):
+            heading = clean
+            break
+    if heading is None:
+        raise ValueError(f'No dataset heading in wayback snapshot for {dataset_id}')
+    m_parts = re.search(
+        r'(?:Pure\s+|Mixture\s+)?(.+?)\s+Ice\s+at\s+([\d.]+)\s*K', heading)
+    if not m_parts:
+        raise ValueError(f'Cannot parse heading {heading!r} for dataset {dataset_id}')
+    composition = m_parts.group(1).strip()
+    temperature = f'{m_parts.group(2)}K'
+
+    plain = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', txt))
+    m_ref = re.search(
+        r'parent publication\(s\):\s*(.+?)\s*(?:https?://|<|$)',
+        plain,
+    )
+    if m_ref and re.match(r'[A-Z][a-zA-Z]+', m_ref.group(1).strip()):
+        reference_full = m_ref.group(1).strip().rstrip('.')
+        first_author = re.match(r'([A-Z][a-zA-Z]+)', reference_full).group(1)
+    else:
+        first_author = 'unknown'
+        reference_full = 'unknown'
+
+    m_doi = re.search(r'(https?://doi\.org/[^\s<\'\"]+)', txt)
+    doi = m_doi.group(1) if m_doi else ''
+
+    m_data = re.search(r'var\s+dataset_chart_data\s*=\s*(\{.*?\})\s*;', txt, re.DOTALL)
+    if not m_data:
+        raise ValueError(f'No dataset_chart_data in wayback snapshot for {dataset_id}')
+    chart_data = json.loads(m_data.group(1))
+
+    def _first_arr(key):
+        block = chart_data.get(key, {})
+        for sub in block:
+            return block[sub].get('data', [])
+        return []
+
+    n_data = _first_arr('N')
+    k_data = _first_arr('K')
+    t_data = _first_arr('T')
+
+    if not (n_data or k_data):
+        raise ValueError(f'Wayback snapshot for {dataset_id} has no n/k spectrum')
+
+    filename = os.path.join(
+        optical_constants_cache_dir,
+        f'ocdb_{dataset_id}_{composition}_{temperature}_{first_author}.txt',
+    )
+    filename = (filename.replace(' ', '_').replace("'", '')
+                .replace('\\', '').replace('"', ''))
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+    with open(filename, 'w') as fh:
+        fh.write(f'Reference:\t"{reference_full}"\n')
+        fh.write(f'DOI:\t"{doi}"\n')
+        fh.write(f'Sample Type:\t"Ice"\n')
+        fh.write(f'Composition:\t"{composition}"\n')
+        fh.write(f'Temperature:\t"{temperature}"\n')
+        fh.write(f'OCdb page:\t"https://ocdb.smce.nasa.gov/dataset/{dataset_id}"\n')
+        fh.write('n₁ Error Units:\tNot Applicable\n')
+        fh.write('k₁ Error Units:\tNot Applicable\n')
+        fh.write('T₁ Error Units:\tNot Applicable\n')
+        fh.write('\n')
+        fh.write('"Wavenumber (cm⁻¹)"\t"n₁"\t"Dn₁  (+/-)"\t\t')
+        fh.write('"Wavenumber (cm⁻¹)"\t"k₁"\t"Dk₁  (+/-)"\t\t')
+        fh.write('"Wavenumber (cm⁻¹)"\t"T₁"\t"DT₁  (+/-)"\t\n')
+        max_len = max(len(n_data), len(k_data), len(t_data))
+        for i in range(max_len):
+            fields = []
+            for arr in (n_data, k_data, t_data):
+                if i < len(arr):
+                    r = arr[i]
+                    fields += [str(r.get('wavenumber', '')),
+                               str(r.get('value', '')),
+                               str(r.get('error_value', 0))]
+                else:
+                    fields += ['', '', '']
+                fields.append('')  # blank separator column
+            fh.write('\t'.join(fields[:-1]) + '\t\n')
 
     return filename
 
