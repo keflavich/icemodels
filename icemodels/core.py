@@ -2458,11 +2458,21 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
             cache_filename = os.path.join(optical_constants_cache_dir, f'wayback_{db_name}_{safe_filename}')
 
             if not os.path.exists(cache_filename) or redo:
-                file_resp = requests.get(url, timeout=30)
-                if file_resp.status_code == 404 and 'The Wayback Machine has not archived that URL.' in file_resp.text:
-                    print(f"Wayback machine has not archived {url} - 404.  Sad!")
+                try:
+                    file_resp = requests.get(url, timeout=30)
+                except requests.exceptions.RequestException as exc:
+                    log.warning(f'Wayback fetch failed for {url}: {exc}; skipping.')
                     continue
-                file_resp.raise_for_status()
+                if file_resp.status_code == 404:
+                    # covers both the soft "not archived" interstitial and a
+                    # hard 404 from a redirected timestamp
+                    print(f"Wayback machine returned 404 for {url} - skipping.")
+                    continue
+                try:
+                    file_resp.raise_for_status()
+                except requests.exceptions.HTTPError as exc:
+                    log.warning(f'Wayback HTTP {file_resp.status_code} for {url}: {exc}; skipping.')
+                    continue
 
                 if link_info.get('is_archive', False):
                     # Handle compressed archives
