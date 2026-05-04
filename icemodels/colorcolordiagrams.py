@@ -995,7 +995,7 @@ if __name__ == "__main__":
                 ymin, ymax = ax.get_ylim()
                 ax.set_ylim(max(-5, ymin), min(5, ymax))
 
-                pl.title(plot_cfg['title'] + ' (color vs H2 column)')
+                pl.title(plot_cfg['title'] + ' (color vs H$_2$ column)')
                 pl.savefig(os.path.join(savefig_path, f'dmag_vs_color_{color[0]}-{color[1]}_{plot_cfg["icemix_name"]}.png'),
                            bbox_inches='tight', dpi=150)
                 pl.close()
