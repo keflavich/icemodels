@@ -1525,8 +1525,12 @@ def download_all_lida(
         # author = index[ii]['author']
         # doi = index[ii]['doi']
 
-        resp1 = S.get(url)
-        resp1.raise_for_status()
+        try:
+            resp1 = S.get(url, timeout=60)
+            resp1.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            log.warning(f'Skipping LIDA entry {ii} ({url}): {exc}')
+            continue
 
         soup = BeautifulSoup(resp1.text, features='html5lib')
 
@@ -2409,18 +2413,34 @@ def retrieve_wayback_ice_tables(use_cached=True, redo=False):
         soup = BeautifulSoup(resp.text, features='html5lib')
 
         data_links = []
+        seen_urls = set()
 
-        for link in soup.find_all('a', href=True):
-            href = link['href']
+        def _add(href, text=''):
             if href.startswith('http'):
                 full_url = href
             else:
                 full_url = urljoin(base_url, href)
+            if full_url in seen_urls:
+                return
+            seen_urls.add(full_url)
             data_links.append({
                 'url': full_url,
                 'filename': os.path.basename(urlparse(href).path),
-                'text': link.get_text(strip=True)
+                'text': text,
             })
+
+        for link in soup.find_all('a', href=True):
+            _add(link['href'], link.get_text(strip=True))
+
+        # The 2001 ISODB snapshot lists Ehrenfreund's E*.NK / E*.PSC files as
+        # bare text inside <td> cells (not <a href> tags), so soup.find_all
+        # above misses them entirely. Pull them out of the page text and
+        # synthesize download URLs by appending to the base URL.
+        bare_filename_re = re.compile(
+            r'\b([A-Z]\d+\.(?:NK|PSC))\b', re.IGNORECASE,
+        )
+        for fname in set(bare_filename_re.findall(resp.text)):
+            _add(fname, fname)
 
         retrieved_data[db_name] = {
             'base_url': base_url,
