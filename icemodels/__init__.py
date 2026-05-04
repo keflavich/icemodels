@@ -12,7 +12,8 @@ from .core import (absorbed_spectrum, absorbed_spectrum_Gaussians, convsum,
                    retrieve_wayback_ice_tables, read_wayback_ice_file,
                    find_wayback_ice_data, load_wayback_ice_data,
                    download_all_isodb_wayback, download_all_schutte_wayback,
-                   download_all_schutte_dropbox)
+                   download_all_schutte_dropbox,
+                   download_ehrenfreund_NK_wayback, read_ehrenfreund_NK_file)
 from . import gaussian_model_components
 from . import colorcolordiagrams
 from . import absorbance_in_filters
@@ -52,4 +53,6 @@ __all__ = [
     'download_all_isodb_wayback',
     'download_all_schutte_wayback',
     'download_all_schutte_dropbox',
+    'download_ehrenfreund_NK_wayback',
+    'read_ehrenfreund_NK_file',
 ]
