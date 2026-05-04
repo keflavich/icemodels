@@ -11,13 +11,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 from astroquery.svo_fps import SvoFps
+import requests
 
 # Create a common wavelength grid
 wavelength = np.linspace(1, 5, 1000) * u.um
 
 # Get the default spectrum and interpolate it to our wavelength grid
-default_spectrum = icemodels.core.phx4000['fnu']
-default_wavelength = u.Quantity(icemodels.core.phx4000['nu'], u.Hz).to(u.um, u.spectral())
+reference_model = icemodels.atmo_model(4000)
+default_spectrum = reference_model['fnu']
+default_wavelength = u.Quantity(reference_model['nu'], u.Hz).to(u.um, u.spectral())
 f = interp1d(default_wavelength, default_spectrum, bounds_error=False, fill_value=1.0)
 spectrum_base = f(wavelength)
 
@@ -43,16 +45,20 @@ plt.legend()
 filter_ids = ['JWST/MIRI.F1000W', 'JWST/MIRI.F1280W']  # Full SVO FPS IDs
 filter_fluxes = {}
 
-transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
+try:
+    transdata = {fid: SvoFps.get_transmission_data(fid) for fid in filter_ids}
 
-for filter_id in filter_ids:
-    flux = icemodels.fluxes_in_filters(
-        xarr=wavelength,
-        modeldata=spectrum,
-        filterids=[filter_id],
-        transdata=transdata,
-    )
-    filter_fluxes[filter_id] = flux
-    print(f"Flux through {filter_id}: {flux}")
+    for filter_id in filter_ids:
+        flux = icemodels.fluxes_in_filters(
+            xarr=wavelength,
+            modeldata=spectrum,
+            filterids=[filter_id],
+            transdata=transdata,
+        )
+        filter_fluxes[filter_id] = flux
+        print(f"Flux through {filter_id}: {flux}")
 
-plt.show()
+    plt.show()
+
+except requests.exceptions.ConnectTimeout as ex:
+    print("Could not retrieve filter data from SVO FPS because of a timeout error.  This is treated as an acceptable failure because it frequently happens on the continuous integration testing servers.  Try again!")

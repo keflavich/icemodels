@@ -16,6 +16,9 @@ permissions:
 jobs:
   build-docs:
     runs-on: ubuntu-latest
+    env:
+      ICEMODELS_DOCS_PREPARE_SYNPHOT: "1"
+      ICEMODELS_DOCS_PREPARE_OCDB: "1"
     steps:
     - uses: actions/checkout@v3
       with:

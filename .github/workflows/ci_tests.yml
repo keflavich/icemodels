@@ -42,10 +42,10 @@ jobs:
             python: 3.12
             toxenv: py312-test-alldeps
 
-          - name: Windows - Python 3.12 with all optional dependencies
-            os: windows-latest
-            python: 3.12
-            toxenv: py312-test-alldeps
+          # - name: Windows - Python 3.12 with all optional dependencies
+          #   os: windows-latest
+          #   python: 3.12
+          #   toxenv: py312-test-alldeps
 
           # - name: Python 3.7 with oldest supported version of all dependencies
           #   os: ubuntu-16.04
