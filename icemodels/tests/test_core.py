@@ -20,7 +20,8 @@ def test_download_all_ocdb():
         download_all_ocdb(n_ocdb=1, redo=True)
         # Verify that the session was used to get the correct URL
         mock_session.return_value.get.assert_called_with(
-            'https://ocdb.smce.nasa.gov/dataset/1/download-data/all'
+            'https://ocdb.smce.nasa.gov/dataset/1/download-data/all',
+            timeout=30,
         )
 
 

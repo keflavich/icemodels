@@ -2805,6 +2805,211 @@ def download_all_schutte_dropbox(
     return extracted
 
 
+def _wayback_cdx_search(url_pattern, limit=2000):
+    """Query the Internet Archive Wayback Machine CDX API for archived
+    snapshots of URLs matching ``url_pattern``. Returns a list of
+    ``(timestamp, original_url)`` tuples (status 200 only)."""
+    cdx_url = (
+        'http://web.archive.org/cdx/search/cdx?'
+        f'url={url_pattern}&output=json&limit={limit}'
+        '&fl=timestamp,original&filter=statuscode:200'
+    )
+    resp = requests.get(cdx_url, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+    if not data:
+        return []
+    return [tuple(row) for row in data[1:]]   # drop header row
+
+
+def download_ehrenfreund_NK_wayback(numbers=range(1, 76), redo=False,
+                                    pause=0.4):
+    """
+    Download Ehrenfreund-authored ``E*.NK`` opacity tables from the Internet
+    Archive Wayback Machine.
+
+    The Schutte / Ehrenfreund ISODB tables are no longer hosted at their
+    original URLs (``~ehrenfreund/isodb/`` and ``~lab/isodb/``). This helper
+    queries the Wayback CDX API for archived ``.NK`` snapshots of those
+    paths and downloads the latest available copy of each ``E<N>.NK`` for
+    ``N`` in ``numbers``. Files are saved to ``optical_constants_cache_dir``
+    with the prefix ``wayback_ehrenfreund_``.
+
+    The .NK format is parsed by
+    :func:`brick2221.analysis.twoPanel_ice_variants._read_ehrenfreund_NK_file`
+    (header line: '<npts> <ncols> <?>'; second line: 'Spectrum: E<n>'; third
+    line: 'Description: <composition + T_K>'; data columns are
+    ``freq[cm-1], wavel[um], absorbance, n, k`` with Fortran D-exponent).
+
+    Parameters
+    ----------
+    numbers : iterable of int
+        E-table numbers to fetch. Default is 1..75; some are missing from
+        the archive (failures are reported but do not raise).
+    redo : bool
+        If True, re-download files even if a local copy exists.
+    pause : float
+        Sleep between requests, in seconds.
+
+    Returns
+    -------
+    dict
+        ``{N: local_path or None}`` for every requested ``N``.
+    """
+    import time
+    import re as _re
+
+    os.makedirs(optical_constants_cache_dir, exist_ok=True)
+
+    # Single CDX query covers both ~ehrenfreund/isodb/* and ~lab/isodb/*
+    rows = []
+    for pattern in (
+        'http://www.strw.leidenuniv.nl/~ehrenfreund/*',
+        'http://www.strw.leidenuniv.nl/~lab/isodb/*',
+    ):
+        try:
+            rows.extend(_wayback_cdx_search(pattern))
+        except Exception as ex:
+            print(f"  CDX query failed for {pattern}: {ex}")
+
+    by_number = {}
+    for ts, orig in rows:
+        m = _re.search(r'/E(\d+)\.NK', orig.upper())
+        if m:
+            by_number.setdefault(int(m.group(1)), []).append((ts, orig))
+
+    sess = requests.Session()
+    sess.headers.update({'User-Agent': 'icemodels/0.1 (research)'})
+    results = {}
+    requested = list(numbers)
+
+    for n in requested:
+        target = os.path.join(optical_constants_cache_dir,
+                              f'wayback_ehrenfreund_E{n}.NK')
+        if os.path.exists(target) and not redo:
+            results[n] = target
+            continue
+        if n not in by_number:
+            print(f"  E{n}: no CDX entry")
+            results[n] = None
+            continue
+        candidates = sorted(by_number[n], key=lambda x: x[0], reverse=True)
+        success = None
+        for ts, orig in candidates:
+            wb_url = f'https://web.archive.org/web/{ts}id_/{orig}'
+            try:
+                r = sess.get(wb_url, timeout=60)
+            except Exception as ex:
+                print(f"  E{n} {ts}: {type(ex).__name__}: {ex}")
+                continue
+            if r.status_code != 200 or len(r.content) < 100:
+                continue
+            head = r.content[:200].decode('latin1', errors='ignore').lower()
+            if '<html' in head or 'wayback machine' in head:
+                continue
+            with open(target, 'wb') as fh:
+                fh.write(r.content)
+            success = target
+            break
+        if success:
+            print(f"  E{n}: saved {os.path.basename(success)}")
+            results[n] = success
+        else:
+            print(f"  E{n}: all snapshots failed")
+            results[n] = None
+        time.sleep(pause)
+
+    return results
+
+
+def read_ehrenfreund_NK_file(filename):
+    """
+    Parse a Wayback Ehrenfreund ``E*.NK`` opacity file and return an
+    :class:`astropy.table.Table` with columns ``Wavelength`` (μm) and ``k``,
+    plus metadata fields ``composition``, ``temperature``, ``author``,
+    ``molecule``, ``index``, ``database``, ``filename``, ``density``.
+
+    Format
+    ------
+        line 1:  '<npts> <ncols> <?>' (whitespace-separated integers)
+        line 2:  'Spectrum: E<n>'
+        line 3:  'Description: <composition> [<T> K]'
+        line 4:  column header (skipped)
+        line 5+: data rows: ``freq[cm-1] wavel[um] absorbance n k``
+                 (Fortran D-exponent: ``1.33550D+00`` -> ``1.33550E+00``)
+
+    Compositions are parsed via :func:`_parse_NK_description`.
+    """
+    import re as _re
+
+    with open(filename, 'r', errors='replace') as fh:
+        lines = fh.readlines()
+    if len(lines) < 5:
+        raise ValueError(f"{filename}: too few lines")
+    npts = int(lines[0].split()[0])
+    spec_id = lines[1].strip()
+    desc = lines[2].split(':', 1)[1].strip() if ':' in lines[2] else lines[2].strip()
+    composition, T = _parse_NK_description(desc)
+
+    wl_um = []
+    kk = []
+    for line in lines[4:4 + npts + 50]:    # tolerate small npts mismatch
+        s = line.replace('D', 'E').replace('d', 'E')
+        parts = s.split()
+        if len(parts) < 5:
+            continue
+        try:
+            wl_um.append(float(parts[1]))
+            kk.append(float(parts[4]))
+        except ValueError:
+            continue
+        if len(wl_um) >= npts:
+            break
+
+    tb = Table({'Wavelength': u.Quantity(wl_um, u.um), 'k': kk})
+    so = np.argsort(np.asarray(tb['Wavelength'], dtype=float))
+    tb = tb[so]
+    n_match = _re.search(r'(\d+)', spec_id)
+    tb.meta['composition'] = composition
+    tb.meta['temperature'] = T
+    tb.meta['author'] = 'Ehrenfreund'
+    tb.meta['molecule'] = composition.split(':')[0].split(' ')[0]
+    tb.meta['index'] = int(n_match.group(1)) if n_match else -1
+    tb.meta['database'] = 'wayback_ehrenfreund'
+    tb.meta['filename'] = filename
+    tb.meta['density'] = 1 * u.g / u.cm**3
+    return tb
+
+
+def _parse_NK_description(desc):
+    """Convert an Ehrenfreund 'Description: ...' string into
+    ``(composition, T_K)``.
+
+    Examples
+    --------
+        'pure CO 10 K'                    -> ('CO (1)', 10.0)
+        'H2O:CO=10:1 30 K'                -> ('H2O:CO (10:1)', 30.0)
+        'H2O:CO:O2=1:80:20 10 K'          -> ('H2O:CO:O2 (1:80:20)', 10.0)
+        'CO 10 K'                         -> ('CO (1)', 10.0)
+    """
+    import re as _re
+
+    desc = desc.strip()
+    m = _re.search(r'\s+(\d+(?:\.\d+)?)\s*K\s*$', desc)
+    T = float(m.group(1)) if m else float('nan')
+    comp_part = desc[:m.start()].strip() if m else desc
+    if comp_part.lower().startswith('pure'):
+        comp = comp_part.split(None, 1)[1].strip() + ' (1)'
+    elif '=' in comp_part:
+        species, ratios = comp_part.split('=', 1)
+        comp = f"{species.strip()} ({ratios.strip()})"
+    elif ':' not in comp_part:
+        comp = comp_part.strip() + ' (1)'
+    else:
+        comp = comp_part.strip()
+    return comp, T
+
+
 def load_wayback_ice_data(molecule, database=None, use_cached=True):
     """
     Load ice data for a specific molecule from the wayback machine.
