@@ -3048,3 +3048,281 @@ def load_wayback_ice_data(molecule, database=None, use_cached=True):
             ice_tables.append(ice_table)
 
     return ice_tables
+
+
+# Bergner & Piacentino 2024 (ApJ 977, 27; doi:10.3847/1538-4357/ad79fc)
+# IR absorbance spectra for pure and mixed laboratory ices, hosted on Zenodo.
+# Two records: 13948083 = pure + apolar (no H2O) mixtures;
+#              13948069 = polar (H2O-bearing) mixtures + CH3OH binaries.
+BERGNER_ZENODO_RECORDS = ('13948083', '13948069')
+
+# Column densities (in 10^15 molecules cm^-2) from Bergner & Piacentino 2024 Table 3.
+# Sample-name keys match the Zenodo filename prefix (before "_<T>K.txt").
+# Filename "Polar-10-X-Y" => H2O:CO2:CO molar ratio 10:X:Y.
+# Filename "Apolar-X-Y"   => CO2:CO molar ratio X:Y.
+BERGNER_COLUMN_DENSITIES = {
+    'H2O':            {'H2O': 111.0},
+    'CO2':            {'CO2': 122.0},
+    'CO':             {'CO': 130.0},
+    'Polar-10-1-1':   {'H2O': 306.0, 'CO2': 30.0,  'CO': 7.1},
+    'Polar-10-2-2':   {'H2O': 264.0, 'CO2': 56.0,  'CO': 46.0},
+    'Polar-10-3-3':   {'H2O': 224.0, 'CO2': 83.0,  'CO': 69.0},
+    'Polar-10-5-0':   {'H2O': 66.0,  'CO2': 32.0},
+    'Apolar-10-1':    {'CO2': 79.0,  'CO': 6.9},
+    'Apolar-10-4':    {'CO2': 167.0, 'CO': 43.0},
+    'Apolar-1-1':     {'CO2': 114.0, 'CO': 104.0},
+    'Apolar-1-10':    {'CO2': 8.5,   'CO': 79.0},
+    'CO2-CH3OH_1-1':  {'CO2': 41.0,  'CH3OH': 38.0},
+    'CO-CH3OH_1-1':   {'CO': 52.0,   'CH3OH': 75.0},
+}
+
+
+def _parse_bergner_filename(basename):
+    """Split a Bergner filename like 'Polar-10-1-1_70K.txt' into
+    (sample_name, temperature_K). Returns (None, None) on failure."""
+    m = re.match(r'(?:bergner_)?(.+)_([0-9]+)K\.txt$', basename)
+    if not m:
+        return None, None
+    sample = m.group(1)
+    try:
+        T = int(m.group(2))
+    except ValueError:
+        return sample, None
+    return sample, T
+
+
+def _bergner_composition_string(sample):
+    """Build a composition string like 'H2O:CO2:CO 10:1:1' from a sample name."""
+    if sample.startswith('Polar-'):
+        parts = sample.split('-')[1:]
+        species = ['H2O', 'CO2', 'CO']
+        return ':'.join(species[:len(parts)]) + ' ' + ':'.join(parts)
+    if sample.startswith('Apolar-'):
+        parts = sample.split('-')[1:]
+        return 'CO2:CO ' + ':'.join(parts)
+    if '_' in sample:
+        head, ratio = sample.split('_', 1)
+        species = head.split('-')
+        return ':'.join(species) + ' ' + ratio.replace('-', ':')
+    return sample
+
+
+def download_all_bergner(redo=False, records=BERGNER_ZENODO_RECORDS):
+    """
+    Download the Bergner & Piacentino (2024) laboratory ice IR absorbance
+    spectra from Zenodo (records 13948083 and 13948069).
+
+    Each downloaded file is stored in ``optical_constants_cache_dir`` with the
+    prefix ``bergner_`` and a JSON metadata header is prepended.
+
+    Parameters
+    ----------
+    redo : bool
+        If True, redownload files even if a local copy exists.
+    records : iterable of str
+        Zenodo record IDs to fetch. Defaults to both Bergner records.
+
+    Returns
+    -------
+    list of str
+        Absolute paths of files written into the cache directory.
+    """
+    os.makedirs(optical_constants_cache_dir, exist_ok=True)
+    sess = requests.Session()
+    sess.headers.update({'User-Agent': 'icemodels/0.1 (research)'})
+
+    written = []
+    for record_id in records:
+        api_url = f'https://zenodo.org/api/records/{record_id}'
+        resp = sess.get(api_url, timeout=60)
+        resp.raise_for_status()
+        record = resp.json()
+
+        for f in tqdm(record.get('files', []),
+                      desc=f'Bergner Zenodo {record_id}'):
+            key = f['key']
+            if not key.endswith('.txt'):
+                continue
+            sample, T = _parse_bergner_filename(key)
+            if sample is None:
+                continue
+            target = os.path.join(optical_constants_cache_dir,
+                                  'bergner_' + key)
+            if os.path.exists(target) and not redo:
+                written.append(target)
+                continue
+            url = f['links']['self']
+            try:
+                r = sess.get(url, timeout=120)
+                r.raise_for_status()
+            except requests.exceptions.RequestException as ex:
+                print(f"  {key}: download failed: {ex}")
+                continue
+
+            col_densities = BERGNER_COLUMN_DENSITIES.get(sample, {})
+            meta = {
+                'sample': sample,
+                'temperature': T,
+                'composition': _bergner_composition_string(sample),
+                'column_densities_1e15_per_cm2': col_densities,
+                'author': 'Bergner+Piacentino2024',
+                'reference': 'Bergner & Piacentino 2024, ApJ 977, 27',
+                'doi': '10.3847/1538-4357/ad79fc',
+                'zenodo_record': record_id,
+                'url': url,
+                'database': 'bergner',
+            }
+            with open(target, 'w') as fh:
+                fh.write('# ' + json.dumps(meta) + '\n')
+                fh.write(r.text)
+            written.append(target)
+
+    return written
+
+
+def read_bergner_file(filename):
+    """
+    Read a Bergner & Piacentino (2024) laboratory ice spectrum.
+
+    The Zenodo files are two-column comma-separated wavenumber [cm^-1] vs.
+    base-10 absorbance with no baseline subtraction. This routine prepends
+    a JSON metadata header on download (see :func:`download_all_bergner`)
+    and parses both pieces back out.
+
+    A bulk imaginary refractive index ``k`` is also estimated, assuming an
+    ice density of 1 g/cm^3:
+
+        thickness = (sum_i N_i * M_i / N_A) / rho
+        k(nu)     = absorbance * ln(10) / (4 pi * nu * thickness)
+
+    where ``N_i`` and ``M_i`` are the column density and molar mass of each
+    constituent species (from Bergner et al. Table 3). For mixtures this is
+    the bulk-mixture k, not a per-species k.
+
+    Parameters
+    ----------
+    filename : str
+        Path to a ``bergner_*.txt`` file in ``optical_constants_cache_dir``.
+
+    Returns
+    -------
+    astropy.table.Table
+        Columns ``Wavenumber`` (cm^-1), ``Wavelength`` (μm), ``absorbance``,
+        and (when column densities are known) ``k``. Metadata mirrors the
+        JSON header plus a primary ``molecule`` field.
+    """
+    meta = {}
+    with open(filename, 'r') as fh:
+        first_line = fh.readline()
+        if first_line.startswith('# {'):
+            meta = json.loads(first_line.lstrip('# ').rstrip())
+            data_start = 1
+        else:
+            data_start = 0
+
+    base = os.path.basename(filename)
+    if 'sample' not in meta or 'temperature' not in meta:
+        sample, T = _parse_bergner_filename(base.replace('bergner_', ''))
+        meta.setdefault('sample', sample)
+        meta.setdefault('temperature', T)
+    if 'composition' not in meta and meta.get('sample'):
+        meta['composition'] = _bergner_composition_string(meta['sample'])
+    if 'column_densities_1e15_per_cm2' not in meta and meta.get('sample'):
+        meta['column_densities_1e15_per_cm2'] = (
+            BERGNER_COLUMN_DENSITIES.get(meta['sample'], {})
+        )
+
+    tb = ascii.read(filename, data_start=data_start, format='csv',
+                    names=['Wavenumber', 'absorbance'])
+    tb['Wavenumber'].unit = u.cm**-1
+    tb['Wavelength'] = tb['Wavenumber'].quantity.to(u.um, u.spectral())
+
+    sort_idx = np.argsort(np.asarray(tb['Wavelength'], dtype=float))
+    tb = tb[sort_idx]
+
+    density = 1 * u.g / u.cm**3
+    col_dens = meta.get('column_densities_1e15_per_cm2', {}) or {}
+    if col_dens:
+        # composition_to_molweight returns mass per molecule (units of u/Da).
+        mass_per_area = 0 * u.g / u.cm**2
+        for species, n15 in col_dens.items():
+            n_col = n15 * 1e15 / u.cm**2
+            mol_wt = composition_to_molweight(species)
+            mass_per_area = mass_per_area + (n_col * mol_wt).to(u.g / u.cm**2)
+        thickness = (mass_per_area / density).to(u.cm)
+        wavenum_cm = tb['Wavenumber'].quantity.to(u.cm**-1)
+        kay = (np.asarray(tb['absorbance']) * np.log(10)
+               / (4 * np.pi * wavenum_cm * thickness)).decompose()
+        tb['k'] = np.asarray(kay)
+        meta['ice_layer_depth'] = thickness.to(u.um)
+        meta['k_comment'] = (
+            'k estimated as A * ln(10) / (4 pi nu d) with d derived from '
+            'the constituent column densities (Bergner+ 2024 Table 3) and '
+            'an assumed bulk density of 1 g/cm^3.'
+        )
+
+    primary_molecule = meta.get('sample')
+    if primary_molecule and primary_molecule in ('H2O', 'CO2', 'CO'):
+        pass  # already a single molecule name
+    elif col_dens:
+        primary_molecule = max(col_dens, key=col_dens.get)
+    meta['molecule'] = primary_molecule
+    meta['author'] = meta.get('author', 'Bergner+Piacentino2024')
+    meta['database'] = meta.get('database', 'bergner')
+    meta['density'] = density
+    meta['filename'] = filename
+
+    tb.meta.update(meta)
+    return tb
+
+
+def load_molecule_bergner(molecule, temperature=None, sample=None,
+                          use_cached=True):
+    """
+    Load Bergner & Piacentino (2024) ice spectra matching a query.
+
+    Parameters
+    ----------
+    molecule : str
+        Primary molecule name (e.g., ``'H2O'``, ``'CO'``, ``'CO2'``,
+        ``'CH3OH'``). Matches against the dominant constituent of each
+        sample.
+    temperature : int, optional
+        If given, return only the spectrum at this temperature in K.
+    sample : str, optional
+        If given (e.g., ``'Polar-10-1-1'``), restrict to that sample.
+    use_cached : bool
+        If True, only use locally cached files. If False, call
+        :func:`download_all_bergner` first.
+
+    Returns
+    -------
+    list of astropy.table.Table
+        Tables loaded by :func:`read_bergner_file`. Empty if no match.
+    """
+    if not use_cached:
+        download_all_bergner()
+
+    pattern = os.path.join(optical_constants_cache_dir, 'bergner_*.txt')
+    matches = []
+    for path in sorted(glob.glob(pattern)):
+        base = os.path.basename(path).replace('bergner_', '')
+        s, T = _parse_bergner_filename(base)
+        if s is None:
+            continue
+        if sample is not None and s != sample:
+            continue
+        if temperature is not None and T != int(temperature):
+            continue
+        col_dens = BERGNER_COLUMN_DENSITIES.get(s, {})
+        if molecule:
+            mol_norm = molecule.upper().replace(' ', '')
+            keys_norm = {k.upper(): k for k in col_dens}
+            if mol_norm not in keys_norm:
+                continue
+            # Dominant-species filter: only return samples where the
+            # requested molecule is the most abundant constituent.
+            if col_dens and max(col_dens, key=col_dens.get).upper() != mol_norm:
+                continue
+        matches.append(read_bergner_file(path))
+    return matches
