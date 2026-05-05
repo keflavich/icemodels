@@ -3060,6 +3060,89 @@ BERGNER_ZENODO_RECORDS = ('13948083', '13948069')
 # Sample-name keys match the Zenodo filename prefix (before "_<T>K.txt").
 # Filename "Polar-10-X-Y" => H2O:CO2:CO molar ratio 10:X:Y.
 # Filename "Apolar-X-Y"   => CO2:CO molar ratio X:Y.
+# Per-species low-T (~10-30 K) bulk ice densities, g/cm^3. Used to convert
+# integrated mass column to physical thickness when computing the bulk
+# imaginary refractive index k from a Bergner (or any thin-film) absorbance
+# spectrum. Mixture density is computed as a mass-weighted harmonic mean of
+# the component densities (additive volumes).
+BERGNER_SPECIES_DENSITIES = {
+    'H2O':   0.94,   # amorphous solid water; crystalline ~0.93 (Loeffler+ 2016)
+    'CO':    0.81,   # alpha-CO at 10-25 K (Roux+ 1980; Loeffler+ 2005)
+    'CO2':   1.10,   # amorphous to alpha-CO2 (Satorre+ 2008)
+    'CH3OH': 1.013,  # amorphous methanol at 10 K (Luna+ 2018)
+    'CH4':   0.45,   # amorphous methane (Satorre+ 2008)
+    'NH3':   0.86,   # ammonia ice (Satorre+ 2013)
+    'O2':    1.20,   # alpha-O2 at low T (Loeffler+ 2010)
+    'OCS':   1.30,
+    'HCOOH': 1.22,
+    'CH3CH2OH': 1.05,
+    'OCN':   1.10,
+    'HCOO':  1.50,
+    'NH4':   0.70,
+}
+
+
+def _bergner_mixture_density(col_dens):
+    """Return the bulk density (g/cm^3) of a Bergner deposit given its
+    Table 3 column densities. Uses additive-volume mixing:
+
+        rho_mix = sum_i (N_i * M_i) / sum_i (N_i * M_i / rho_i)
+
+    Falls back to 1 g/cm^3 if any constituent has no tabulated density.
+    """
+    if not col_dens:
+        return 1.0 * u.g / u.cm**3
+    total_mass = 0 * u.g / u.cm**2
+    total_volume = 0 * u.cm
+    for species, n15 in col_dens.items():
+        rho_i = BERGNER_SPECIES_DENSITIES.get(species)
+        if rho_i is None:
+            return 1.0 * u.g / u.cm**3
+        rho_i = rho_i * u.g / u.cm**3
+        n_col = n15 * 1e15 / u.cm**2
+        m_i = (n_col * composition_to_molweight(species)).to(u.g / u.cm**2)
+        total_mass = total_mass + m_i
+        total_volume = total_volume + (m_i / rho_i)
+    if total_volume == 0:
+        return 1.0 * u.g / u.cm**3
+    return (total_mass / total_volume).to(u.g / u.cm**3)
+
+
+# Wavelength windows (in micrometers) where ice mixtures of H2O, CO, CO2,
+# CH3OH, NH3, etc. typically have negligible absorption. Used to anchor a
+# baseline polynomial that absorbs detector / optical drift in raw Bergner
+# absorbance spectra. Each tuple is (lo_um, hi_um).
+BERGNER_BASELINE_ANCHORS = (
+    (1.55, 2.00),    # NIR continuum (no major ice features)
+    (4.05, 4.20),    # between H2O combination and CO2 fundamental
+    (4.45, 4.60),    # between CO2 and CO fundamentals
+    (4.78, 4.95),    # red side of CO band, before OCN
+    (5.30, 5.55),    # between H2O bend and CO/HCOOH features
+    (8.00, 9.00),    # between CH3OH and silicate region
+    (10.5, 11.5),    # between CH3OH and H2O libration
+    (13.0, 14.0),    # red side of H2O libration
+)
+
+
+def _subtract_bergner_baseline(wl_um, absorbance,
+                               anchors=BERGNER_BASELINE_ANCHORS,
+                               degree=2):
+    """Subtract a low-order polynomial baseline fit to the absorbance values
+    inside the anchor wavelength windows. Returns the baseline-subtracted
+    absorbance array (same length as input).
+    """
+    wl_um = np.asarray(wl_um, dtype=float)
+    absorbance = np.asarray(absorbance, dtype=float)
+    mask = np.zeros_like(wl_um, dtype=bool)
+    for lo, hi in anchors:
+        mask |= (wl_um >= lo) & (wl_um <= hi)
+    finite = mask & np.isfinite(wl_um) & np.isfinite(absorbance)
+    if finite.sum() < degree + 1:
+        return absorbance        # not enough anchor points; return as-is
+    coeffs = np.polyfit(wl_um[finite], absorbance[finite], degree)
+    return absorbance - np.polyval(coeffs, wl_um)
+
+
 BERGNER_COLUMN_DENSITIES = {
     'H2O':            {'H2O': 111.0},
     'CO2':            {'CO2': 122.0},
@@ -3184,36 +3267,52 @@ def download_all_bergner(redo=False, records=BERGNER_ZENODO_RECORDS):
     return written
 
 
-def read_bergner_file(filename):
+def read_bergner_file(filename, baseline_subtract=True, baseline_degree=2):
     """
     Read a Bergner & Piacentino (2024) laboratory ice spectrum.
 
-    The Zenodo files are two-column comma-separated wavenumber [cm^-1] vs.
-    base-10 absorbance with no baseline subtraction. This routine prepends
-    a JSON metadata header on download (see :func:`download_all_bergner`)
-    and parses both pieces back out.
+    The Zenodo files are two-column comma- or tab-separated wavenumber
+    [cm^-1] vs. base-10 absorbance with no baseline subtraction. This
+    routine prepends a JSON metadata header on download (see
+    :func:`download_all_bergner`) and parses both pieces back out.
 
-    A bulk imaginary refractive index ``k`` is also estimated, assuming an
-    ice density of 1 g/cm^3:
+    By default a low-order polynomial baseline (anchored on the
+    transparent ice-free windows in :data:`BERGNER_BASELINE_ANCHORS`) is
+    subtracted from the raw absorbance before computing ``k``. This
+    cancels the smooth baseline drift in the Zenodo spectra; without it
+    the off-band ``k`` floor is ~10-25× higher than literature pure-CO /
+    pure-H2O values and dominates filter integrals far from absorption
+    bands. Set ``baseline_subtract=False`` to recover the raw absorbance.
 
-        thickness = (sum_i N_i * M_i / N_A) / rho
+    A bulk imaginary refractive index ``k`` is then estimated:
+
+        thickness = (sum_i N_i * M_i / N_A) / rho_mix
         k(nu)     = absorbance * ln(10) / (4 pi * nu * thickness)
 
-    where ``N_i`` and ``M_i`` are the column density and molar mass of each
-    constituent species (from Bergner et al. Table 3). For mixtures this is
-    the bulk-mixture k, not a per-species k.
+    where ``N_i``, ``M_i`` are the column density and molar mass of each
+    constituent species (Bergner+ 2024 Table 3) and ``rho_mix`` is the
+    additive-volume mass-weighted mean of the per-species low-T densities
+    in :data:`BERGNER_SPECIES_DENSITIES`. For mixtures this is the bulk
+    mixture ``k``, not a per-species ``k``.
 
     Parameters
     ----------
     filename : str
         Path to a ``bergner_*.txt`` file in ``optical_constants_cache_dir``.
+    baseline_subtract : bool
+        If True (default), subtract a polynomial baseline fit to the
+        anchor windows defined in :data:`BERGNER_BASELINE_ANCHORS`.
+    baseline_degree : int
+        Polynomial degree of the baseline fit (default 2).
 
     Returns
     -------
     astropy.table.Table
-        Columns ``Wavenumber`` (cm^-1), ``Wavelength`` (μm), ``absorbance``,
-        and (when column densities are known) ``k``. Metadata mirrors the
-        JSON header plus a primary ``molecule`` field.
+        Columns ``Wavenumber`` (cm^-1), ``Wavelength`` (μm),
+        ``absorbance`` (post-baseline-subtraction if requested),
+        ``absorbance_raw`` (always the un-corrected value), and (when
+        column densities are known) ``k``. Metadata mirrors the JSON
+        header plus a primary ``molecule`` field.
     """
     meta = {}
     with open(filename, 'r') as fh:
@@ -3257,8 +3356,21 @@ def read_bergner_file(filename):
     sort_idx = np.argsort(np.asarray(tb['Wavelength'], dtype=float))
     tb = tb[sort_idx]
 
-    density = 1 * u.g / u.cm**3
+    # Preserve the raw absorbance and (optionally) replace the working
+    # 'absorbance' column with a baseline-subtracted version.
+    tb['absorbance_raw'] = np.array(tb['absorbance'])
+    if baseline_subtract:
+        wl_um = np.asarray(tb['Wavelength'].to(u.um), dtype=float)
+        tb['absorbance'] = _subtract_bergner_baseline(
+            wl_um, tb['absorbance_raw'], degree=baseline_degree)
+        meta['baseline_subtracted'] = True
+        meta['baseline_anchors_um'] = list(BERGNER_BASELINE_ANCHORS)
+        meta['baseline_degree'] = baseline_degree
+    else:
+        meta['baseline_subtracted'] = False
+
     col_dens = meta.get('column_densities_1e15_per_cm2', {}) or {}
+    density = _bergner_mixture_density(col_dens)
     if col_dens:
         # composition_to_molweight returns mass per molecule (units of u/Da).
         mass_per_area = 0 * u.g / u.cm**2
@@ -3272,10 +3384,15 @@ def read_bergner_file(filename):
                / (4 * np.pi * wavenum_cm * thickness)).decompose()
         tb['k'] = np.asarray(kay)
         meta['ice_layer_depth'] = thickness.to(u.um)
+        meta['ice_density'] = density
         meta['k_comment'] = (
-            'k estimated as A * ln(10) / (4 pi nu d) with d derived from '
-            'the constituent column densities (Bergner+ 2024 Table 3) and '
-            'an assumed bulk density of 1 g/cm^3.'
+            'k estimated as A * ln(10) / (4 pi nu d). Thickness d derived '
+            'from the constituent column densities (Bergner+ 2024 Table 3) '
+            f'with mixture density {density.to(u.g/u.cm**3).value:.3f} g/cm^3 '
+            '(additive-volume mass-weighted mean of low-T per-species '
+            'densities). '
+            + ('Baseline subtracted before k estimate.' if baseline_subtract
+               else 'No baseline subtraction.')
         )
 
     primary_molecule = meta.get('sample')
@@ -3286,7 +3403,7 @@ def read_bergner_file(filename):
     meta['molecule'] = primary_molecule
     meta['author'] = meta.get('author', 'Bergner+Piacentino2024')
     meta['database'] = meta.get('database', 'bergner')
-    meta['density'] = density
+    meta['density'] = density   # bulk-mixture density used in k derivation
     meta['filename'] = filename
 
     tb.meta.update(meta)
