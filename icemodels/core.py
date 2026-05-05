@@ -3079,8 +3079,12 @@ BERGNER_COLUMN_DENSITIES = {
 
 def _parse_bergner_filename(basename):
     """Split a Bergner filename like 'Polar-10-1-1_70K.txt' into
-    (sample_name, temperature_K). Returns (None, None) on failure."""
-    m = re.match(r'(?:bergner_)?(.+)_([0-9]+)K\.txt$', basename)
+    (sample_name, temperature_K). Returns (None, None) on failure.
+
+    Tolerates both bare Zenodo names (``Polar-10-1-1_70K.txt``) and the
+    cached form prefixed with ``bergner_<record_id>_``."""
+    m = re.match(
+        r'(?:bergner_)?(?:[0-9]+_)?(.+)_([0-9]+)K\.txt$', basename)
     if not m:
         return None, None
     sample = m.group(1)
@@ -3232,8 +3236,21 @@ def read_bergner_file(filename):
             BERGNER_COLUMN_DENSITIES.get(meta['sample'], {})
         )
 
-    tb = ascii.read(filename, data_start=data_start, format='csv',
-                    names=['Wavenumber', 'absorbance'])
+    # Bergner Zenodo files use comma OR tab as delimiter (varies between
+    # records). Auto-detect from the first data row.
+    with open(filename, 'r') as fh:
+        for _ in range(data_start):
+            fh.readline()
+        sample_line = fh.readline()
+    if '\t' in sample_line:
+        _delim = '\t'
+    else:
+        _delim = ','
+    tb = ascii.read(filename, data_start=data_start, format='no_header',
+                    delimiter=_delim, names=['Wavenumber', 'absorbance'])
+    # Coerce dtypes in case ascii.read returned object/string columns
+    tb['Wavenumber'] = np.asarray(tb['Wavenumber'], dtype=float)
+    tb['absorbance'] = np.asarray(tb['absorbance'], dtype=float)
     tb['Wavenumber'].unit = u.cm**-1
     tb['Wavelength'] = tb['Wavenumber'].quantity.to(u.um, u.spectral())
 
