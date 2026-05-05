@@ -20,6 +20,53 @@ x = np.linspace(1.24*u.um, 5*u.um, 1000)
 pp_ct06 = np.polyfit(x, CT06_MWGC()(x), 7)
 
 
+def _format_composition_label(composition):
+    """LaTeX-format an ice composition string for legend display.
+
+    Examples
+    --------
+        'CO2 (1)'                     -> 'CO$_2$'
+        'H2O (1)'                     -> 'H$_2$O'
+        'H2O:CO:CO2 (10:1:1)'         -> 'H$_2$O:CO:CO$_2$ (10:1:1)'
+        'CH3OH:SO2 (1:1)'             -> 'CH$_3$OH:SO$_2$ (1:1)'
+        'CO2:CO 10:4'                 -> 'CO$_2$:CO 10:4'
+    Strips trailing ``(1)`` or ``1`` (single-component marker), subscripts
+    digit runs that follow letters, and leaves ratio parentheses untouched.
+    """
+    import re as _re
+    s = str(composition).strip()
+    # Drop a trailing pure-component marker like ' (1)' or ' 1'
+    s = _re.sub(r'\s*\(\s*1\s*\)\s*$', '', s)
+    s = _re.sub(r'\s+1\s*$', '', s)
+    # Subscript digit runs after a letter, but only inside the species
+    # tokens (not inside the trailing ratio parentheses).
+    def _subscript_outside_ratio(match):
+        return _re.sub(r'([A-Za-z])(\d+)', r'\1$_{\2}$', match.group(0))
+
+    paren = _re.search(r'\(.*\)$', s)
+    if paren:
+        head = s[: paren.start()]
+        tail = s[paren.start():]
+        head = _re.sub(r'([A-Za-z])(\d+)', r'\1$_{\2}$', head)
+        return head + tail
+    return _re.sub(r'([A-Za-z])(\d+)', r'\1$_{\2}$', s)
+
+
+def _format_temperature_label(temperature):
+    """Format temperature for legend: append 'K' unit; strip a redundant
+    '.0' on integer-valued temperatures; pass through if already formatted."""
+    s = str(temperature).strip()
+    if s.lower().endswith('k'):
+        return s
+    try:
+        f = float(s)
+        if f == int(f):
+            return f"{int(f)} K"
+        return f"{f:g} K"
+    except ValueError:
+        return s
+
+
 def _resolve_single_mol_id(dmag_tbl, author, composition, temperature, verbose=False):
     """
     Look up a unique mol_id for (author, composition, temperature). The
@@ -221,11 +268,11 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
             ind_icemol2 = np.argmin(np.abs(tb['column'][sel] * mol_frac2 - icemol2_col))
             L, = pl.plot(c1, c2, label=f'{comp} (X$_{{{format_icemol_label(icemol2)}}}$ = {icemol2_col / h2col[ind_icemol2]:0.1e})', **kwargs)
         else:
-            label = comp
+            label = _format_composition_label(comp)
             if label_author:
                 label = label + f' {author}'
             if label_temperature:
-                label = label + f' {temp}'
+                label = label + f' {_format_temperature_label(temp)}'
             L, = pl.plot(c1, c2, label=label, **kwargs)
 
         if column_to_plot_point is not None:
@@ -367,11 +414,11 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
 
         xvals = icemol_col if xaxis == 'icemol' else h2col
 
-        label = comp
+        label = _format_composition_label(comp)
         if label_author:
             label = label + f' {author}'
         if label_temperature:
-            label = label + f' {temp}'
+            label = label + f' {_format_temperature_label(temp)}'
         ax.plot(xvals, yvals, label=label, **kwargs)
 
 
