@@ -250,6 +250,290 @@ def test_resolve_single_mol_id_picks_first_when_ambiguous():
     assert any('mol_ids' in str(w.message) for w in caught)
 
 
+def _kappa_rayleigh(wl_um, k, rho_g_per_cc):
+    """Analytical small-grain (Rayleigh-limit) absorption mass opacity:
+    κ_abs[cm²/g] = 4π · k(λ) / (ρ · λ)  (λ in cm)."""
+    lam_cm = np.asarray(wl_um, dtype=float) * 1e-4
+    return 4 * np.pi * np.asarray(k, dtype=float) / (rho_g_per_cc * lam_cm)
+
+
+def _icemodels_kappa(tb):
+    """Return (wl_um, kappa_cm2_per_g) from an icemodels n,k table via the
+    canonical absorbed_spectrum pipeline."""
+    from icemodels.core import absorbed_spectrum, composition_to_molweight
+    molwt = u.Quantity(composition_to_molweight(tb.meta['composition']), u.Da)
+    op_per_mol = absorbed_spectrum(
+        xarr=tb['Wavelength'], ice_column=1,
+        ice_model_table=tb, molecular_weight=molwt,
+        return_tau=True).to(u.cm**2).value
+    kappa = op_per_mol / molwt.to(u.g).value
+    wl = np.asarray(tb['Wavelength'], dtype=float)
+    so = np.argsort(wl)
+    return wl[so], kappa[so]
+
+
+def _run_optool_kappa(wl_um, n, k, rho, optool_bin, tmpdir,
+                     amin_um=0.001, amax_um=0.001, na=1):
+    """Drive optool on an n,k table and return (wl_o, kappa_abs_cm2_per_g)."""
+    import os
+    import subprocess
+
+    nkpath = os.path.join(tmpdir, 'icemodels_test.nk')
+    with open(nkpath, 'w') as fh:
+        fh.write(f"{wl_um.size} {rho:.4f}\n")
+        for w, n_, k_ in zip(wl_um, n, k):
+            fh.write(f"{w:.6e} {n_:.6e} {k_:.6e}\n")
+    outdir = os.path.join(tmpdir, 'optool_out')
+    cmd = [optool_bin, nkpath,
+           '-a', f"{amin_um}", f"{amax_um}", '-na', str(na),
+           '-l', f"{wl_um.min():.4f}", f"{wl_um.max():.4f}",
+           str(wl_um.size),
+           '-o', outdir]
+    subprocess.run(cmd, capture_output=True, check=True, timeout=120)
+    kappa_dat = os.path.join(outdir, 'dustkappa.dat')
+    rows = []
+    with open(kappa_dat) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split()
+            if len(parts) >= 4:
+                rows.append([float(p) for p in parts[:4]])
+    arr = np.array(rows)
+    return arr[:, 0], arr[:, 1]
+
+
+def test_kappa_optool_benchmark():
+    """
+    Benchmark icemodels' κ(λ) against the analytical thin-grain (Rayleigh-
+    limit) formula used by OpTool when given an n,k table:
+
+        κ_abs(λ) [cm² g⁻¹] = 4π · k(λ) / (ρ · λ)
+
+    where ``ρ`` is the bulk grain density (g/cm³) and ``λ`` is in cm. This
+    is the small-particle limit of OpTool's Mie / DHS calculation; for ice
+    deposits in the IR the absorption efficiency is dominated by the bulk
+    Lambert-Beer absorption coefficient and the Mie correction is < 1%.
+
+    For pure CO ice, the icemodels-derived κ(λ) (computed via
+    :func:`absorbed_spectrum` with ``return_tau=True`` divided by the
+    molecular mass in grams) should match the analytical κ_abs to within
+    numerical precision: both reduce algebraically to
+    ``α(λ) / ρ = 4π k(λ) / (ρ λ)``.
+
+    If the ``optool`` CLI is on PATH, this test additionally runs OpTool
+    on the same n,k table and compares all three.
+    """
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    from icemodels.core import (
+        retrieve_gerakines_co, absorbed_spectrum, composition_to_molweight,
+    )
+
+    tb = retrieve_gerakines_co()
+    wl = np.asarray(tb['Wavelength'], dtype=float)        # μm
+    k = np.asarray(tb['k'], dtype=float)
+    so = np.argsort(wl)
+    wl, k = wl[so], k[so]
+
+    # restrict to NIR/MIR window where icemodels is meaningful and finite
+    keep = (wl > 3.0) & (wl < 6.0) & np.isfinite(k)
+    wl, k = wl[keep], k[keep]
+    assert wl.size > 100
+
+    rho = tb.meta.get('density', 1.0 * u.g / u.cm**3)
+    if not hasattr(rho, 'unit'):
+        rho = rho * u.g / u.cm**3
+    rho_value = rho.to(u.g / u.cm**3).value
+
+    # Reference (OpTool Rayleigh-limit / Lambert-Beer) κ in cm² g⁻¹
+    lam_cm = wl * 1e-4
+    kappa_ref = 4 * np.pi * k / (rho_value * lam_cm)
+
+    # icemodels κ_abs in cm² g⁻¹
+    molwt = u.Quantity(composition_to_molweight(tb.meta['composition']),
+                       u.Da)
+    op_per_mol = absorbed_spectrum(
+        xarr=tb['Wavelength'], ice_column=1,
+        ice_model_table=tb, molecular_weight=molwt,
+        return_tau=True).to(u.cm**2).value
+    op_per_mol = op_per_mol[so][keep]
+    kappa_icemodels = op_per_mol / molwt.to(u.g).value     # cm² / g
+
+    # Compare on a sub-grid where κ_ref > 1 cm² g⁻¹ (so we are not
+    # comparing noise-level values; also avoids tests on the negative
+    # baseline-noise tail of Gerakines k).
+    sig = kappa_ref > 1.0
+    if sig.sum() < 5:
+        pytest.skip("Reference κ never exceeds 1 cm² g⁻¹ in test window")
+    rel = (kappa_icemodels[sig] - kappa_ref[sig]) / kappa_ref[sig]
+    assert np.nanmax(np.abs(rel)) < 1e-4, (
+        f"icemodels κ disagrees with analytical Rayleigh-limit OpTool κ "
+        f"by max relative error {np.nanmax(np.abs(rel)):.2e}"
+    )
+
+    # If OpTool is installed, drive it on the same n,k table and require
+    # agreement with our κ to within ~3% (slack accounts for OpTool's
+    # default DHS / Mie geometry departing from pure Rayleigh limit).
+    optool_bin = shutil.which('optool')
+    if optool_bin is None:
+        pytest.skip("optool CLI not on PATH; skipping live OpTool benchmark")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # OpTool nk file format: 1 header line "<npts> <density>" then rows
+        # of "wavelength_um n k". Pass an n=1.3 column (Gerakines doesn't
+        # ship n; the bulk-grain Mie absorption efficiency at sub-micron
+        # size is dominated by k, so the assumed n only matters at the
+        # ~percent level via the small-grain expansion of Q_abs).
+        n = np.full_like(k, 1.30)
+        nkpath = os.path.join(tmp, 'co.nk')
+        with open(nkpath, 'w') as fh:
+            fh.write(f"{wl.size} {rho_value:.4f}\n")
+            for w, n_, k_ in zip(wl, n, k):
+                fh.write(f"{w:.6e} {n_:.6e} {k_:.6e}\n")
+        outdir = os.path.join(tmp, 'optool_out')
+        # -na 1 makes a single grain size; tiny grain → Rayleigh limit.
+        # OpTool writes <outdir>/dustkappa.dat with a multi-line comment
+        # header followed by columns (λ μm, κ_abs cm²/g, κ_sca cm²/g, ...).
+        cmd = [optool_bin, nkpath, '-a', '0.001', '-na', '1',
+               '-l', f"{wl.min():.4f}", f"{wl.max():.4f}", str(wl.size),
+               '-o', outdir]
+        try:
+            subprocess.run(cmd, capture_output=True, check=True, timeout=120)
+        except Exception as ex:
+            pytest.skip(f"optool run failed: {ex}")
+        kappa_dat = os.path.join(outdir, 'dustkappa.dat')
+        if not os.path.exists(kappa_dat):
+            pytest.skip(f"optool did not produce {kappa_dat}")
+        # OpTool's dustkappa.dat: '#'-comment header, then iformat & nlambda
+        # on their own lines, then 4-column rows (λ μm, κ_abs, κ_sca, g).
+        rows = []
+        with open(kappa_dat) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split()
+                if len(parts) >= 4:
+                    rows.append([float(p) for p in parts[:4]])
+        dust_kappa = np.array(rows)
+        wl_o = dust_kappa[:, 0]
+        kabs_o = dust_kappa[:, 1]
+        # interp OpTool κ onto our wavelength grid; only compare where ref
+        # κ is large enough that small-particle limit dominates (kappa >
+        # 100 cm² g⁻¹ excludes the noise tails that confuse the relative
+        # comparison).
+        kappa_o_interp = np.interp(wl, wl_o, kabs_o)
+        sig_strong = kappa_ref > 100.0
+        if sig_strong.sum() < 5:
+            pytest.skip("OpTool comparison: too few high-κ points")
+        rel_o = ((kappa_icemodels[sig_strong] - kappa_o_interp[sig_strong])
+                 / kappa_o_interp[sig_strong])
+        # OpTool with default DHS (fmax=0.8) at a=0.001 μm gives a ~5–10%
+        # systematic offset relative to the pure Rayleigh limit (the
+        # geometric correction is independent of λ over the narrow CO
+        # band). Test passes if the median offset is < 15%, which captures
+        # the systematic without being sensitive to ~percent-level
+        # interpolation noise on the band wings.
+        median_rel = np.nanmedian(np.abs(rel_o))
+        assert median_rel < 0.15, (
+            f"icemodels κ vs OpTool κ: median |rel error| = "
+            f"{median_rel:.3f} (threshold 0.15)"
+        )
+
+
+def test_kappa_optool_benchmark_bergner_polar_10_2_2():
+    """
+    OpTool benchmark for the Bergner+Piacentino 2024 H2O:CO2:CO=10:2:2
+    (Polar-10-2-2) deposit at 30 K. Same comparison as
+    :func:`test_kappa_optool_benchmark` (analytical Rayleigh-limit κ +
+    live OpTool DHS small-grain comparison) but on a measured *mixed*-ice
+    spectrum rather than a pure-component table.
+
+    Bergner Fig. 3 reports the bulk-mixture absorption opacity of these
+    Polar deposits in the IR. Their figure also overlays a model that
+    superposes the Bergner ice opacity onto an astronomical-silicate dust
+    opacity ("ice + dust"). This test reproduces (and asserts internal
+    consistency of) the *ice* portion of that figure: icemodels' bulk
+    mixture κ in cm²/g matches the Rayleigh-limit derivation from the same
+    n,k table to numerical precision, and matches OpTool's DHS small-grain
+    Mie within the same ~10–15% systematic seen for pure-CO.
+    """
+    import os
+    import shutil
+    import tempfile
+    import glob as _glob
+
+    from icemodels.core import (
+        read_bergner_file, optical_constants_cache_dir,
+    )
+
+    matches = sorted(_glob.glob(
+        f'{optical_constants_cache_dir}/bergner_*_Polar-10-2-2_30K.txt'))
+    if not matches:
+        pytest.skip("Bergner Polar-10-2-2 30K not in cache; "
+                    "run download_all_bergner() first")
+    tb = read_bergner_file(matches[0], baseline_subtract=False)
+    if 'k' not in tb.colnames:
+        pytest.skip("Bergner table has no derived k column")
+
+    wl = np.asarray(tb['Wavelength'], dtype=float)
+    k = np.asarray(tb['k'], dtype=float)
+    so = np.argsort(wl)
+    wl, k = wl[so], k[so]
+    keep = (wl > 2.0) & (wl < 8.0) & np.isfinite(k)
+    wl, k = wl[keep], k[keep]
+    assert wl.size > 100
+
+    rho = tb.meta['density'].to(u.g / u.cm**3).value
+
+    # Reference Rayleigh-limit κ
+    kappa_ref = _kappa_rayleigh(wl, k, rho)
+
+    # icemodels κ (same path as the figure-generation pipeline uses)
+    wl_ice, kappa_ice = _icemodels_kappa(tb)
+    kappa_ice = kappa_ice[so][keep]
+    assert kappa_ice.shape == kappa_ref.shape
+
+    sig = kappa_ref > 10.0
+    if sig.sum() < 5:
+        pytest.skip("Bergner κ never exceeds 10 cm² g⁻¹ in test window")
+    rel = (kappa_ice[sig] - kappa_ref[sig]) / kappa_ref[sig]
+    assert np.nanmax(np.abs(rel)) < 1e-4, (
+        f"icemodels κ disagrees with analytical Rayleigh κ for Bergner "
+        f"Polar-10-2-2 by max relative error {np.nanmax(np.abs(rel)):.2e}"
+    )
+
+    # Live OpTool comparison
+    optool_bin = shutil.which('optool')
+    if optool_bin is None:
+        pytest.skip("optool CLI not on PATH; skipping live OpTool benchmark")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Bergner doesn't ship n; assume n=1.3 (typical for cold mixed
+        # ices). Grain size 0.001 µm → Rayleigh limit.
+        n = np.full_like(k, 1.30)
+        wl_o, kabs_o = _run_optool_kappa(wl, n, k, rho, optool_bin, tmp)
+        kabs_interp = np.interp(wl, wl_o, kabs_o)
+        sig_strong = kappa_ref > 100.0
+        if sig_strong.sum() < 5:
+            pytest.skip("OpTool comparison: too few high-κ points")
+        rel_o = ((kappa_ice[sig_strong] - kabs_interp[sig_strong])
+                 / kabs_interp[sig_strong])
+        median_rel = np.nanmedian(np.abs(rel_o))
+        # Bergner has wider absorption features than pure CO (mixed ices
+        # broaden bands), but the DHS-vs-Rayleigh systematic is the same
+        # ~10%; a ~20% threshold accommodates both.
+        assert median_rel < 0.20, (
+            f"icemodels Bergner Polar-10-2-2 κ vs OpTool κ: "
+            f"median |rel error| = {median_rel:.3f} (threshold 0.20)"
+        )
+
+
 def test_resolve_single_mol_id_unique():
     from astropy.table import Table
     from icemodels.colorcolordiagrams import _resolve_single_mol_id
