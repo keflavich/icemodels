@@ -70,24 +70,21 @@ def _ccd_and_color_vs_column():
                       if not (tuple(c) in seen or seen.add(tuple(c)))]
             for color in colors:
                 pl.figure()
-                try:
-                    plot_color_vs_column(
-                        color, dmag_tbl=dmag_tbl,
-                        molcomps=cfg['molcomps'],
-                        abundance_wrt_h2=cfg['abundance_wrt_h2'],
-                        max_column=cfg['max_column'], icemol=cfg['icemol'],
-                        label_author=cfg.get('label_author', False),
-                        label_temperature=cfg.get('label_temperature', False),
-                        av_start=cfg.get('av_start', 0))
-                    pl.legend(loc='best', fontsize=8)
-                    out2 = os.path.join(
-                        savefig,
-                        f"colorVScolumn_{color[0]}-{color[1]}_mixes3.png")
-                    pl.savefig(out2, bbox_inches='tight', dpi=150)
-                    print('  C-vs-col ->', out2)
-                except Exception as ex:
-                    print(f'  color-vs-col {color}: {ex}')
+                plot_color_vs_column(
+                    color, dmag_tbl=dmag_tbl,
+                    molcomps=cfg['molcomps'],
+                    abundance_wrt_h2=cfg['abundance_wrt_h2'],
+                    max_column=cfg['max_column'], icemol=cfg['icemol'],
+                    label_author=cfg.get('label_author', False),
+                    label_temperature=cfg.get('label_temperature', False),
+                    av_start=cfg.get('av_start', 0))
+                pl.legend(loc='best', fontsize=8)
+                out2 = os.path.join(
+                    savefig,
+                    f"colorVScolumn_{color[0]}-{color[1]}_mixes3.png")
+                pl.savefig(out2, bbox_inches='tight', dpi=150)
                 pl.close()
+                print('  C-vs-col ->', out2)
 
 
 def _diagnostic_seds():

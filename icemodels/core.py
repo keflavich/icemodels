@@ -505,12 +505,7 @@ def read_univap_file(filename, meta_row=None, url=None, use_cached=True, overwri
     consts.meta['temperature'] = int(temperature)
     consts.meta['molecule'] = molname
     consts.meta['composition'] = composition
-    try:
-        consts.meta['molwt'] = composition_to_molweight(composition)
-    except Exception as ex:
-        print(f"Error calculating molwt for {molname}: {ex}")
-        raise
-
+    consts.meta['molwt'] = composition_to_molweight(composition)
     consts.meta['database'] = 'univap'
     consts.meta['filename'] = filename
     if not os.path.exists(filename) or overwrite:
@@ -2549,13 +2544,17 @@ def read_wayback_ice_file(filename):
         return tb
 
     # Try to read the file with different formats
+    from astropy.io.ascii import InconsistentTableError
     tb = None
     for data_start in [0, 1, 2, 3]:
         try:
             tb = ascii.read(filename, data_start=data_start)
             if len(tb) > 0:  # Make sure we got some data
                 break
-        except Exception:
+        except (InconsistentTableError, ValueError, IndexError):
+            # ascii parsers raise these for header/format mismatches; try
+            # the next data_start. Other errors (OSError, MemoryError, ...)
+            # indicate real problems and should propagate.
             continue
 
     if tb is None or len(tb) == 0:
@@ -2879,7 +2878,8 @@ def download_ehrenfreund_NK_wayback(numbers=range(1, 76), redo=False,
     ):
         try:
             rows.extend(_wayback_cdx_search(pattern))
-        except Exception as ex:
+        except (requests.exceptions.RequestException, ValueError) as ex:
+            # Network failures or malformed JSON from CDX: log and skip.
             print(f"  CDX query failed for {pattern}: {ex}")
 
     by_number = {}
@@ -2909,7 +2909,8 @@ def download_ehrenfreund_NK_wayback(numbers=range(1, 76), redo=False,
             wb_url = f'https://web.archive.org/web/{ts}id_/{orig}'
             try:
                 r = sess.get(wb_url, timeout=60)
-            except Exception as ex:
+            except requests.exceptions.RequestException as ex:
+                # Network/timeout/connection errors: try the next snapshot.
                 print(f"  E{n} {ts}: {type(ex).__name__}: {ex}")
                 continue
             if r.status_code != 200 or len(r.content) < 100:

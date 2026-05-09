@@ -224,14 +224,8 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
         author = np.unique(tb['author'])[0]
         tb = tb.loc['temperature', float(temp)]
 
-        try:
-            # molwt = u.Quantity(composition_to_molweight(comp), u.Da)
-            from icemodels.core import molscomps
-            mols, comps = molscomps(comp)
-        except Exception as ex:
-            print(f'Error converting composition {comp} to molwt: {ex}')
-            raise ex
-            continue
+        from icemodels.core import molscomps
+        mols, comps = molscomps(comp)
         if icemol in mols:
             mol_frac = comps[mols.index(icemol)] / sum(comps)
         else:

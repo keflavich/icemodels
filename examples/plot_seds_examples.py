@@ -24,42 +24,35 @@ plt.close()
 
 # Example 2: Single temperature with ice absorption
 print("\nExample 2: Stellar SED with ice absorption")
-try:
-    # Ensure OCDB files are downloaded
-    if not os.path.exists(optical_constants_cache_dir):
-        download_all_ocdb()
-    
-    # Load CO2 ice optical constants from OCDB
-    # Look for any pure CO2 file from Gerakines
-    import glob
+# Ensure OCDB files are downloaded
+if not os.path.exists(optical_constants_cache_dir):
+    download_all_ocdb()
+
+# Load CO2 ice optical constants from OCDB
+import glob
+co2_files = glob.glob(f'{optical_constants_cache_dir}/*_CO2_(1)_*K_Gerakines*.txt')
+if not co2_files:
+    download_all_ocdb()
     co2_files = glob.glob(f'{optical_constants_cache_dir}/*_CO2_(1)_*K_Gerakines*.txt')
-    if not co2_files:
-        # Try downloading again
-        download_all_ocdb()
-        co2_files = glob.glob(f'{optical_constants_cache_dir}/*_CO2_(1)_*K_Gerakines*.txt')
-    
-    if co2_files:
-        ice_file = co2_files[0]
-        print(f"Using ice file: {ice_file}")
-        ice_table = read_ocdb_file(ice_file)
-        
-        fig2, axes2 = plot_stellar_seds(
-            temperatures=4000,
-            filters=['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W'],
-            xarr=xarr,
-            ice_model_table=ice_table,
-            ice_column=1e19 * u.cm**-2,  # ice column density
-            molecular_weight=44*u.Da
-        )
-        plt.savefig('example_stellar_seds_with_ice.png', dpi=150, bbox_inches='tight')
-        print("Saved: example_stellar_seds_with_ice.png")
-        plt.close()
-    else:
-        print("No CO2 ice files found - skipping ice absorption example")
-except Exception as e:
-    import traceback
-    print(f"Could not create ice absorption example: {e}")
-    traceback.print_exc()
+
+if co2_files:
+    ice_file = co2_files[0]
+    print(f"Using ice file: {ice_file}")
+    ice_table = read_ocdb_file(ice_file)
+
+    fig2, axes2 = plot_stellar_seds(
+        temperatures=4000,
+        filters=['JWST/NIRCam.F212N', 'JWST/NIRCam.F444W'],
+        xarr=xarr,
+        ice_model_table=ice_table,
+        ice_column=1e19 * u.cm**-2,
+        molecular_weight=44*u.Da
+    )
+    plt.savefig('example_stellar_seds_with_ice.png', dpi=150, bbox_inches='tight')
+    print("Saved: example_stellar_seds_with_ice.png")
+    plt.close()
+else:
+    print("No CO2 ice files found - skipping ice absorption example")
 
 # Example 3: Stellar SED with extinction
 print("\nExample 3: Stellar SED with interstellar extinction")

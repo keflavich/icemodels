@@ -100,23 +100,29 @@ def load_tables(cache):
                     # temperature = int(float([x for x in spl if 'K' in x][0].strip('K')))
                     temperature = int(tb.meta['temperature'].strip('K'))
                     tbs[('ocdb', idnum, temperature)] = tb
-                    # tbs['ocdb'][idnum][temperature] = tb
-                except Exception as ex:
-                    with open(fn, 'r') as fh:
-                        if 'ocdb' in fh.read().lower():
-                            # print(fn)
-                            continue
-                    try:
-                        tb = read_lida_file(fn)
-                    except ValueError as ex:
-                        if 'Ice thickness is None' in str(ex):
-                            print(f"Ice thickness is None for {fn}")
-                            continue
-                    temperature = float(tb.meta['temperature'].strip('K')) if isinstance(tb.meta['temperature'], str) else tb.meta['temperature']
-                    tbs[('lida', int(tb.meta['index']), temperature)] = tb
-                except Exception as ex:
-                    # print(fn, spl)
                     continue
+                except _PARSE_ERRORS:
+                    pass
+
+                # Not OCDB-parseable — check whether it's an OCDB file at all
+                # (some are partial downloads); if so skip.
+                with open(fn, 'r') as fh:
+                    if 'ocdb' in fh.read().lower():
+                        continue
+
+                # Try LIDA. Only "Ice thickness is None" is a known recoverable
+                # case; anything else from LIDA is a real failure.
+                try:
+                    tb = read_lida_file(fn)
+                except ValueError as ex:
+                    if 'Ice thickness is None' in str(ex):
+                        print(f"Ice thickness is None for {fn}")
+                        continue
+                    raise
+                temperature = (float(tb.meta['temperature'].strip('K'))
+                               if isinstance(tb.meta['temperature'], str)
+                               else tb.meta['temperature'])
+                tbs[('lida', int(tb.meta['index']), temperature)] = tb
 
         # rename columns to k
         for mol, tbs in {'H2O': h2otbs, 'CO': cotbs, 'CO2': co2tbs}.items():
@@ -143,37 +149,41 @@ def tryfloat(x):
         return np.nan
 
 
+_PARSE_ERRORS = (KeyError, ValueError, IndexError, AttributeError)
+# These are the errors the LIDA/OCDB/Univap parsers raise when the file
+# format doesn't match. Other errors (OSError, MemoryError, ImportError)
+# indicate something is genuinely broken and must propagate.
+
+
 def read_table_file(fn):
     try:
         tb = read_lida_file(fn)
         tb.meta['database'] = 'lida'
-    except Exception as ex:
+    except _PARSE_ERRORS:
         try:
             tb = read_ocdb_file(fn)
             tb.meta['database'] = 'ocdb'
             if 'index' not in tb.meta:
                 tb.meta['index'] = int(os.path.basename(fn).split('_')[0])
-        except Exception as ex:
+        except _PARSE_ERRORS:
             try:
                 tb = read_univap_file(fn)
                 tb.meta['database'] = 'univap'
                 if 'index' not in tb.meta:
                     tb.meta['index'] = int(os.path.basename(fn).split('_')[1])
-            except Exception as ex:
+            except _PARSE_ERRORS as ex:
                 print(f"Error reading table {fn}: {ex}")
                 return None
 
+    # 'k' column may have non-numeric strings ("---", "..."). First try the
+    # bulk cast; if that hits ValueError, fall back to a per-row sanitizer.
     try:
         tb['k'] = tb['k'].astype(float)
     except ValueError:
-        try:
-            kk = [tryfloat(x) for x in tb['k']]
-            keep = ~np.isnan(kk)
-            tb = tb[keep]
-            tb['k'] = tb['k'].astype(float)
-        except Exception as ex:
-            print(f"Error reading table {fn}: {ex}")
-            return None
+        kk = [tryfloat(x) for x in tb['k']]
+        keep = ~np.isnan(kk)
+        tb = tb[keep]
+        tb['k'] = tb['k'].astype(float)
 
     return tb
 
@@ -435,15 +445,10 @@ def process_table(args, cmd_x=None, transdata=None):
     print(f"Processing file {molfn}: {mol} with composition {consts.meta['composition']} and molwt {molwt}")
 
     for col in cols:
-        try:
-            spec = absorbed_spectrum(col*u.cm**-2, consts, molecular_weight=molwt,
-                                     spectrum=phx4000['fnu'].quantity,
-                                     xarr=xarr,
-                                     )
-        except Exception as ex:
-            print(f"Error processing file {molfn}: {ex}")
-            print(consts)
-            raise
+        spec = absorbed_spectrum(col*u.cm**-2, consts, molecular_weight=molwt,
+                                 spectrum=phx4000['fnu'].quantity,
+                                 xarr=xarr,
+                                 )
         flxd = fluxes_in_filters(xarr, spec, filterids=cmd_x, transdata=transdata)
 
         # Calculate magnitudes
