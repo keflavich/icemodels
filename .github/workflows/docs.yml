@@ -20,12 +20,12 @@ jobs:
       ICEMODELS_DOCS_PREPARE_SYNPHOT: "1"
       ICEMODELS_DOCS_PREPARE_OCDB: "1"
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.13'
 
@@ -56,6 +56,9 @@ jobs:
 
   deploy:
     needs: build-docs
+    # Only the default branch may deploy to the github-pages environment; on a
+    # pull request this job would fail the protection rules and mark the run red.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
