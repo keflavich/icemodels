@@ -19,7 +19,6 @@ Run as a module:
     python -m icemodels.build_mixes3_with_ocn
 """
 import os
-import sys
 
 import numpy as np
 import astropy.units as u
@@ -28,7 +27,7 @@ from astroquery.svo_fps import SvoFps
 
 from icemodels.core import (
     optical_constants_cache_dir, read_ocdb_file, retrieve_gerakines_co,
-    composition_to_molweight, load_molecule_univap, read_lida_file,
+    load_molecule_univap,
 )
 from icemodels.absorbance_in_filters import (
     make_mixtable, process_table, get_phx4000, xarr, cols, cmd_x_default,
