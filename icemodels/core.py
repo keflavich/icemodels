@@ -810,7 +810,7 @@ def _download_ocdb_dataset_wayback(dataset_id, redo=False):
     with open(filename, 'w') as fh:
         fh.write(f'Reference:\t"{reference_full}"\n')
         fh.write(f'DOI:\t"{doi}"\n')
-        fh.write(f'Sample Type:\t"Ice"\n')
+        fh.write('Sample Type:\t"Ice"\n')
         fh.write(f'Composition:\t"{composition}"\n')
         fh.write(f'Temperature:\t"{temperature}"\n')
         fh.write(f'OCdb page:\t"https://ocdb.smce.nasa.gov/dataset/{dataset_id}"\n')
