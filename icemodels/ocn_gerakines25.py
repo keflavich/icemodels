@@ -8,19 +8,23 @@ Two paths to optical constants are provided:
    anchored to the band strength A' = 1.51e-16 cm molecule^-1 measured by
    Gerakines+25 in H2O+HNCO+NH3 (~10:1:1) at 10 K (Table 1 of the paper),
    then derive n(nu) via Kramers-Kronig (Maclaurin's principal-value method).
-   This is the recommended quick path: it directly uses the Gerakines+25
-   result and a literature band shape, without needing the raw mixed-ice
-   absorbance spectrum (which is not yet released as a digital file).
+   This needs no spectrum at all, only the published band strength and an
+   assumed Gaussian profile.
 
-2. ``make_ocn_table_from_mix_absorbance``: full Hudgins-1993/Rocha-2014/
-   Gerakines-Hudson-2020 thin-film K-K + Fresnel iteration. Requires the
-   raw H2O+HNCO+NH3 absorbance A(nu) plus thickness d, density rho, n0(670),
-   and the substrate index n_s. Subtracts H2O/HNCO/NH3/NH4+ contributions
-   using published n,k (Mastrapa H2O, Hudson 2024 HNCO, LIDA NH3/NH4+),
-   converts the OCN- residual via Beer's law, runs K-K, then iterates the
-   Fresnel three-layer transmission against the measured T = 10^(-A) until
-   k converges.  Implemented using the measured absorbance spectra now
-   shipped as ``HNCO_ices_Gerakines2025.ecsv`` (Cosmic Ice Laboratory).
+2. ``make_ocn_table_from_mix_absorbance``: use the *measured* band profile.
+   The Cosmic Ice Laboratory distributes the three 10 K absorbance spectra
+   behind Gerakines+25 Figures 1-2 as ``Three_HNCO_ices.xlsx``, downloaded on
+   first use by ``download_gerakines2025_ices``. The H2O+HNCO (10:1) ice is
+   the NH3-free control for H2O+HNCO+NH3 (~10:1:1), so differencing the two
+   removes the H2O and HNCO contributions experimentally
+   (``ocn_absorbance_from_mix``) instead of subtracting published n,k for
+   each component. The residual is converted to k by Beer's law and scaled
+   so the band closes on the measured A'; n follows from the same K-K
+   routine. Normalising on A' rather than on the film thickness -- which is
+   not distributed with the spectra -- is equivalent to the thin-film recipe
+   of Hudgins+1993 / Rocha & Pilling 2014 in the weak-absorber (tau << 1)
+   limit, and inherits Gerakines+25's calibration exactly. The full Fresnel
+   three-layer iteration is therefore not needed here and is not performed.
 
 References
 ----------
@@ -78,7 +82,18 @@ def gaussian_k_from_aprime(nu_cm, *, nu0=OCN_BAND_NU0_CM,
 
 def closure_aprime(nu_cm, k, *, density=OCN_MATRIX_DENSITY,
                    molwt=OCN_MOLWT, lo=OCN_INT_LO_CM, hi=OCN_INT_HI_CM):
-    """Recover A' from k(nu) by integrating over [lo, hi] cm^-1."""
+    """
+    Recover A' from k(nu) by integrating over [lo, hi] cm^-1.
+
+    ``nu_cm`` may be in either order: tables in this package are stored
+    wavelength-ascending, i.e. wavenumber-descending, which would otherwise
+    integrate backwards and return a negative band strength.
+    """
+    nu_cm = np.asarray(nu_cm, dtype=float)
+    k = np.asarray(k, dtype=float)
+    order = np.argsort(nu_cm)
+    nu_cm = nu_cm[order]
+    k = k[order]
     sel = (nu_cm >= lo) & (nu_cm <= hi)
     coeff = (4.0 * np.pi * molwt / density).to(u.cm**3).value
     integral = np.trapezoid(nu_cm[sel] * k[sel], nu_cm[sel])
@@ -375,11 +390,13 @@ def make_ocn_table_from_mix_absorbance(*, nu_lo=500.0, nu_hi=4000.0, dnu=0.5,
     k = k_shape * scale
     n = kk_maclaurin(grid, k, n_anchor=n_anchor)
 
+    wl_um = 1e4 / grid
+    order = np.argsort(wl_um)
     tbl = Table()
-    tbl['Wavelength'] = (1e4 / grid) * u.um
-    tbl['Wavenumber'] = grid / u.cm
-    tbl['k'] = k
-    tbl['n'] = n
+    tbl['Wavelength'] = wl_um[order] * u.um
+    tbl['Wavenumber'] = grid[order] / u.cm
+    tbl['k'] = k[order]
+    tbl['n'] = n[order]
     tbl.meta['molecule'] = 'OCN-'
     tbl.meta['composition'] = 'OCN- (1)'
     tbl.meta['author'] = 'Gerakines, Materese & Hudson 2025'
