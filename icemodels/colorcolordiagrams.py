@@ -40,6 +40,7 @@ def _format_composition_label(composition):
     s = _re.sub(r'\s+1\s*$', '', s)
     # Subscript digit runs after a letter, but only inside the species
     # tokens (not inside the trailing ratio parentheses).
+
     def _subscript_outside_ratio(match):
         return _re.sub(r'([A-Za-z])(\d+)', r'\1$_{\2}$', match.group(0))
 
@@ -209,6 +210,7 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
         max_column = max_h2_column * abundance_wrt_h2
 
     dcol = 2
+
     def format_icemol_label(mol):
         import re
         return re.sub(r'(\D)(\d+)', lambda m: f"{m.group(1)}$_{{{m.group(2)}}}$", mol)
@@ -224,7 +226,6 @@ def plot_ccd_icemodels(color1, color2, dmag_tbl, molcomps=None, molids=None,
         author = np.unique(tb['author'])[0]
         tb = tb.loc['temperature', float(temp)]
 
-        from icemodels.core import molscomps
         mols, comps = molscomps(comp)
         if icemol in mols:
             mol_frac = comps[mols.index(icemol)] / sum(comps)
@@ -364,7 +365,6 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
     assert len(molcomps) == len(molids)
     assert len(molcomps) > 0
 
-
     # Store for twinning
     all_icemol_col = None
     all_h2col = None
@@ -415,8 +415,8 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
             label = label + f' {_format_temperature_label(temp)}'
         ax.plot(xvals, yvals, label=label, **kwargs)
 
-
     ax.set_xscale('log')
+
     def format_icemol_label(mol):
         # Replace trailing digits with subscript in LaTeX
         import re
@@ -459,6 +459,7 @@ def plot_color_vs_column(color, dmag_tbl, molcomps=None, molids=None,
     # Add a third axis below for A_V (always linear)
     def h2_to_av(h2):
         return h2 / nh_to_av
+
     def av_to_h2(av):
         return av * nh_to_av
 
@@ -494,6 +495,7 @@ def _fmt_sci(value, digits=1):
     mantissa, exponent = s.split('e')
     exp_int = int(exponent)
     return f"{mantissa}\\times10^{{{exp_int}}}"
+
 
 # Ice-mix sets used in the paper. Mirrors the lists in
 # brick-jwst-2221/brick2221/analysis/make_ccd_with_icemodels.py so
@@ -753,9 +755,9 @@ example_plots = [
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
             ('Bertie', ('H2O (1)', 100)),
-            #('Mastrapa', ('H2O (1)', 100)),
+            # ('Mastrapa', ('H2O (1)', 100)),
             ('Kitta', ('H2O (1)', 23)),
-            #('Mastrapa', ('H2O (1)', 50)),
+            # ('Mastrapa', ('H2O (1)', 50)),
             ('Hudgins', ('H2O (1)', 80)),
             ('Hudgins', ('H2O (1)', 10)),
             ('Léger', ('H2O (1)', 77)),
@@ -779,9 +781,9 @@ example_plots = [
         'molcomps': [
             # ('Curtis', ('H2O (1)', '146K')),
             ('Bertie', ('H2O (1)', 100)),
-            #('Mastrapa', ('H2O (1)', 100)),
+            # ('Mastrapa', ('H2O (1)', 100)),
             ('Kitta', ('H2O (1)', 23)),
-            #('Mastrapa', ('H2O (1)', 50)),
+            # ('Mastrapa', ('H2O (1)', 50)),
             ('Hudgins', ('H2O (1)', 80)),
             ('Hudgins', ('H2O (1)', 10)),
             ('Léger', ('H2O (1)', 77)),

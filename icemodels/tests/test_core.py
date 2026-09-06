@@ -273,7 +273,7 @@ def _icemodels_kappa(tb):
 
 
 def _run_optool_kappa(wl_um, n, k, rho, optool_bin, tmpdir,
-                     amin_um=0.001, amax_um=0.001, na=1):
+                      amin_um=0.001, amax_um=0.001, na=1):
     """Drive optool on an n,k table and return (wl_o, kappa_abs_cm2_per_g)."""
     import os
     import subprocess
@@ -463,7 +463,6 @@ def test_kappa_optool_benchmark_bergner_polar_10_2_2():
     n,k table to numerical precision, and matches OpTool's DHS small-grain
     Mie within the same ~10–15% systematic seen for pure-CO.
     """
-    import os
     import shutil
     import tempfile
     import glob as _glob
